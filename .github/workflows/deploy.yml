@@ -1,0 +1,69 @@
+name: Verify and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vocabulary-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Verify application
+        run: |
+          pnpm test
+          pnpm typecheck
+          pnpm build
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+    steps:
+      - name: Report missing deployment secrets
+        if: env.DEPLOY_SSH_KEY == '' || env.DEPLOY_KNOWN_HOSTS == ''
+        run: echo "Verification passed; deployment is skipped until production secrets are configured."
+
+      - name: Configure SSH
+        if: env.DEPLOY_SSH_KEY != '' && env.DEPLOY_KNOWN_HOSTS != ''
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$RUNNER_TEMP/vocabulary_deploy_key"
+          chmod 600 "$RUNNER_TEMP/vocabulary_deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy production
+        if: env.DEPLOY_SSH_KEY != '' && env.DEPLOY_KNOWN_HOSTS != ''
+        run: |
+          ssh -i "$RUNNER_TEMP/vocabulary_deploy_key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            root@194.87.238.188 \
+            'cd /root/TheVocabularyApp/the-vocabulary-app-web &&
+             git pull --ff-only origin main &&
+             docker compose --env-file .env -f deploy/compose.yml up -d --build --remove-orphans &&
+             docker compose --env-file .env -f deploy/compose.yml ps'
+          curl --fail --silent --show-error \
+            --retry 6 --retry-delay 5 \
+            https://vocabulary.194-87-238-188.sslip.io/api/config > /dev/null

@@ -6,7 +6,7 @@ The project is under initial development. See:
 
 - [`docs/product.md`](docs/product.md) for product behavior.
 - [`docs/architecture.md`](docs/architecture.md) for system boundaries.
-- [`docs/deployment.md`](docs/deployment.md) for the planned RuVDS deployment.
+- [`docs/deployment.md`](docs/deployment.md) for the RuVDS deployment and automatic releases.
 - [`docs/testing.md`](docs/testing.md) for validation policy.
 
 ## Local commands
@@ -21,4 +21,3 @@ pnpm build
 ```
 
 The development server can expose a local-only sign-in button. Production requires Telegram credentials and a public HTTPS origin; required variables are documented in [`docs/deployment.md`](docs/deployment.md).
-

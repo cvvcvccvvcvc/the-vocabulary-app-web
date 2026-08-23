@@ -27,6 +27,6 @@ Vocabulary is a server-backed vocabulary trainer that runs as a responsive web a
 - Keep `docs/` current when behavior or architecture changes.
 - Add focused tests for domain and API behavior.
 - Never edit a real `.env` file. Document required environment variables instead.
-- Do not commit automatically. Commit only after tests pass and the user explicitly approves.
+- After each coherent change, run the relevant checks, create an atomic commit, and push the current branch. Split unrelated changes into separate commits. Skip commit or push only when checks fail or the user explicitly asks not to publish the change.
+- Check `git status` immediately before every commit and never include unrelated user changes.
 - Never run destructive Git operations without explicit written approval.
-
