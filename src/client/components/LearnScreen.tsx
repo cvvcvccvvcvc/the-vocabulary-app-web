@@ -13,6 +13,7 @@ import {
 import { api, ApiError } from "../lib/api.js";
 import { createOperationId } from "../lib/identifier.js";
 import { telegramImpact, telegramNotification } from "../lib/telegram.js";
+import { Icon } from "./Icons.js";
 
 interface PresentedCard {
   wordId: string;
@@ -149,40 +150,53 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
 
   const question = card.direction === "learning-to-known" ? currentWord.learningText : currentWord.meanings.join(" · ");
   const answerText = card.direction === "learning-to-known" ? currentWord.meanings : [currentWord.learningText];
+  const scheduledDueCount = words.filter((word) => isScheduledReviewCandidate(word, new Date())).length;
 
   return (
     <section className="screen learn-screen">
-      <header className="learn-header">
-        <div>
-          <p className="eyebrow">Level {currentWord.level}</p>
-          <h1>Learn</h1>
-        </div>
-        {card.mode === "free" && <span className="free-review-badge">Free Review</span>}
+      <header className="review-mode-header">
+        <span className={card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}>
+          <span aria-hidden="true" />
+          {card.mode === "scheduled" ? "Scheduled Review" : "Free Review"}
+        </span>
+        {card.mode === "scheduled" && <small>{scheduledDueCount} left</small>}
       </header>
 
       <div className="review-stage">
-        <button
-          className={revealed ? "review-card revealed" : "review-card"}
-          type="button"
-          onClick={() => {
-            setRevealed(true);
-            telegramImpact();
-          }}
-        >
-          <span className="card-prompt">{card.direction === "learning-to-known" ? "Recall the meaning" : "Recall the word"}</span>
-          <span className="card-question">{question}</span>
-          {!revealed && <span className="card-hint">Tap to reveal</span>}
-          {revealed && (
-            <span className="card-answer">
-              {answerText.map((meaning) => <strong key={meaning}>{meaning}</strong>)}
-              {currentWord.comment !== "" && <small>{currentWord.comment}</small>}
+        <div className="review-card-shell">
+          <button
+            className={revealed ? "review-card revealed" : "review-card"}
+            type="button"
+            onClick={() => {
+              setRevealed(true);
+              telegramImpact();
+            }}
+          >
+            <span className={card.direction === "learning-to-known" ? "card-question" : "card-question known-question"}>
+              {question}
             </span>
+            {revealed && (
+              <span className="card-answer">
+                {answerText.map((meaning) => <strong key={meaning}>{meaning}</strong>)}
+                {currentWord.comment !== "" && <small>{currentWord.comment}</small>}
+              </span>
+            )}
+          </button>
+          {!revealed && card.direction === "learning-to-known" && (
+            <button
+              className="speaker-button review-card-speaker"
+              type="button"
+              aria-label="Pronounce learning word"
+              onClick={speak}
+            >
+              <Icon name="speaker" />
+            </button>
           )}
-        </button>
+        </div>
 
-        <button className="speak-button" type="button" aria-label="Pronounce learning word" onClick={speak}>
-          Listen
-        </button>
+        {!revealed && (
+          <p className="reveal-hint"><kbd>Space</kbd><span className="desktop-hint"> or </span>tap card to reveal</p>
+        )}
 
         {revealed && (
           <div className="answer-actions">

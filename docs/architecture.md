@@ -33,7 +33,7 @@ Session cookies are HTTP-only, secure in production, and backed by hashed random
 
 SQLite is intentionally used for the first single-server deployment. The database is private to the API process and runs in WAL mode. SQL migrations are ordered files in `migrations/`.
 
-The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names.
+The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names. Language and appearance preferences live in `user_settings` so they follow the authenticated profile across devices.
 
 ## Deployment
 
@@ -46,4 +46,3 @@ Internet -> Caddy :443 -> Vocabulary API
 ```
 
 No database port is exposed. Only HTTPS and restricted administrative access are public.
-

@@ -1,89 +1,129 @@
-import { useState } from "react";
-import type { LanguageSettings } from "../../domain/index.js";
+import { useEffect, useState } from "react";
+import type { LanguageSettings, ThemePreference } from "../../domain/index.js";
+import type { UserProfile } from "../../shared/contracts.js";
 import { api, ApiError } from "../lib/api.js";
-
-const languages = [
-  ["en", "English"],
-  ["ru", "Russian"],
-  ["de", "German"],
-  ["es", "Spanish"],
-  ["fr", "French"],
-  ["it", "Italian"],
-  ["pt", "Portuguese"],
-  ["tr", "Turkish"],
-  ["uk", "Ukrainian"],
-  ["zh", "Chinese"],
-  ["ja", "Japanese"],
-  ["ko", "Korean"],
-] as const;
+import { languages } from "../lib/languages.js";
+import { Icon } from "./Icons.js";
 
 interface SettingsScreenProps {
   settings: LanguageSettings;
+  user: UserProfile;
   onUpdated(settings: LanguageSettings): void;
   onLogout(): Promise<void>;
 }
 
-export function SettingsScreen({ settings, onUpdated, onLogout }: SettingsScreenProps) {
+export function SettingsScreen({ settings, user, onUpdated, onLogout }: SettingsScreenProps) {
   const [draft, setDraft] = useState(settings);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  async function save(): Promise<void> {
+  useEffect(() => setDraft(settings), [settings]);
+
+  async function save(next: LanguageSettings): Promise<void> {
+    setDraft(next);
     setSaving(true);
     setMessage(null);
     try {
-      const updated = await api.updateSettings(draft);
+      const updated = await api.updateSettings(next);
       onUpdated(updated);
-      setMessage("Settings saved");
     } catch (error) {
+      setDraft(settings);
       setMessage(error instanceof ApiError ? error.message : "Could not save settings");
     } finally {
       setSaving(false);
     }
   }
 
+  function changeLanguage(field: "learningLanguage" | "knownLanguage", value: string): void {
+    const otherField = field === "learningLanguage" ? "knownLanguage" : "learningLanguage";
+    const next = { ...draft, [field]: value };
+    if (next[field] === next[otherField]) {
+      next[otherField] = draft[field];
+    }
+    void save(next);
+  }
+
+  function changeTheme(theme: ThemePreference): void {
+    if (theme === draft.theme) return;
+    void save({ ...draft, theme });
+  }
+
   return (
     <section className="screen settings-screen">
-      <header className="screen-header compact-header">
-        <p className="eyebrow">Your learning setup</p>
-        <h1>Settings</h1>
-      </header>
+      <h1 className="mobile-screen-title">Settings</h1>
 
-      <div className="settings-card">
-        <div className="language-grid">
-          <label className="field-label">
-            I’m learning
-            <select value={draft.learningLanguage} onChange={(event) => setDraft((current) => ({ ...current, learningLanguage: event.target.value }))}>
+      <div className="settings-stack">
+        <section className="settings-card">
+          <header>
+            <h2>Languages</h2>
+            <p>Controls card labels and speaker voice.</p>
+          </header>
+          <label className="settings-select">
+            <span>I’m learning</span>
+            <select
+              value={draft.learningLanguage}
+              disabled={saving}
+              onChange={(event) => changeLanguage("learningLanguage", event.target.value)}
+            >
               {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
             </select>
           </label>
-          <label className="field-label">
-            I know
-            <select value={draft.knownLanguage} onChange={(event) => setDraft((current) => ({ ...current, knownLanguage: event.target.value }))}>
+          <label className="settings-select">
+            <span>I know</span>
+            <select
+              value={draft.knownLanguage}
+              disabled={saving}
+              onChange={(event) => changeLanguage("knownLanguage", event.target.value)}
+            >
               {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
             </select>
           </label>
-        </div>
+        </section>
 
-        {draft.learningLanguage === draft.knownLanguage && (
-          <p className="notice notice-error">Choose two different languages.</p>
-        )}
-        {message !== null && <p className={message === "Settings saved" ? "notice notice-success" : "notice notice-error"}>{message}</p>}
-        <button className="primary-button" type="button" disabled={saving || draft.learningLanguage === draft.knownLanguage} onClick={() => void save()}>
-          {saving ? "Saving…" : "Save Settings"}
-        </button>
-      </div>
+        <section className="settings-card appearance-card">
+          <header>
+            <h2>Appearance</h2>
+            <p>Choose how Vocabulary looks on every device.</p>
+          </header>
+          <div className="theme-picker" aria-label="Appearance">
+            {([
+              ["system", "System", "settings"],
+              ["light", "Light", "sun"],
+              ["dark", "Dark", "moon"],
+            ] as const).map(([value, label, icon]) => (
+              <button
+                key={value}
+                className={draft.theme === value ? "theme-option active" : "theme-option"}
+                type="button"
+                disabled={saving}
+                aria-pressed={draft.theme === value}
+                onClick={() => changeTheme(value)}
+              >
+                <Icon name={icon} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
-      <div className="account-card">
-        <div>
-          <h2>Account</h2>
-          <p className="muted">Your vocabulary is stored in your server profile.</p>
-        </div>
-        <button className="secondary-button" type="button" onClick={() => void onLogout()}>
-          Sign out
-        </button>
+        <section className="settings-card account-card">
+          <div className="account-person">
+            <span className="profile-avatar">
+              {user.photoUrl ? <img src={user.photoUrl} alt="" /> : user.displayName.slice(0, 1)}
+            </span>
+            <span>
+              <strong>{user.displayName}</strong>
+              <small>{user.username === null ? "Telegram account" : `@${user.username}`}</small>
+            </span>
+          </div>
+          <button className="secondary-button" type="button" onClick={() => void onLogout()}>
+            Sign out
+          </button>
+        </section>
+
+        {saving && <p className="settings-status">Saving…</p>}
+        {message !== null && <p className="notice notice-error">{message}</p>}
       </div>
     </section>
   );
 }
-

@@ -1,48 +1,63 @@
 import type { ReactNode } from "react";
-import type { UserProfile } from "../../shared/contracts.js";
+import { Icon, type IconName } from "./Icons.js";
 
 export type Section = "learn" | "add" | "words" | "settings";
 
-const sections: Array<{ id: Section; label: string; shortLabel: string }> = [
-  { id: "learn", label: "Learn", shortLabel: "Learn" },
-  { id: "add", label: "Add Word", shortLabel: "Add" },
-  { id: "words", label: "Words", shortLabel: "Words" },
-  { id: "settings", label: "Settings", shortLabel: "Settings" },
+const sections: Array<{ id: Section; label: string; shortLabel: string; icon: IconName; mobileIcon: IconName }> = [
+  { id: "learn", label: "Learn", shortLabel: "Learn", icon: "learn", mobileIcon: "learn" },
+  { id: "add", label: "Add Word", shortLabel: "Add", icon: "add", mobileIcon: "addCircle" },
+  { id: "words", label: "Words", shortLabel: "Words", icon: "list", mobileIcon: "book" },
+  { id: "settings", label: "Settings", shortLabel: "Settings", icon: "settings", mobileIcon: "settings" },
 ];
 
 interface ShellProps {
   activeSection: Section;
-  user: UserProfile;
+  theme: "light" | "dark";
   children: ReactNode;
   onSectionChange(section: Section): void;
+  onThemeToggle(): void;
 }
 
-export function Shell({ activeSection, user, children, onSectionChange }: ShellProps) {
+export function Shell({ activeSection, theme, children, onSectionChange, onThemeToggle }: ShellProps) {
+  const title = sections.find((section) => section.id === activeSection)?.label ?? "Vocabulary";
+
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <span className="sidebar-mark">V</span>
-          <span>Vocabulary</span>
+      <header className="desktop-titlebar">
+        <div className="traffic-lights" aria-hidden="true">
+          <span /><span /><span />
         </div>
+        <div className="titlebar-controls">
+          <span className="titlebar-icon"><Icon name="sidebar" /></span>
+          <button
+            className={activeSection === "settings" ? "titlebar-icon active" : "titlebar-icon"}
+            type="button"
+            aria-label="Settings"
+            onClick={() => onSectionChange("settings")}
+          >
+            <Icon name="settings" />
+          </button>
+        </div>
+        <strong>{title}</strong>
+        <button className="appearance-toggle" type="button" aria-label="Toggle appearance" onClick={onThemeToggle}>
+          <Icon name={theme === "dark" ? "sun" : "moon"} />
+        </button>
+      </header>
+
+      <aside className="sidebar">
         <nav className="sidebar-navigation" aria-label="Main navigation">
-          {sections.map((section) => (
+          {sections.filter((section) => section.id !== "settings").map((section) => (
             <button
               key={section.id}
               className={section.id === activeSection ? "nav-item active" : "nav-item"}
               type="button"
               onClick={() => onSectionChange(section.id)}
             >
+              <Icon name={section.icon} />
               {section.label}
             </button>
           ))}
         </nav>
-        <div className="profile-chip">
-          <span className="profile-avatar">
-            {user.photoUrl ? <img src={user.photoUrl} alt="" /> : user.displayName.slice(0, 1)}
-          </span>
-          <span className="profile-name">{user.displayName}</span>
-        </div>
       </aside>
 
       <main className="main-content">{children}</main>
@@ -55,11 +70,13 @@ export function Shell({ activeSection, user, children, onSectionChange }: ShellP
             type="button"
             onClick={() => onSectionChange(section.id)}
           >
-            {section.shortLabel}
+            <span className="bottom-nav-selection">
+              <Icon name={section.mobileIcon} />
+              <span>{section.shortLabel}</span>
+            </span>
           </button>
         ))}
       </nav>
     </div>
   );
 }
-

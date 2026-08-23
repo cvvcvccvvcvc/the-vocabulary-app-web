@@ -24,7 +24,24 @@ export function App() {
   const [section, setSection] = useState<Section>("learn");
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+  );
   const [telegramLaunch] = useState(() => initializeTelegram()?.initData ?? "");
+
+  useEffect(() => {
+    const preference = application?.settings.theme ?? "system";
+    const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = (): void => {
+      const nextTheme = preference === "system" ? (colorScheme.matches ? "dark" : "light") : preference;
+      document.documentElement.dataset.theme = nextTheme;
+      setResolvedTheme(nextTheme);
+    };
+
+    applyTheme();
+    colorScheme.addEventListener("change", applyTheme);
+    return () => colorScheme.removeEventListener("change", applyTheme);
+  }, [application?.settings.theme]);
 
   const loadApplication = useCallback(async (): Promise<void> => {
     const bootstrap = await api.bootstrap();
@@ -95,11 +112,13 @@ export function App() {
     case "add":
       content = (
         <AddWordScreen
+          settings={application.settings}
           onCreated={(word) =>
             setApplication((current) =>
               current === null ? current : { ...current, words: [...current.words, word] },
             )
           }
+          onViewWords={() => setSection("words")}
         />
       );
       break;
@@ -107,6 +126,7 @@ export function App() {
       content = (
         <WordsScreen
           words={application.words}
+          settings={application.settings}
           onUpdated={updateWord}
           onDeleted={(wordId) =>
             setApplication((current) =>
@@ -122,6 +142,7 @@ export function App() {
       content = (
         <SettingsScreen
           settings={application.settings}
+          user={application.user}
           onUpdated={(settings) =>
             setApplication((current) => (current === null ? current : { ...current, settings }))
           }
@@ -146,11 +167,16 @@ export function App() {
   return (
     <Shell
       activeSection={section}
-      user={application.user}
+      theme={resolvedTheme}
       onSectionChange={setSection}
+      onThemeToggle={() => {
+        const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+        void api.updateSettings({ ...application.settings, theme: nextTheme }).then((settings) => {
+          setApplication((current) => (current === null ? current : { ...current, settings }));
+        }).catch(() => undefined);
+      }}
     >
       {content}
     </Shell>
   );
 }
-

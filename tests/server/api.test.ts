@@ -114,6 +114,37 @@ describe("Vocabulary API", () => {
     expect(second.json<VocabularyWord>().correctCount).toBe(1);
   });
 
+  it("persists language and theme settings in the user profile", async () => {
+    const response = await server.app.inject({
+      method: "PUT",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: {
+        learningLanguage: "de",
+        knownLanguage: "en",
+        theme: "dark",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      learningLanguage: "de",
+      knownLanguage: "en",
+      theme: "dark",
+    });
+
+    const bootstrap = await server.app.inject({
+      method: "GET",
+      url: "/api/bootstrap",
+      headers: { cookie },
+    });
+    expect(bootstrap.json<{ settings: unknown }>().settings).toEqual({
+      learningLanguage: "de",
+      knownLanguage: "en",
+      theme: "dark",
+    });
+  });
+
   it("isolates users at the repository and API boundary", async () => {
     await server.app.inject({
       method: "POST",
@@ -139,4 +170,3 @@ describe("Vocabulary API", () => {
     expect(response.json<{ words: VocabularyWord[] }>().words).toEqual([]);
   });
 });
-

@@ -39,8 +39,8 @@ export const settingsSchema = z
   .object({
     learningLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
     knownLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
+    theme: z.enum(["system", "light", "dark"]),
   })
   .refine((value) => value.learningLanguage !== value.knownLanguage, {
     message: "Learning and known languages must be different",
   });
-

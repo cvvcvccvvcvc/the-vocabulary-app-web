@@ -10,6 +10,7 @@ Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, bro
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
 - Browser speech synthesis for the learning-language side.
+- A light, dark, or device-matched appearance stored in the user's profile.
 - Server-side persistence and user isolation.
 
 Automatic translation, external dictionary lookup, offline mutation replay, reminders, statistics, tags, and decks are deferred until the core online experience is proven.
@@ -35,5 +36,4 @@ The first side is chosen randomly. Every subsequent presentation of the same wor
 
 ## Data ownership
 
-Each Telegram identity maps to one internal Vocabulary account. A new user receives an empty account. All words, settings, and sessions are scoped to that internal account.
-
+Each Telegram identity maps to one internal Vocabulary account. A new user receives an empty account. All words, language and appearance settings, and sessions are scoped to that internal account. There is no separate device-sync control: authenticated devices read and write the same server profile.
