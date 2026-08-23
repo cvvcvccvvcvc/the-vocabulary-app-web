@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Install dependencies
@@ -48,17 +48,27 @@ jobs:
         if: env.DEPLOY_SSH_KEY != '' && env.DEPLOY_KNOWN_HOSTS != ''
         run: |
           install -m 700 -d "$HOME/.ssh"
-          printf '%s\n' "$DEPLOY_SSH_KEY" > "$RUNNER_TEMP/vocabulary_deploy_key"
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > "$RUNNER_TEMP/vocabulary_deploy_key"
           chmod 600 "$RUNNER_TEMP/vocabulary_deploy_key"
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" | tr -d '\r' > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
+          if ! ssh-keygen -y -f "$RUNNER_TEMP/vocabulary_deploy_key" > /dev/null 2>&1; then
+            echo "::error title=Invalid DEPLOY_SSH_KEY::Replace the secret with the complete private key, including its header and footer."
+            exit 1
+          fi
+          if ! ssh-keygen -F 194.87.238.188 -f "$HOME/.ssh/known_hosts" > /dev/null; then
+            echo "::error title=Invalid DEPLOY_KNOWN_HOSTS::Replace the secret with the complete ssh-keyscan output for 194.87.238.188."
+            exit 1
+          fi
 
       - name: Deploy production
         if: env.DEPLOY_SSH_KEY != '' && env.DEPLOY_KNOWN_HOSTS != ''
         run: |
           ssh -i "$RUNNER_TEMP/vocabulary_deploy_key" \
             -o BatchMode=yes \
+            -o ConnectTimeout=15 \
             -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
             root@194.87.238.188 \
             'cd /root/TheVocabularyApp/the-vocabulary-app-web &&
              git pull --ff-only origin main &&

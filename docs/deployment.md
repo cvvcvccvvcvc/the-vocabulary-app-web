@@ -41,7 +41,7 @@ Create a dedicated key on a trusted local computer:
 ssh-keygen -t ed25519 -f ./vocabulary_deploy_key -N '' -C github-actions-vocabulary
 cat ./vocabulary_deploy_key.pub | ssh root@194.87.238.188 \
   'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'
-ssh-keyscan -H -t ed25519 194.87.238.188 > ./vocabulary_known_hosts
+ssh-keyscan -H 194.87.238.188 2>/dev/null > ./vocabulary_known_hosts
 ~~~
 
 Before trusting the scanned host key, compare its fingerprint with the server:
@@ -63,6 +63,8 @@ Create the following secrets in the GitHub <code>production</code> environment:
 GitHub path: **Repository Settings → Environments → production → Environment secrets**.
 
 After creating the secrets, open **Actions → Verify and deploy → Run workflow** once. Later pushes to <code>main</code> deploy automatically.
+
+If deployment reports <code>Host key verification failed</code>, regenerate <code>vocabulary_known_hosts</code> with the command above and replace the complete <code>DEPLOY_KNOWN_HOSTS</code> secret. Do not paste the fingerprint printed by <code>ssh-keygen -lf</code>; GitHub needs the original <code>ssh-keyscan</code> lines.
 
 Keep <code>vocabulary_deploy_key</code> private. It grants SSH access as <code>root</code>; replace it and remove the old public key from <code>authorized_keys</code> if the private key or GitHub repository is compromised.
 
