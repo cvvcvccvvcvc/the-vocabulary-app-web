@@ -1035,8 +1035,8 @@ button.titlebar-icon.active {
 
 .detail-edit-form {
   display: grid;
-  margin-bottom: 28px;
-  gap: 22px;
+  margin-bottom: 32px;
+  gap: 34px;
 }
 
 .detail-edit-field,
@@ -1046,43 +1046,87 @@ button.titlebar-icon.active {
   margin: 0;
   padding: 0;
   border: 0;
-  gap: 8px;
+  gap: 10px;
+}
+
+.detail-edit-meanings {
+  position: relative;
 }
 
 .detail-edit-field input,
 .detail-edit-field textarea,
 .detail-meaning-row input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--input-border);
-  border-radius: 9px;
-  background: var(--input);
+  padding: 9px 0 13px;
+  border: 0;
+  border-bottom: 1px solid var(--input-border);
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  transition: border-color 150ms ease;
 }
 
-.detail-edit-field textarea {
+.detail-edit-field input:focus,
+.detail-edit-field textarea:focus,
+.detail-meaning-row input:focus {
+  border-bottom-color: var(--accent);
+}
+
+.detail-learning-input {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.detail-meaning-row input {
+  font-size: 20px;
+}
+
+.detail-comment-field textarea {
+  min-height: 132px;
   resize: vertical;
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.5;
 }
 
 .detail-meaning-row {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.detail-meaning-row button,
-.add-meaning-text-button {
-  border: 0;
-  color: var(--accent);
-  background: transparent;
+.add-meaning-button,
+.remove-meaning-button {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--secondary);
+  background: var(--floating);
+  place-items: center;
 }
 
-.detail-meaning-row button {
-  width: 36px;
+.add-meaning-button {
+  position: absolute;
+  top: -13px;
+  right: 0;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 6%);
+}
+
+.add-meaning-button svg {
+  width: 23px;
+  height: 23px;
+}
+
+.remove-meaning-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex: 0 0 auto;
   font-size: 20px;
-}
-
-.add-meaning-text-button {
-  justify-self: start;
-  padding: 5px 0;
 }
 
 /* Settings */
@@ -1587,6 +1631,7 @@ button.titlebar-icon.active {
     min-width: 44px;
     height: 44px;
     padding: 0 12px;
+    border: 1px solid var(--border);
     border-radius: 23px;
     background: var(--floating);
     box-shadow: 0 8px 24px rgb(0 0 0 / 6%);
@@ -1619,6 +1664,24 @@ button.titlebar-icon.active {
     gap: 0;
   }
 
+  .detail-toolbar.editing {
+    gap: 9px;
+  }
+
+  .detail-toolbar.editing .cancel-button {
+    min-width: auto;
+    padding-inline: 16px;
+  }
+
+  .detail-toolbar.editing .mobile-detail-title {
+    max-width: max(30px, calc(100% - 322px));
+  }
+
+  .detail-toolbar.editing .toolbar-button.primary {
+    color: var(--text);
+    background: var(--floating);
+  }
+
   .detail-toolbar-actions .toolbar-button:first-child {
     border-radius: 23px 0 0 23px;
   }
@@ -1634,6 +1697,26 @@ button.titlebar-icon.active {
   .detail-content {
     max-width: none;
     padding: 28px 22px 34px;
+  }
+
+  .word-detail.editing .detail-content {
+    padding: 40px clamp(22px, 5vw, 30px) 34px;
+  }
+
+  .app-shell:has(.word-detail.editing) .bottom-navigation {
+    display: none;
+  }
+
+  .app-shell:has(.word-detail.editing) .detail-open {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app-shell:has(.word-detail.editing) .word-detail {
+    min-height: 100svh;
+  }
+
+  .word-detail.editing .detail-comment-field textarea {
+    resize: none;
   }
 
   .detail-learning-value {
@@ -1707,6 +1790,12 @@ button.titlebar-icon.active {
   .level-card {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+}
+
+@media (max-width: 350px) {
+  .detail-toolbar.editing .mobile-detail-title {
+    display: none;
   }
 }
 

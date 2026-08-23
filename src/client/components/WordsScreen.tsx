@@ -169,34 +169,37 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   }
 
   return (
-    <section className="word-detail">
-      <header className="detail-toolbar">
-        <button className="toolbar-button back-button" type="button" onClick={onBack}>
+    <section className={editing ? "word-detail editing" : "word-detail"}>
+      <header className={editing ? "detail-toolbar editing" : "detail-toolbar"}>
+        <button className="toolbar-button back-button" type="button" aria-label="Back to words" onClick={onBack}>
           <Icon name="back" /> <span>Back</span>
         </button>
-        <strong className="mobile-detail-title">{word.learningText}</strong>
+        {editing && (
+          <button className="toolbar-button cancel-button" type="button" onClick={cancelEditing}>Cancel</button>
+        )}
+        <strong className="mobile-detail-title">{editing ? learningText || word.learningText : word.learningText}</strong>
         <div className="detail-toolbar-actions">
           {editing ? (
+            <button className="toolbar-button primary" type="submit" form="word-edit-form" disabled={!canSave || saving}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          ) : (
             <>
-              <button className="toolbar-button" type="button" onClick={cancelEditing}>Cancel</button>
-              <button className="toolbar-button primary" type="button" disabled={!canSave || saving} onClick={() => void save()}>
-                {saving ? "Saving…" : "Save"}
+              <button className="toolbar-button primary" type="button" onClick={() => setEditing(true)}>
+                <Icon name="edit" /> <span>Edit</span>
+              </button>
+              <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
+                <Icon name="delete" /> <span>Delete</span>
               </button>
             </>
-          ) : (
-            <button className="toolbar-button primary" type="button" onClick={() => setEditing(true)}>
-              <Icon name="edit" /> <span>Edit</span>
-            </button>
           )}
-          <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
-            <Icon name="delete" /> <span>Delete</span>
-          </button>
         </div>
       </header>
 
       <div className="detail-content">
         {editing ? (
           <form
+            id="word-edit-form"
             className="detail-edit-form"
             onSubmit={(event) => {
               event.preventDefault();
@@ -205,10 +208,26 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
           >
             <label className="detail-edit-field">
               <span>{languageName(settings.learningLanguage)}</span>
-              <input value={learningText} maxLength={300} onChange={(event) => setLearningText(event.target.value)} />
+              <input
+                className="detail-learning-input"
+                value={learningText}
+                maxLength={300}
+                autoFocus
+                onChange={(event) => setLearningText(event.target.value)}
+              />
             </label>
             <fieldset className="detail-edit-meanings">
               <legend>{languageName(settings.knownLanguage)}</legend>
+              {meanings.length < 8 && (
+                <button
+                  className="add-meaning-button"
+                  type="button"
+                  aria-label="Add meaning"
+                  onClick={() => setMeanings((current) => [...current, ""])}
+                >
+                  <Icon name="add" />
+                </button>
+              )}
               {meanings.map((meaning, index) => (
                 <div className="detail-meaning-row" key={index}>
                   <input
@@ -220,19 +239,14 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
                     }
                   />
                   {meanings.length > 1 && (
-                    <button type="button" aria-label={`Remove meaning ${index + 1}`} onClick={() => setMeanings((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                    <button className="remove-meaning-button" type="button" aria-label={`Remove meaning ${index + 1}`} onClick={() => setMeanings((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
                       −
                     </button>
                   )}
                 </div>
               ))}
-              {meanings.length < 8 && (
-                <button className="add-meaning-text-button" type="button" onClick={() => setMeanings((current) => [...current, ""])}>
-                  + Add meaning
-                </button>
-              )}
             </fieldset>
-            <label className="detail-edit-field">
+            <label className="detail-edit-field detail-comment-field">
               <span>Comment</span>
               <textarea rows={5} maxLength={12_000} value={comment} onChange={(event) => setComment(event.target.value)} />
             </label>
