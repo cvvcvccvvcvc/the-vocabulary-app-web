@@ -555,6 +555,17 @@ button.titlebar-icon.active {
   width: 100%;
 }
 
+.review-card-drag-layer {
+  position: relative;
+  width: 100%;
+  will-change: transform;
+}
+
+.review-card-drag-layer.returning,
+.review-card-drag-layer.exiting {
+  transition: transform 190ms cubic-bezier(0.22, 0.72, 0.24, 1);
+}
+
 .review-card {
   position: relative;
   display: flex;
@@ -578,6 +589,20 @@ button.titlebar-icon.active {
 
 .review-card:active {
   transform: scale(0.996);
+}
+
+.review-card.revealed {
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.review-card-drag-layer.dragging .review-card.revealed {
+  cursor: grabbing;
+}
+
+.review-card-drag-layer.dragging .review-card:active {
+  transform: none;
 }
 
 .card-question {
@@ -619,6 +644,7 @@ button.titlebar-icon.active {
 
 .review-card-speaker {
   position: absolute;
+  z-index: 3;
   bottom: 32px;
   left: 50%;
   transform: translateX(-50%);
@@ -702,7 +728,8 @@ button.titlebar-icon.active {
   white-space: pre-wrap;
 }
 
-.reveal-hint {
+.reveal-hint,
+.swipe-hint {
   position: absolute;
   top: 100%;
   left: 50%;
@@ -723,18 +750,41 @@ button.titlebar-icon.active {
   font-weight: 600;
 }
 
-.answer-actions {
+.swipe-feedback {
   position: absolute;
-  top: 100%;
-  left: 0;
-  display: grid;
-  width: 100%;
-  margin-top: 20px;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  z-index: 2;
+  top: 22px;
+  padding: 5px 9px;
+  border: 2px solid currentColor;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  pointer-events: none;
+  text-transform: uppercase;
+  transition: opacity 80ms linear;
 }
 
-.mobile-reveal-hint {
+.swipe-feedback.wrong {
+  left: 24px;
+  color: var(--danger);
+  transform: rotate(-7deg);
+}
+
+.swipe-feedback.correct {
+  right: 24px;
+  color: var(--success);
+  transform: rotate(7deg);
+}
+
+.review-card-drag-layer.swiping-left .swipe-feedback.wrong,
+.review-card-drag-layer.swiping-right .swipe-feedback.correct {
+  opacity: var(--swipe-progress);
+}
+
+.mobile-reveal-hint,
+.mobile-swipe-hint {
   display: none;
 }
 
@@ -743,27 +793,6 @@ button.titlebar-icon.active {
   top: calc(100% + 80px);
   width: 100%;
 }
-
-.wrong-button,
-.correct-button {
-  min-height: 44px;
-  border-radius: 10px;
-  background: transparent;
-  font-weight: 600;
-}
-
-.wrong-button {
-  border: 1px solid rgb(217 48 37 / 25%);
-  color: var(--danger);
-}
-
-.correct-button {
-  border: 1px solid rgb(31 157 60 / 28%);
-  color: var(--success);
-}
-
-.wrong-button:hover { background: var(--danger-soft); }
-.correct-button:hover { background: var(--success-soft); }
 
 .centered-screen {
   display: grid;
@@ -1621,7 +1650,8 @@ button.titlebar-icon.active {
     top: 62%;
   }
 
-  .reveal-hint {
+  .reveal-hint,
+  .swipe-hint {
     margin-top: 22px;
     font-size: 12px;
   }
@@ -1631,17 +1661,13 @@ button.titlebar-icon.active {
     display: none;
   }
 
-  .mobile-reveal-hint {
+  .mobile-reveal-hint,
+  .mobile-swipe-hint {
     display: inline;
   }
 
-  .answer-actions {
-    gap: 10px;
-  }
-
-  .wrong-button,
-  .correct-button {
-    font-size: 14px;
+  .desktop-swipe-hint {
+    display: none;
   }
 
   /* Words mobile */

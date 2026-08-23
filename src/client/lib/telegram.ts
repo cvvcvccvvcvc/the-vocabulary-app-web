@@ -1,6 +1,7 @@
 interface TelegramWebApp {
   initData: string;
   colorScheme: "light" | "dark";
+  platform?: string;
   isFullscreen?: boolean;
   ready(): void;
   expand(): void;
@@ -41,7 +42,11 @@ export function initializeTelegram(): TelegramWebApp | null {
     webApp.ready();
     webApp.expand();
     setTelegramAppearance(webApp.colorScheme);
-    if (webApp.requestFullscreen !== undefined && (webApp.isVersionAtLeast?.("8.0") ?? true) && !webApp.isFullscreen) {
+    const isMobilePlatform = webApp.platform === "ios" || webApp.platform?.startsWith("android") === true;
+    if (isMobilePlatform
+      && webApp.requestFullscreen !== undefined
+      && (webApp.isVersionAtLeast?.("8.0") ?? true)
+      && !webApp.isFullscreen) {
       webApp.requestFullscreen();
     }
   }
