@@ -1,0 +1,32 @@
+# AGENTS.md
+
+Vocabulary is a server-backed vocabulary trainer that runs as a responsive web app and as a Telegram Mini App.
+
+## Product rules
+
+- Use the product name **Vocabulary** only.
+- One saved word is one review card.
+- A card contains learning-language text, one to eight ordered meanings, and an optional comment.
+- Levels are integers from 0 through 9. New cards start at level 0.
+- Scheduled Review is always served before Free Review.
+- Free Review never changes a card's level or next scheduled date.
+- The server is the canonical store. Every user-owned query must be scoped by the authenticated internal user ID.
+
+## Architecture rules
+
+- `src/domain` is pure TypeScript. It must not import React, Fastify, SQLite, Telegram APIs, or browser APIs.
+- `src/client` owns presentation and device-specific interaction.
+- `src/server` owns authentication, persistence, authorization, and authoritative review updates.
+- `src/shared` contains only transport contracts shared by client and server.
+- Inject the clock and random generator into scheduling code. Do not hide `Date.now()` or unseeded randomness inside domain algorithms.
+- Validate Telegram identity on the server. Never trust `initDataUnsafe` or a client-supplied Telegram user ID.
+- Prefer the smallest sufficient change and native platform conventions. Do not introduce a monorepo, background queue, cache layer, or new service without a concrete need.
+
+## Workflow
+
+- Keep `docs/` current when behavior or architecture changes.
+- Add focused tests for domain and API behavior.
+- Never edit a real `.env` file. Document required environment variables instead.
+- Do not commit automatically. Commit only after tests pass and the user explicitly approves.
+- Never run destructive Git operations without explicit written approval.
+
