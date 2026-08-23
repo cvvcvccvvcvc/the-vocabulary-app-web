@@ -44,6 +44,7 @@ export function initializeTelegram(): TelegramWebApp | null {
   const webApp = window.Telegram?.WebApp ?? null;
   if (webApp !== null) {
     document.documentElement.dataset.telegram = "true";
+    document.documentElement.dataset.telegramPlatform = isMobileTelegramPlatform(webApp) ? "mobile" : "desktop";
     document.documentElement.dataset.colorScheme = webApp.colorScheme;
     webApp.ready();
     webApp.expand();
