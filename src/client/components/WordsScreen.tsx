@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
-import { Icon } from "./Icons.js";
+import { Icon, type IconName } from "./Icons.js";
 
 type WordsSort = "recent" | "alphabetical" | "level";
+
+const sortOptions = [
+  { value: "recent", label: "Date added", shortLabel: "Added", icon: "clock" },
+  { value: "alphabetical", label: "A–Z", shortLabel: "A–Z", icon: "alphabetical" },
+  { value: "level", label: "Level 0–9", shortLabel: "Level", icon: "level" },
+] as const satisfies ReadonlyArray<{ value: WordsSort; label: string; shortLabel: string; icon: IconName }>;
 
 interface WordsScreenProps {
   words: VocabularyWord[];
@@ -16,8 +22,11 @@ interface WordsScreenProps {
 export function WordsScreen({ words, settings, onUpdated, onDeleted }: WordsScreenProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<WordsSort>("recent");
+  const [sortOpen, setSortOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
+  const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     const matches = normalized === ""
@@ -44,7 +53,6 @@ export function WordsScreen({ words, settings, onUpdated, onDeleted }: WordsScre
   return (
     <section className={selected === null ? "screen words-screen" : "screen words-screen detail-open"}>
       <div className="words-list-pane">
-        <h1 className="mobile-screen-title">Words</h1>
         <div className="words-controls">
           <label className="search-control">
             <Icon name="search" />
@@ -55,14 +63,53 @@ export function WordsScreen({ words, settings, onUpdated, onDeleted }: WordsScre
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <label className="sort-control">
-            <Icon name="sort" />
-            <select value={sort} aria-label="Sort words" onChange={(event) => setSort(event.target.value as WordsSort)}>
-              <option value="recent">Recent</option>
-              <option value="alphabetical">A–Z</option>
-              <option value="level">Level</option>
-            </select>
-          </label>
+          <div
+            className="sort-menu"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setSortOpen(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              setSortOpen(false);
+              sortTrigger.current?.focus();
+            }}
+          >
+            <button
+              ref={sortTrigger}
+              className={sortOpen ? "sort-trigger open" : "sort-trigger"}
+              type="button"
+              aria-label={`Sort words: ${activeSort.label}`}
+              aria-haspopup="menu"
+              aria-expanded={sortOpen}
+              onClick={() => setSortOpen((open) => !open)}
+            >
+              <Icon name="sort" />
+              <span className="sort-trigger-label">{activeSort.shortLabel}</span>
+              <span className="sort-chevron" aria-hidden="true">⌄</span>
+            </button>
+            {sortOpen && (
+              <div className="sort-popover" role="menu" aria-label="Sort words">
+                {sortOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    className={sort === option.value ? "sort-option active" : "sort-option"}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={sort === option.value}
+                    onClick={() => {
+                      setSort(option.value);
+                      setSortOpen(false);
+                      sortTrigger.current?.focus();
+                    }}
+                  >
+                    <Icon name={option.icon} />
+                    <span>{option.label}</span>
+                    <span className="sort-option-check" aria-hidden="true">✓</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="words-list">

@@ -7,6 +7,8 @@ interface TelegramWebApp {
   expand(): void;
   isVersionAtLeast?(version: string): boolean;
   requestFullscreen?(): void;
+  enableVerticalSwipes?(): void;
+  disableVerticalSwipes?(): void;
   setBackgroundColor?(color: string): void;
   setHeaderColor?(color: string): void;
   HapticFeedback?: {
@@ -26,6 +28,10 @@ const telegramColors = {
   dark: "#1e1e1e",
 } as const;
 
+function isMobileTelegramPlatform(webApp: TelegramWebApp): boolean {
+  return webApp.platform === "ios" || webApp.platform?.startsWith("android") === true;
+}
+
 export function setTelegramAppearance(theme: "light" | "dark"): void {
   const webApp = window.Telegram?.WebApp;
   if (webApp === undefined || webApp.isVersionAtLeast?.("6.1") === false) return;
@@ -42,8 +48,7 @@ export function initializeTelegram(): TelegramWebApp | null {
     webApp.ready();
     webApp.expand();
     setTelegramAppearance(webApp.colorScheme);
-    const isMobilePlatform = webApp.platform === "ios" || webApp.platform?.startsWith("android") === true;
-    if (isMobilePlatform
+    if (isMobileTelegramPlatform(webApp)
       && webApp.requestFullscreen !== undefined
       && (webApp.isVersionAtLeast?.("8.0") ?? true)
       && !webApp.isFullscreen) {
@@ -51,6 +56,18 @@ export function initializeTelegram(): TelegramWebApp | null {
     }
   }
   return webApp;
+}
+
+export function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
+  const webApp = window.Telegram?.WebApp;
+  if (webApp === undefined
+    || !isMobileTelegramPlatform(webApp)
+    || webApp.isVersionAtLeast?.("7.7") === false) return;
+  if (enabled) {
+    webApp.enableVerticalSwipes?.();
+  } else {
+    webApp.disableVerticalSwipes?.();
+  }
 }
 
 export function telegramImpact(style: "light" | "medium" | "heavy" = "light"): void {

@@ -50,8 +50,6 @@ export function SettingsScreen({ settings, user, onUpdated, onLogout }: Settings
 
   return (
     <section className="screen settings-screen">
-      <h1 className="mobile-screen-title">Settings</h1>
-
       <div className="settings-stack">
         <section className="settings-card">
           <header>

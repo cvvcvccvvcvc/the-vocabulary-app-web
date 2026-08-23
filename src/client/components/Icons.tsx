@@ -3,11 +3,14 @@ import type { SVGProps } from "react";
 export type IconName =
   | "add"
   | "addCircle"
+  | "alphabetical"
   | "back"
   | "book"
+  | "clock"
   | "delete"
   | "edit"
   | "learn"
+  | "level"
   | "list"
   | "moon"
   | "search"
@@ -25,11 +28,14 @@ export function Icon({ name, ...props }: IconProps) {
   const paths: Record<IconName, React.ReactNode> = {
     add: <><path d="M12 5v14M5 12h14" /></>,
     addCircle: <><circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" /><path d="M12 7.5v9M7.5 12h9" stroke="var(--background)" /></>,
+    alphabetical: <><path d="M3 18 7 6l4 12M4.5 14h5M14 6h7l-7 12h7" /></>,
     back: <><path d="m15 18-6-6 6-6" /></>,
     book: <><path d="M5 4.5h10a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2v-13Zm2 12h10M9 8h5m-5 3h5" /></>,
+    clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>,
     delete: <><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6" /></>,
     edit: <><path d="m4 20 4.2-1 10.6-10.6-3.2-3.2L5 15.8 4 20Zm10-13 3 3" /></>,
     learn: <><path d="M5 7.5h14v12H5zM7 4.5h10M8 2.5h8" /></>,
+    level: <><path d="M5 19V14m7 5V9m7 10V4M3 19h18" /></>,
     list: <><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></>,
     moon: <><path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></>,
     search: <><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></>,

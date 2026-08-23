@@ -259,7 +259,6 @@ button.titlebar-icon.active {
   min-height: calc(100vh - var(--titlebar-height));
 }
 
-.mobile-screen-title,
 .mobile-detail-title {
   display: none;
 }
@@ -854,12 +853,12 @@ button.titlebar-icon.active {
   display: grid;
   padding: 14px 18px;
   border-bottom: 1px solid var(--separator);
-  grid-template-columns: minmax(180px, 1fr) 128px;
+  grid-template-columns: minmax(180px, 1fr) 154px;
   gap: 10px;
 }
 
 .search-control,
-.sort-control {
+.sort-trigger {
   position: relative;
   display: flex;
   height: 38px;
@@ -874,7 +873,7 @@ button.titlebar-icon.active {
 }
 
 .search-control svg,
-.sort-control svg {
+.sort-trigger svg {
   width: 19px;
   height: 19px;
   margin-left: 11px;
@@ -882,8 +881,7 @@ button.titlebar-icon.active {
   flex: 0 0 auto;
 }
 
-.search-control input,
-.sort-control select {
+.search-control input {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -897,9 +895,106 @@ button.titlebar-icon.active {
   opacity: 0.55;
 }
 
-.sort-control select {
-  padding-left: 8px;
+.sort-menu {
+  position: relative;
+}
+
+.sort-trigger {
+  width: 100%;
+  padding: 0 11px;
+  justify-content: flex-start;
+  gap: 7px;
+  color: var(--secondary);
+  font-size: 13px;
   font-weight: 600;
+}
+
+.sort-trigger:hover,
+.sort-trigger.open {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.sort-trigger:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px rgb(10 132 255 / 32%);
+}
+
+.sort-trigger-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sort-chevron {
+  margin-left: auto;
+  color: var(--tertiary);
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-2px);
+}
+
+.sort-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: 190px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--floating);
+  box-shadow: 0 14px 38px rgb(0 0 0 / 14%);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  gap: 2px;
+}
+
+.sort-option {
+  display: grid;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text);
+  background: transparent;
+  align-items: center;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 10px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.sort-option svg {
+  width: 17px;
+  height: 17px;
+  color: var(--secondary);
+}
+
+.sort-option:hover {
+  background: var(--hover);
+}
+
+.sort-option.active {
+  color: var(--accent);
+  background: rgb(10 132 255 / 9%);
+}
+
+.sort-option.active svg {
+  color: var(--accent);
+}
+
+.sort-option-check {
+  opacity: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sort-option.active .sort-option-check {
+  opacity: 1;
 }
 
 .words-list {
@@ -984,7 +1079,7 @@ button.titlebar-icon.active {
 }
 
 .empty-list {
-  padding: 40px 16px;
+  padding: 28px 16px;
   color: var(--secondary);
   text-align: center;
 }
@@ -1453,15 +1548,6 @@ button.titlebar-icon.active {
     padding-bottom: calc(96px + var(--app-safe-bottom));
   }
 
-  .mobile-screen-title {
-    display: block;
-    margin-bottom: 26px;
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    text-align: center;
-  }
-
   .bottom-navigation {
     position: fixed;
     z-index: 50;
@@ -1692,7 +1778,7 @@ button.titlebar-icon.active {
   }
 
   .search-control,
-  .sort-control {
+  .sort-trigger {
     height: 48px;
     border: 0;
     border-radius: 24px;
@@ -1710,26 +1796,52 @@ button.titlebar-icon.active {
     font-size: 16px;
   }
 
-  .sort-control {
+  .sort-menu {
+    height: 48px;
+  }
+
+  .sort-trigger {
     display: grid;
+    padding: 0;
     place-items: center;
   }
 
-  .sort-control svg {
+  .sort-trigger:focus-visible {
+    box-shadow: 0 9px 24px rgb(0 0 0 / 5%), inset 0 0 0 2px rgb(10 132 255 / 32%);
+  }
+
+  .sort-trigger svg {
     width: 24px;
     height: 24px;
     margin: 0;
   }
 
-  .sort-control select {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
+  .sort-trigger-label,
+  .sort-chevron {
+    display: none;
+  }
+
+  .sort-popover {
+    top: calc(100% + 9px);
+    width: 210px;
+    padding: 7px;
+    border-radius: 16px;
+  }
+
+  .sort-option {
+    min-height: 44px;
+    padding-inline: 12px;
+    border-radius: 10px;
+    font-size: 14px;
   }
 
   .words-list {
     max-width: none;
-    padding: 26px 0 0;
+    padding: 4px 0 0;
+  }
+
+  .empty-list {
+    padding: 12px 16px;
   }
 
   .word-row {

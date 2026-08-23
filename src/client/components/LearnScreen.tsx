@@ -21,7 +21,7 @@ import {
 import { api, ApiError } from "../lib/api.js";
 import { createOperationId } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
-import { telegramImpact, telegramNotification } from "../lib/telegram.js";
+import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
 
 interface PresentedCard {
@@ -70,6 +70,11 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   const [swipePhase, setSwipePhase] = useState<SwipePhase>("idle");
   const [pendingAnswer, setPendingAnswer] = useState<boolean | null>(null);
   const currentWord = words.find((word) => word.id === card?.wordId) ?? null;
+
+  useEffect(() => {
+    setTelegramVerticalSwipesEnabled(false);
+    return () => setTelegramVerticalSwipesEnabled(true);
+  }, []);
 
   const resetSwipe = useCallback(() => {
     swipeSession.current = null;

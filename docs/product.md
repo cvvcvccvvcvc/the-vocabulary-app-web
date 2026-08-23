@@ -5,13 +5,14 @@ Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, bro
 ## First release
 
 - Telegram identity shared by the website and Telegram Mini App.
-- Responsive Learn, Add Word, Words, and Settings sections.
+- Responsive Learn, Add Word, Words, and Settings sections; mobile Words and Settings begin directly with their primary content instead of redundant page titles.
 - Centered review cards with compact labeled question and answer sides.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only.
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
-- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; desktop keyboard arrows remain available.
+- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; desktop keyboard arrows remain available. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
+- Words can be searched and sorted by date added, A–Z, or learning level from a compact custom menu.
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
