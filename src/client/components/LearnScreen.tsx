@@ -22,6 +22,7 @@ import { api, ApiError } from "../lib/api.js";
 import { createOperationId } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
+import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
 
 interface PresentedCard {
@@ -55,6 +56,19 @@ const SWIPE_DISTANCE_RATIO = 0.27;
 const SWIPE_MIN_FAST_DISTANCE = 36;
 const SWIPE_VELOCITY_THRESHOLD = 0.65;
 
+const REVIEW_HELP_ITEMS = {
+  scheduled: [
+    { marker: "↻", tone: "accent", title: "Due words first", detail: "Scheduled Review serves words when their learning interval is due." },
+    { marker: "↑", tone: "success", title: "Answers change the level", detail: "Correct moves up; wrong moves down to a shorter interval." },
+    { marker: "→", tone: "neutral", title: "Then Free Review", detail: "Free Review begins when no scheduled words remain." },
+  ],
+  free: [
+    { marker: "↝", tone: "accent", title: "All saved words", detail: "Free Review starts after the scheduled queue is empty." },
+    { marker: "↑", tone: "neutral", title: "Weaker words first", detail: "Lower-level, older, and recently missed words appear more often." },
+    { marker: "—", tone: "neutral", title: "Practice only", detail: "Levels and next-review dates do not change; recent cards are held back." },
+  ],
+} as const satisfies Record<ReviewMode, readonly HelpPopoverItem[]>;
+
 export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   const random = useRef(new SystemRandomSource());
   const freePicker = useRef(new FreeReviewPicker());
@@ -69,6 +83,8 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   const [swipeThreshold, setSwipeThreshold] = useState(90);
   const [swipePhase, setSwipePhase] = useState<SwipePhase>("idle");
   const [pendingAnswer, setPendingAnswer] = useState<boolean | null>(null);
+  const [modeHelpOpen, setModeHelpOpen] = useState(false);
+  const modeHelp = useDismissiblePopover<HTMLElement>(modeHelpOpen, setModeHelpOpen);
   const currentWord = words.find((word) => word.id === card?.wordId) ?? null;
 
   useEffect(() => {
@@ -304,12 +320,30 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
 
   return (
     <section className="screen learn-screen">
-      <header className="review-mode-header">
-        <span className={card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}>
+      <header
+        ref={modeHelp}
+        className="review-mode-header"
+      >
+        <button
+          className={card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={modeHelpOpen}
+          aria-controls="review-mode-help"
+          onClick={() => setModeHelpOpen((open) => !open)}
+        >
           <span aria-hidden="true" />
           {card.mode === "scheduled" ? "Scheduled Review" : "Free Review"}
-        </span>
+        </button>
         {card.mode === "scheduled" && <small>{scheduledDueCount} left</small>}
+        {modeHelpOpen && (
+          <HelpPopover
+            id="review-mode-help"
+            label={`${card.mode === "scheduled" ? "Scheduled" : "Free"} Review details`}
+            items={REVIEW_HELP_ITEMS[card.mode]}
+            className="review-mode-help"
+          />
+        )}
       </header>
 
       <div className="review-stage">

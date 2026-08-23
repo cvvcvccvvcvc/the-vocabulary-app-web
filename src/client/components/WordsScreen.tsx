@@ -2,9 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
+import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon, type IconName } from "./Icons.js";
 
 type WordsSort = "recent" | "alphabetical" | "level";
+const EDIT_SAVE_GUARD_MS = 400;
+const LEVEL_HELP_ITEMS = [
+  { marker: "✓", tone: "success", title: "Correct answer", detail: "Moves this word up one level." },
+  { marker: "×", tone: "danger", title: "Wrong answer", detail: "Moves this word down one level." },
+  { marker: "0–9", tone: "accent", title: "Learning interval", detail: "New words start at 0. Higher levels wait longer; level 9 is the maximum." },
+] as const satisfies readonly HelpPopoverItem[];
 
 const sortOptions = [
   { value: "recent", label: "Date added", shortLabel: "Added", icon: "clock" },
@@ -161,12 +168,15 @@ interface WordDetailProps {
 }
 
 function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetailProps) {
+  const editStartedAt = useRef(Number.NEGATIVE_INFINITY);
   const [editing, setEditing] = useState(false);
   const [learningText, setLearningText] = useState(word.learningText);
   const [meanings, setMeanings] = useState(word.meanings);
   const [comment, setComment] = useState(word.comment);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [levelHelpOpen, setLevelHelpOpen] = useState(false);
+  const levelHelp = useDismissiblePopover<HTMLDivElement>(levelHelpOpen, setLevelHelpOpen);
   const canSave = learningText.trim() !== "" && meanings.some((meaning) => meaning.trim() !== "");
 
   function speak(): void {
@@ -186,7 +196,7 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   }
 
   async function save(): Promise<void> {
-    if (!canSave || saving) return;
+    if (!canSave || saving || performance.now() - editStartedAt.current < EDIT_SAVE_GUARD_MS) return;
     setSaving(true);
     setMessage(null);
     try {
@@ -232,7 +242,14 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
             </button>
           ) : (
             <>
-              <button className="toolbar-button primary" type="button" onClick={() => setEditing(true)}>
+              <button
+                className="toolbar-button primary"
+                type="button"
+                onClick={() => {
+                  editStartedAt.current = performance.now();
+                  setEditing(true);
+                }}
+              >
                 <Icon name="edit" /> <span>Edit</span>
               </button>
               <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
@@ -322,14 +339,34 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
           </div>
         )}
 
-        <div className="level-card">
-          <div>
-            <span className="detail-label">Level&nbsp; <span aria-label="Levels range from zero to nine">?</span></span>
-            <p>Level {word.level} <small>of 9</small></p>
-          </div>
-          <div className="level-progress" aria-label={`Level ${word.level} of 9`}>
-            <span style={{ width: `${(word.level / 9) * 100}%` }} />
-          </div>
+        <div
+          ref={levelHelp}
+          className="level-help"
+        >
+          <button
+            className="level-card"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={levelHelpOpen}
+            aria-controls="level-help-popover"
+            onClick={() => setLevelHelpOpen((open) => !open)}
+          >
+            <span>
+              <span className="detail-label">Level</span>
+              <span className="level-value">Level {word.level} <small>of 9</small></span>
+            </span>
+            <span className="level-progress" aria-label={`Level ${word.level} of 9`}>
+              <span style={{ width: `${(word.level / 9) * 100}%` }} />
+            </span>
+          </button>
+          {levelHelpOpen && (
+            <HelpPopover
+              id="level-help-popover"
+              label="Level details"
+              items={LEVEL_HELP_ITEMS}
+              className="level-help-popover"
+            />
+          )}
         </div>
 
         {message !== null && <p className="notice notice-error">{message}</p>}

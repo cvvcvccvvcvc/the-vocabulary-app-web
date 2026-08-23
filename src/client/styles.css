@@ -496,7 +496,7 @@ button.titlebar-icon.active {
 
 .review-mode-header {
   position: absolute;
-  z-index: 2;
+  z-index: 20;
   inset: 18px 0 auto;
   display: flex;
   align-items: center;
@@ -515,12 +515,18 @@ button.titlebar-icon.active {
   align-items: center;
   gap: 7px;
   padding: 5px 10px;
+  border: 0;
   border-radius: 999px;
   color: var(--secondary);
   background: var(--badge);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.review-mode-badge:hover,
+.review-mode-badge[aria-expanded="true"] {
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .review-mode-badge > span {
@@ -1192,33 +1198,37 @@ button.titlebar-icon.active {
   white-space: pre-wrap;
 }
 
+.level-help {
+  position: relative;
+  margin-top: 4px;
+}
+
 .level-card {
   display: grid;
-  margin-top: 4px;
+  width: 100%;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 13px;
+  color: var(--text);
+  background: transparent;
   grid-template-columns: auto minmax(130px, 1fr);
   align-items: center;
   gap: 30px;
+  text-align: left;
 }
 
-.level-card .detail-label > span {
-  display: inline-grid;
-  width: 15px;
-  height: 15px;
-  border: 1px solid var(--secondary);
-  border-radius: 50%;
-  font-size: 10px;
-  place-items: center;
+.level-card:hover,
+.level-card[aria-expanded="true"] {
+  background: var(--hover);
 }
 
-.level-card p {
+.level-value {
+  display: block;
   margin-top: 7px;
   font-size: 18px;
 }
 
-.level-card p small {
+.level-value small {
   color: var(--secondary);
 }
 
@@ -1234,6 +1244,83 @@ button.titlebar-icon.active {
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
+}
+
+.help-popover {
+  z-index: 60;
+  display: grid;
+  width: min(316px, calc(100vw - 44px));
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--floating);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 16%);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  backdrop-filter: blur(24px) saturate(1.25);
+  gap: 14px;
+  text-align: left;
+  text-transform: none;
+}
+
+.help-popover-row {
+  display: grid;
+  align-items: start;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.help-popover-row > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.help-popover-row strong,
+.help-popover-row small {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.help-popover-row strong {
+  font-weight: 650;
+}
+
+.help-popover-row small {
+  color: var(--secondary);
+  font-weight: 400;
+}
+
+.help-popover-marker {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  place-items: center;
+}
+
+.help-popover-marker.accent { background: var(--accent); }
+.help-popover-marker.success { background: var(--success); }
+.help-popover-marker.danger { background: var(--danger); }
+
+.help-popover-marker.neutral {
+  color: var(--secondary);
+  background: var(--badge);
+}
+
+.review-mode-help {
+  margin-top: 5px;
+}
+
+.level-help-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
 }
 
 .detail-edit-form {
@@ -1605,6 +1692,9 @@ button.titlebar-icon.active {
 
   .add-screen {
     display: flex;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
     padding: max(16px, var(--app-safe-top)) 18px calc(96px + var(--app-safe-bottom));
   }
 
@@ -1612,15 +1702,18 @@ button.titlebar-icon.active {
     position: relative;
     display: grid;
     width: min(100%, 540px);
-    min-height: calc(100svh - 112px - var(--app-safe-bottom));
+    height: 100%;
+    min-height: 0;
     margin: 0 auto;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     gap: 18px;
   }
 
   .add-card {
     width: 100%;
+    max-height: 100%;
     min-height: 330px;
+    overflow-y: auto;
     padding: 30px 22px;
     align-self: center;
     border-radius: 18px;
@@ -2036,6 +2129,10 @@ button.titlebar-icon.active {
 }
 
 @media (max-width: 850px) {
+  :root[data-telegram-platform="mobile"] .review-mode-header {
+    top: max(96px, calc(var(--app-safe-top) + 48px));
+  }
+
   :root[data-telegram-platform="mobile"] .words-screen,
   :root[data-telegram-platform="mobile"] .settings-screen {
     padding-top: max(96px, calc(var(--app-safe-top) + 48px));
