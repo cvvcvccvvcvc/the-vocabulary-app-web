@@ -6,11 +6,13 @@ Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, bro
 
 - Telegram identity shared by the website and Telegram Mini App.
 - Responsive Learn, Add Word, Words, and Settings sections.
+- Centered review cards with compact labeled question and answer sides.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only.
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
 - Browser speech synthesis for the learning-language side.
+- Best-effort fullscreen presentation inside supported Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
 - Server-side persistence and user isolation.
 

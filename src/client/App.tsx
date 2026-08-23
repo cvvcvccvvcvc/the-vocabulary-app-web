@@ -8,7 +8,7 @@ import { SettingsScreen } from "./components/SettingsScreen.js";
 import { Shell, type Section } from "./components/Shell.js";
 import { WordsScreen } from "./components/WordsScreen.js";
 import { api, ApiError } from "./lib/api.js";
-import { initializeTelegram } from "./lib/telegram.js";
+import { initializeTelegram, setTelegramAppearance } from "./lib/telegram.js";
 
 interface ApplicationData {
   user: UserProfile;
@@ -36,6 +36,7 @@ export function App() {
       const nextTheme = preference === "system" ? (colorScheme.matches ? "dark" : "light") : preference;
       document.documentElement.dataset.theme = nextTheme;
       setResolvedTheme(nextTheme);
+      setTelegramAppearance(nextTheme);
     };
 
     applyTheme();

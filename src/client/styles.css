@@ -24,6 +24,8 @@
   --success-soft: rgb(31 157 60 / 10%);
   --titlebar-height: 64px;
   --sidebar-width: 220px;
+  --app-safe-top: max(env(safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px));
+  --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-content-safe-area-inset-bottom, 0px));
 }
 
 :root[data-theme="dark"] {
@@ -539,6 +541,7 @@ button.titlebar-icon.active {
 }
 
 .review-stage {
+  position: relative;
   display: flex;
   width: min(620px, calc(100% - 80px));
   margin: auto;
@@ -621,19 +624,77 @@ button.titlebar-icon.active {
   transform: translateX(-50%);
 }
 
-.card-answer {
+.review-card-speaker.revealed {
+  right: 52px;
+  bottom: auto;
+  left: auto;
+  transform: none;
+}
+
+.review-card-speaker.learning-first {
+  top: 28%;
+}
+
+.review-card-speaker.learning-second {
+  top: 63%;
+}
+
+.card-reveal {
   display: grid;
   width: min(100%, 460px);
-  margin-top: 26px;
-  padding-top: 22px;
-  border-top: 1px solid var(--separator);
-  gap: 7px;
-  font-size: 21px;
+  justify-items: center;
+  gap: 16px;
   text-align: center;
 }
 
-.card-answer small {
-  margin-top: 8px;
+.card-reveal-side,
+.card-side-values {
+  display: grid;
+  width: 100%;
+  justify-items: center;
+}
+
+.card-reveal-side {
+  gap: 8px;
+}
+
+.card-side-values {
+  gap: 4px;
+}
+
+.card-side-label {
+  color: var(--secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.card-side-value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+.card-side-value.learning {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.card-side-value.known {
+  font-size: 27px;
+  font-weight: 500;
+}
+
+.card-reveal-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--separator);
+}
+
+.card-reveal-comment {
+  margin-top: 3px;
   color: var(--secondary);
   font-size: 14px;
   font-style: italic;
@@ -642,10 +703,15 @@ button.titlebar-icon.active {
 }
 
 .reveal-hint {
+  position: absolute;
+  top: 100%;
+  left: 50%;
   margin-top: 22px;
   color: var(--tertiary);
   font-size: 13px;
   font-weight: 500;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
 .reveal-hint kbd {
@@ -658,11 +724,24 @@ button.titlebar-icon.active {
 }
 
 .answer-actions {
+  position: absolute;
+  top: 100%;
+  left: 0;
   display: grid;
   width: 100%;
   margin-top: 20px;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.mobile-reveal-hint {
+  display: none;
+}
+
+.review-stage > .notice {
+  position: absolute;
+  top: calc(100% + 80px);
+  width: 100%;
 }
 
 .wrong-button,
@@ -1342,7 +1421,7 @@ button.titlebar-icon.active {
 
   .screen {
     min-height: 100svh;
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    padding-bottom: calc(96px + var(--app-safe-bottom));
   }
 
   .mobile-screen-title {
@@ -1357,7 +1436,7 @@ button.titlebar-icon.active {
   .bottom-navigation {
     position: fixed;
     z-index: 50;
-    inset: auto 18px calc(10px + env(safe-area-inset-bottom));
+    inset: auto 18px calc(10px + var(--app-safe-bottom));
     display: grid;
     min-height: 68px;
     padding: 4px;
@@ -1411,14 +1490,14 @@ button.titlebar-icon.active {
 
   .add-screen {
     display: flex;
-    padding: max(16px, env(safe-area-inset-top)) 18px calc(96px + env(safe-area-inset-bottom));
+    padding: max(16px, var(--app-safe-top)) 18px calc(96px + var(--app-safe-bottom));
   }
 
   .add-form {
     position: relative;
     display: grid;
     width: min(100%, 540px);
-    min-height: calc(100svh - 112px - env(safe-area-inset-bottom));
+    min-height: calc(100svh - 112px - var(--app-safe-bottom));
     margin: 0 auto;
     grid-template-rows: 1fr auto;
     gap: 18px;
@@ -1463,7 +1542,7 @@ button.titlebar-icon.active {
   .add-toast {
     position: fixed;
     z-index: 45;
-    bottom: calc(160px + env(safe-area-inset-bottom));
+    bottom: calc(160px + var(--app-safe-bottom));
     left: 50%;
     max-width: calc(100vw - 48px);
     transform: translateX(-50%);
@@ -1473,34 +1552,73 @@ button.titlebar-icon.active {
   /* Learn mobile */
 
   .review-mode-header {
-    top: max(22px, env(safe-area-inset-top));
+    top: max(22px, calc(var(--app-safe-top) + 8px));
   }
 
   .review-stage {
-    width: min(100% - 36px, 540px);
-    padding: 88px 0 calc(80px + env(safe-area-inset-bottom));
+    width: min(calc(100% - 44px), 320px);
+    padding: 104px 0 calc(64px + var(--app-safe-bottom));
   }
 
   .review-card {
-    min-height: 190px;
-    padding: 30px 28px;
+    min-height: 180px;
+    padding: 26px 24px;
     border-radius: 15px;
   }
 
   .review-card.revealed {
-    min-height: 260px;
+    min-height: 250px;
   }
 
   .card-question {
-    font-size: clamp(32px, 10vw, 46px);
+    font-size: 27px;
   }
 
   .card-question.known-question {
-    font-size: clamp(26px, 8vw, 34px);
+    font-size: 24px;
+  }
+
+  .card-reveal {
+    gap: 14px;
+  }
+
+  .card-reveal-side {
+    gap: 7px;
+  }
+
+  .card-side-label {
+    font-size: 10px;
+  }
+
+  .card-side-value.learning {
+    font-size: 24px;
+  }
+
+  .card-side-value.known {
+    font-size: 24px;
+  }
+
+  .card-reveal-comment {
+    font-size: 12px;
   }
 
   .review-card-speaker {
-    bottom: 26px;
+    bottom: 22px;
+  }
+
+  .review-card-speaker.revealed {
+    right: 34px;
+    bottom: auto;
+    left: auto;
+    transform: none;
+  }
+
+  .review-card-speaker.learning-first {
+    top: 27%;
+  }
+
+  .review-card-speaker.learning-second {
+    top: 62%;
   }
 
   .reveal-hint {
@@ -1513,8 +1631,17 @@ button.titlebar-icon.active {
     display: none;
   }
 
+  .mobile-reveal-hint {
+    display: inline;
+  }
+
   .answer-actions {
     gap: 10px;
+  }
+
+  .wrong-button,
+  .correct-button {
+    font-size: 14px;
   }
 
   /* Words mobile */
@@ -1524,11 +1651,11 @@ button.titlebar-icon.active {
     height: 100svh;
     min-height: 0;
     overflow: auto;
-    padding: max(18px, env(safe-area-inset-top)) 18px calc(98px + env(safe-area-inset-bottom));
+    padding: max(18px, var(--app-safe-top)) 18px calc(98px + var(--app-safe-bottom));
   }
 
   .words-list-pane {
-    min-height: calc(100svh - 116px - env(safe-area-inset-bottom));
+    min-height: calc(100svh - 116px - var(--app-safe-bottom));
   }
 
   .words-controls {
@@ -1608,7 +1735,7 @@ button.titlebar-icon.active {
   }
 
   .detail-open {
-    padding: 0 0 calc(96px + env(safe-area-inset-bottom));
+    padding: 0 0 calc(96px + var(--app-safe-bottom));
   }
 
   .detail-open .words-list-pane {
@@ -1616,14 +1743,14 @@ button.titlebar-icon.active {
   }
 
   .word-detail {
-    min-height: calc(100svh - 96px - env(safe-area-inset-bottom));
+    min-height: calc(100svh - 96px - var(--app-safe-bottom));
     border: 0;
   }
 
   .detail-toolbar {
     position: relative;
     height: 72px;
-    padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+    padding: max(10px, var(--app-safe-top)) 16px 8px;
     border: 0;
   }
 
@@ -1708,7 +1835,7 @@ button.titlebar-icon.active {
   }
 
   .app-shell:has(.word-detail.editing) .detail-open {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--app-safe-bottom);
   }
 
   .app-shell:has(.word-detail.editing) .word-detail {
@@ -1742,7 +1869,7 @@ button.titlebar-icon.active {
   /* Settings mobile */
 
   .settings-screen {
-    padding: max(18px, env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom));
+    padding: max(18px, var(--app-safe-top)) 20px calc(104px + var(--app-safe-bottom));
   }
 
   .settings-stack {

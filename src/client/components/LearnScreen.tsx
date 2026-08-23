@@ -12,6 +12,7 @@ import {
 } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { createOperationId } from "../lib/identifier.js";
+import { languageName } from "../lib/languages.js";
 import { telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
 
@@ -150,6 +151,9 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
 
   const question = card.direction === "learning-to-known" ? currentWord.learningText : currentWord.meanings.join(" · ");
   const answerText = card.direction === "learning-to-known" ? currentWord.meanings : [currentWord.learningText];
+  const questionIsLearning = card.direction === "learning-to-known";
+  const questionLanguage = languageName(questionIsLearning ? settings.learningLanguage : settings.knownLanguage);
+  const answerLanguage = languageName(questionIsLearning ? settings.knownLanguage : settings.learningLanguage);
   const scheduledDueCount = words.filter((word) => isScheduledReviewCandidate(word, new Date())).length;
 
   return (
@@ -172,19 +176,41 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
               telegramImpact();
             }}
           >
-            <span className={card.direction === "learning-to-known" ? "card-question" : "card-question known-question"}>
-              {question}
-            </span>
-            {revealed && (
-              <span className="card-answer">
-                {answerText.map((meaning) => <strong key={meaning}>{meaning}</strong>)}
-                {currentWord.comment !== "" && <small>{currentWord.comment}</small>}
+            {revealed ? (
+              <span className="card-reveal">
+                <span className="card-reveal-side">
+                  <span className="card-side-label">{questionLanguage}</span>
+                  <span className={questionIsLearning ? "card-side-value learning" : "card-side-value known"}>
+                    {question}
+                  </span>
+                </span>
+                <span className="card-reveal-divider" aria-hidden="true" />
+                <span className="card-reveal-side">
+                  <span className="card-side-label">{answerLanguage}</span>
+                  <span className="card-side-values">
+                    {answerText.map((meaning, index) => (
+                      <strong
+                        className={questionIsLearning ? "card-side-value known" : "card-side-value learning"}
+                        key={`${meaning}-${index}`}
+                      >
+                        {meaning}
+                      </strong>
+                    ))}
+                  </span>
+                  {currentWord.comment !== "" && <small className="card-reveal-comment">“{currentWord.comment}”</small>}
+                </span>
+              </span>
+            ) : (
+              <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
+                {question}
               </span>
             )}
           </button>
-          {!revealed && card.direction === "learning-to-known" && (
+          {((!revealed && questionIsLearning) || revealed) && (
             <button
-              className="speaker-button review-card-speaker"
+              className={revealed
+                ? `speaker-button review-card-speaker revealed ${questionIsLearning ? "learning-first" : "learning-second"}`
+                : "speaker-button review-card-speaker"}
               type="button"
               aria-label="Pronounce learning word"
               onClick={speak}
@@ -192,22 +218,25 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
               <Icon name="speaker" />
             </button>
           )}
+          {!revealed && (
+            <p className="reveal-hint">
+              <kbd>Space</kbd>
+              <span className="desktop-hint"> or tap card to reveal</span>
+              <span className="mobile-reveal-hint">Tap card to reveal</span>
+            </p>
+          )}
+
+          {revealed && (
+            <div className="answer-actions">
+              <button className="wrong-button" type="button" disabled={working} onClick={() => void answer(false)}>
+                Wrong
+              </button>
+              <button className="correct-button" type="button" disabled={working} onClick={() => void answer(true)}>
+                Correct
+              </button>
+            </div>
+          )}
         </div>
-
-        {!revealed && (
-          <p className="reveal-hint"><kbd>Space</kbd><span className="desktop-hint"> or </span>tap card to reveal</p>
-        )}
-
-        {revealed && (
-          <div className="answer-actions">
-            <button className="wrong-button" type="button" disabled={working} onClick={() => void answer(false)}>
-              Wrong
-            </button>
-            <button className="correct-button" type="button" disabled={working} onClick={() => void answer(true)}>
-              Correct
-            </button>
-          </div>
-        )}
         {error !== null && <p className="notice notice-error">{error}</p>}
       </div>
     </section>
