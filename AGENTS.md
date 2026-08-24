@@ -24,6 +24,7 @@ Vocabulary is a server-backed vocabulary trainer that runs as a responsive web a
 
 ## Workflow
 
+- Use `dev` for normal work. Merge `dev` into `main` only for an explicit release request; every push to `main` is automatically verified and deployed to production.
 - Keep `docs/` current when behavior or architecture changes.
 - Add focused tests for domain and API behavior.
 - Never edit a real `.env` file. Document required environment variables instead.
