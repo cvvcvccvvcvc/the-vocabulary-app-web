@@ -151,17 +151,16 @@ curl -4 --http1.1 --fail --silent --show-error \
   --form "chat_id=${VOCABULARY_TELEGRAM_CHAT_ID}" \
   --form "photo=@deploy/assets/telegram-start.png;type=image/png" \
   "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/sendPhoto" | \
-  node -e '
-    let input = "";
-    process.stdin.on("data", (chunk) => { input += chunk; });
-    process.stdin.on("end", () => {
-      const response = JSON.parse(input);
-      const fileId = response.result?.photo?.at(-1)?.file_id;
-      if (response.ok !== true || typeof fileId !== "string") {
-        throw new Error(response.description ?? "Telegram did not return a photo file_id");
-      }
-      console.log(`TELEGRAM_START_PHOTO_FILE_ID=${fileId}`);
-    });
+  python3 -c '
+import json
+import sys
+
+response = json.load(sys.stdin)
+photos = response.get("result", {}).get("photo", [])
+file_id = photos[-1].get("file_id") if photos else None
+if response.get("ok") is not True or not file_id:
+    raise SystemExit(response.get("description", "Telegram did not return a photo file_id"))
+print(f"TELEGRAM_START_PHOTO_FILE_ID={file_id}")
   '
 unset VOCABULARY_TELEGRAM_TOKEN VOCABULARY_TELEGRAM_CHAT_ID
 ```
