@@ -13,41 +13,11 @@ services:
       TELEGRAM_BOT_ID: ${TELEGRAM_BOT_ID}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CLIENT_SECRET: ${TELEGRAM_CLIENT_SECRET}
+      ANALYTICS_OWNER_TELEGRAM_USER_ID: ${ANALYTICS_OWNER_TELEGRAM_USER_ID:-}
     volumes:
       - vocabulary_data:/data
     expose:
       - "3000"
-
-  telegram-proxy:
-    image: metacubex/mihomo:v1.19.28@sha256:e6acd921addecfd59a8e2d38203f88356d635b54de6c0673db0e015139989312
-    restart: unless-stopped
-    deploy:
-      replicas: ${TELEGRAM_POLLING_REPLICAS:-0}
-    environment:
-      NOFOX_SUBSCRIPTION_URL: ${NOFOX_SUBSCRIPTION_URL:-}
-    entrypoint: ["/bin/sh", "/opt/vocabulary/mihomo-entrypoint.sh"]
-    volumes:
-      - ./mihomo-entrypoint.sh:/opt/vocabulary/mihomo-entrypoint.sh:ro
-      - telegram_proxy_config:/opt/vocabulary/provider
-    expose:
-      - "7890"
-
-  telegram-poller:
-    build:
-      context: ..
-    restart: unless-stopped
-    deploy:
-      replicas: ${TELEGRAM_POLLING_REPLICAS:-0}
-    depends_on:
-      - telegram-proxy
-    environment:
-      NODE_ENV: production
-      NODE_USE_ENV_PROXY: "1"
-      HTTPS_PROXY: http://telegram-proxy:7890
-      NO_PROXY: 127.0.0.1,localhost
-      APP_ORIGIN: https://${APP_DOMAIN}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-    command: ["node", "dist-server/server/telegramPollingMain.js"]
 
   caddy:
     image: caddy:2.10-alpine
@@ -67,6 +37,5 @@ services:
 
 volumes:
   vocabulary_data:
-  telegram_proxy_config:
   caddy_data:
   caddy_config:

@@ -17,6 +17,7 @@ const config: ServerConfig = {
   telegramBotToken: "123456:test-token",
   telegramClientSecret: null,
   developmentTelegramUserId: "1001",
+  analyticsOwnerTelegramUserId: "1001",
 };
 
 describe("Vocabulary API", () => {
@@ -36,6 +37,37 @@ describe("Vocabulary API", () => {
   it("requires a session for user data", async () => {
     const response = await server.app.inject({ method: "GET", url: "/api/bootstrap" });
     expect(response.statusCode).toBe(401);
+  });
+
+  it("returns analytics only to the configured owner", async () => {
+    const unauthorized = await server.app.inject({
+      method: "GET",
+      url: "/api/admin/analytics",
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const repository = new VocabularyRepository(server.database.sqlite);
+    const other = repository.ensureUser({
+      telegramUserId: "2002",
+      displayName: "Other",
+      username: null,
+      photoUrl: null,
+    });
+    const otherCookie = `vocabulary_session=${repository.createSession(other.id)}`;
+    const forbidden = await server.app.inject({
+      method: "GET",
+      url: "/api/admin/analytics",
+      headers: { cookie: otherCookie },
+    });
+    expect(forbidden.statusCode).toBe(404);
+
+    const owner = await server.app.inject({
+      method: "GET",
+      url: "/api/admin/analytics",
+      headers: { cookie },
+    });
+    expect(owner.statusCode).toBe(200);
+    expect(owner.json<{ summary: { totalUsers: number } }>().summary.totalUsers).toBe(2);
   });
 
   it("returns the Mini App navigation menu for Telegram start and help commands", async () => {

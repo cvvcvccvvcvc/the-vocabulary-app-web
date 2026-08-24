@@ -19,8 +19,12 @@ Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, bro
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
 - Server-side persistence and user isolation.
+- An owner-only website analytics page at `/analytics` for registration growth,
+  learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
 
-Automatic translation, external dictionary lookup, offline mutation replay, reminders, statistics, tags, and decks are deferred until the core online experience is proven.
+Automatic translation, external dictionary lookup, offline mutation replay, reminders,
+user-facing learning statistics, tags, and decks are deferred until the core online
+experience is proven.
 
 ## Review rules
 
@@ -44,3 +48,7 @@ The first side is chosen randomly. Every subsequent presentation of the same wor
 ## Data ownership
 
 Each Telegram identity maps to one internal Vocabulary account. A new user receives an empty account. All words, language and appearance settings, and sessions are scoped to that internal account. There is no separate device-sync control: authenticated devices read and write the same server profile.
+
+The administrative analytics page is the only cross-user read surface. It is absent from
+normal navigation and the server authorizes it against the configured owner Telegram ID.
+It exposes profile labels and aggregate counts, never word text or meanings.

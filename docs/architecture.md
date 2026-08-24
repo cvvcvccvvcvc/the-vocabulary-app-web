@@ -27,11 +27,31 @@ The Telegram Mini App sends raw `initData` to the server. The server validates i
 
 The normal website uses Telegram's OIDC authorization-code flow with PKCE. Both paths normalize the verified Telegram user ID into one internal user record and one server-side session.
 
-Telegram bot commands have two interchangeable delivery modes. The default webhook endpoint verifies Telegram's secret header and answers `/start` or `/help` directly with a Mini App navigation message. When Telegram cannot reach the deployment network, an optional single-replica poller receives the same message updates through long polling and sends the same menu through the Bot API. Only the poller uses the dedicated Mihomo HTTP proxy; application, database, and website traffic remain direct. Mihomo prefers a Clash provider stored in its private Docker volume and falls back to downloading the provider from the configured subscription URL when no local provider has been installed. The webhook code stays deployed as the rollback path, but Telegram permits only one delivery mode to be active at a time.
+Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to the fixed Vocabulary HTTPS endpoint, and returns the endpoint response without interpreting it. It stores neither the bot token nor update data.
 
-The webhook secret is deterministically derived from the bot token and is only supplied to Telegram during webhook registration. The polling worker keeps the latest update offset in memory and confirms processed updates in its next `getUpdates` call. A crash between sending a reply and confirming its update can therefore produce a duplicate menu, but does not lose the command.
+The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendMessage` method and Mini App navigation buttons. Telegram executes that method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in SQLite.
+
+## Owner analytics
+
+The website serves a standalone `/analytics` route outside the normal Vocabulary
+navigation. Its API requires an authenticated session and independently matches the
+session's internal user to `ANALYTICS_OWNER_TELEGRAM_USER_ID`. A missing configuration or
+a different authenticated user receives the same not-found response.
+
+Analytics are calculated on demand from existing canonical records; no tracking-event
+store is maintained:
+
+- registrations use `users.created_at`;
+- active DAU, WAU, and MAU count distinct users in `review_operations`;
+- answer volume uses `review_operations.created_at`;
+- added-word volume uses `words.created_at`, including words deleted later;
+- current card counts exclude soft-deleted words.
+
+DAU uses calendar days, WAU calendar weeks beginning Monday, and MAU calendar months.
+Periods are grouped in `Asia/Yekaterinburg`; stored timestamps remain UTC. The page never
+returns word text or meanings.
 
 ## Persistence
 
@@ -41,12 +61,13 @@ The schema stores generic language-neutral names. It does not preserve native ap
 
 ## Deployment
 
-The first production topology is one RuVDS instance:
+The first production topology is one RuVDS instance plus a stateless webhook relay:
 
 ```text
-Internet -> Caddy :443 -> Vocabulary API
-                            |-- static client build
-                            +-- SQLite volume
+Telegram -> Cloudflare Worker -> Caddy :443 -> Vocabulary webhook
+Internet ----------------------> Caddy :443 -> Vocabulary API
+                                               |-- static client build
+                                               +-- SQLite volume
 ```
 
-No database port is exposed. Only HTTPS and restricted administrative access are public.
+No database port is exposed. Only HTTPS and restricted administrative access are public. The relay has no database, storage, or bot token.
