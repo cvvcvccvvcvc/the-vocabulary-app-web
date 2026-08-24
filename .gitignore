@@ -9,4 +9,4 @@ data/*.sqlite-*
 .env
 .env.*
 !.env.example
-
+/telegram-channel/
