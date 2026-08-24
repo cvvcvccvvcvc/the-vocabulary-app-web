@@ -9,6 +9,7 @@ export interface ServerConfig {
   sessionSecret: string;
   telegramBotId: string | null;
   telegramBotToken: string | null;
+  telegramStartPhotoFileId: string | null;
   telegramClientSecret: string | null;
   developmentTelegramUserId: string | null;
   analyticsOwnerTelegramUserId: string | null;
@@ -57,6 +58,7 @@ export function loadServerConfig(
     sessionSecret,
     telegramBotId,
     telegramBotToken,
+    telegramStartPhotoFileId: optionalValue(environment.TELEGRAM_START_PHOTO_FILE_ID),
     telegramClientSecret,
     developmentTelegramUserId:
       production ? null : optionalValue(environment.DEV_TELEGRAM_USER_ID),

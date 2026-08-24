@@ -70,7 +70,11 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
       return reply.status(401).send();
     }
 
-    const response = telegramMenuReply(request.body, config.appOrigin);
+    const response = telegramMenuReply(
+      request.body,
+      config.appOrigin,
+      config.telegramStartPhotoFileId,
+    );
     return response === null ? reply.status(204).send() : response;
   });
 

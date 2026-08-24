@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Vocabulary is a server-backed vocabulary trainer that runs as a responsive web app and as a Telegram Mini App.
+The Vocabulary App is a server-backed vocabulary trainer that runs as a responsive web app and as a Telegram Mini App.
 
 ## Product rules
 
-- Use the product name **Vocabulary** only.
+- Use the product name **The Vocabulary App**.
 - One saved word is one review card.
 - A card contains learning-language text, one to eight ordered meanings, and an optional comment.
 - Levels are integers from 0 through 9. New cards start at level 0.

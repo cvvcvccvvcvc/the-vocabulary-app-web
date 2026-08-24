@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildServer, type BuiltServer } from "../../src/server/app.js";
 import type { ServerConfig } from "../../src/server/config.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
-import { telegramWebhookSecret } from "../../src/server/telegramBot.js";
+import { telegramMenuReply, telegramWebhookSecret } from "../../src/server/telegramBot.js";
 import type { VocabularyWord } from "../../src/domain/index.js";
 
 const config: ServerConfig = {
@@ -15,6 +15,7 @@ const config: ServerConfig = {
   sessionSecret: "test-session-secret-with-enough-entropy",
   telegramBotId: null,
   telegramBotToken: "123456:test-token",
+  telegramStartPhotoFileId: "telegram-start-photo-file-id",
   telegramClientSecret: null,
   developmentTelegramUserId: "1001",
   analyticsOwnerTelegramUserId: "1001",
@@ -90,8 +91,10 @@ describe("Vocabulary API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      method: "sendMessage",
+      method: "sendPhoto",
       chat_id: 42,
+      photo: "telegram-start-photo-file-id",
+      caption: "Save words, review them, and build your vocabulary.\n\nChoose where to start:",
       reply_markup: {
         inline_keyboard: [
           [{ text: "Learn", web_app: { url: "http://127.0.0.1:5173/?tab=learn" } }],
@@ -120,6 +123,20 @@ describe("Vocabulary API", () => {
       payload: { message: { text: "hello", chat: { id: 42, type: "private" } } },
     });
     expect(ignored.statusCode).toBe(204);
+  });
+
+  it("falls back to a text Telegram menu when no start photo is configured", () => {
+    const response = telegramMenuReply(
+      { message: { text: "/start", chat: { id: 42, type: "private" } } },
+      config.appOrigin,
+      null,
+    );
+
+    expect(response).toMatchObject({
+      method: "sendMessage",
+      chat_id: 42,
+      text: "Save words, review them, and build your vocabulary.\n\nChoose where to start:",
+    });
   });
 
   it("creates, updates, lists, and deletes a word", async () => {
