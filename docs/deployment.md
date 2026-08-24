@@ -82,6 +82,24 @@ The existing server <code>.env</code> must define:
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
 
+## Telegram command menu
+
+After deploying, register the command webhook from a machine that can reach Telegram's Bot API. The script below reads the bot token without echoing it or putting it in shell history. It configures only message updates and discards commands queued before registration.
+
+```bash
+read -s VOCABULARY_TELEGRAM_TOKEN
+VOCABULARY_WEBHOOK_SECRET=$(printf 'vocabulary-webhook:%s' "$VOCABULARY_TELEGRAM_TOKEN" | openssl dgst -sha256 | awk '{print $2}')
+curl --fail --silent --show-error \
+  --form "url=https://vocabulary.194-87-238-188.sslip.io/api/telegram/webhook" \
+  --form "secret_token=$VOCABULARY_WEBHOOK_SECRET" \
+  --form 'allowed_updates=["message"]' \
+  --form 'drop_pending_updates=true' \
+  "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/setWebhook"
+unset VOCABULARY_TELEGRAM_TOKEN VOCABULARY_WEBHOOK_SECRET
+```
+
+The webhook replies to `/start` and `/help` with buttons for Learn, Add Word, and Words. Register it again whenever the bot token changes.
+
 ## Operational notes
 
 - Do not expose the SQLite volume or application port directly.

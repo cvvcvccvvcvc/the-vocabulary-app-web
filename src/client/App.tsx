@@ -8,6 +8,7 @@ import { SettingsScreen } from "./components/SettingsScreen.js";
 import { Shell, type Section } from "./components/Shell.js";
 import { WordsScreen } from "./components/WordsScreen.js";
 import { api, ApiError } from "./lib/api.js";
+import { sectionFromSearch } from "./lib/section.js";
 import { initializeTelegram, setTelegramAppearance } from "./lib/telegram.js";
 
 interface ApplicationData {
@@ -21,7 +22,7 @@ export function App() {
     developmentLoginEnabled: false,
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
-  const [section, setSection] = useState<Section>("learn");
+  const [section, setSection] = useState<Section>(() => sectionFromSearch(window.location.search));
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>

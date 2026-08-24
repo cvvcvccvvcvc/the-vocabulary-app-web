@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildServer, type BuiltServer } from "../../src/server/app.js";
 import type { ServerConfig } from "../../src/server/config.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
+import { telegramWebhookSecret } from "../../src/server/telegramBot.js";
 import type { VocabularyWord } from "../../src/domain/index.js";
 
 const config: ServerConfig = {
@@ -13,7 +14,7 @@ const config: ServerConfig = {
   databasePath: ":memory:",
   sessionSecret: "test-session-secret-with-enough-entropy",
   telegramBotId: null,
-  telegramBotToken: null,
+  telegramBotToken: "123456:test-token",
   telegramClientSecret: null,
   developmentTelegramUserId: "1001",
 };
@@ -35,6 +36,58 @@ describe("Vocabulary API", () => {
   it("requires a session for user data", async () => {
     const response = await server.app.inject({ method: "GET", url: "/api/bootstrap" });
     expect(response.statusCode).toBe(401);
+  });
+
+  it("returns the Mini App navigation menu for Telegram start and help commands", async () => {
+    const secret = telegramWebhookSecret(config.telegramBotToken ?? "");
+    const headers = { "x-telegram-bot-api-secret-token": secret };
+
+    const unauthorized = await server.app.inject({
+      method: "POST",
+      url: "/api/telegram/webhook",
+      payload: { message: { text: "/start", chat: { id: 42, type: "private" } } },
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const response = await server.app.inject({
+      method: "POST",
+      url: "/api/telegram/webhook",
+      headers,
+      payload: { message: { text: "/start", chat: { id: 42, type: "private" } } },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      method: "sendMessage",
+      chat_id: 42,
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Learn", web_app: { url: "http://127.0.0.1:5173/?tab=learn" } }],
+          [
+            { text: "Add Word", web_app: { url: "http://127.0.0.1:5173/?tab=add" } },
+            { text: "Words", web_app: { url: "http://127.0.0.1:5173/?tab=words" } },
+          ],
+        ],
+      },
+    });
+
+    const help = await server.app.inject({
+      method: "POST",
+      url: "/api/telegram/webhook",
+      headers,
+      payload: {
+        message: { text: "/help@thevocabularyappbot", chat: { id: 42, type: "private" } },
+      },
+    });
+    expect(help.statusCode).toBe(200);
+
+    const ignored = await server.app.inject({
+      method: "POST",
+      url: "/api/telegram/webhook",
+      headers,
+      payload: { message: { text: "hello", chat: { id: 42, type: "private" } } },
+    });
+    expect(ignored.statusCode).toBe(204);
   });
 
   it("creates, updates, lists, and deletes a word", async () => {

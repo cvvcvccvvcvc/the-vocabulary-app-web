@@ -9,6 +9,11 @@ import type { ServerConfig } from "./config.js";
 import { VocabularyDatabase } from "./database.js";
 import { clearSessionCookie, requireUser, SESSION_COOKIE, setSessionCookie } from "./http.js";
 import {
+  hasValidTelegramWebhookSecret,
+  telegramMenuReply,
+  telegramWebhookSecret,
+} from "./telegramBot.js";
+import {
   createTelegramOidcAuthorization,
   exchangeTelegramOidcCode,
   InvalidTelegramDataError,
@@ -52,6 +57,20 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   app.get("/api/config", async () => ({
     developmentLoginEnabled: config.developmentTelegramUserId !== null,
   }));
+
+  app.post("/api/telegram/webhook", async (request, reply) => {
+    if (config.telegramBotToken === null) {
+      return reply.status(404).send();
+    }
+
+    const secret = request.headers["x-telegram-bot-api-secret-token"];
+    if (!hasValidTelegramWebhookSecret(secret, telegramWebhookSecret(config.telegramBotToken))) {
+      return reply.status(401).send();
+    }
+
+    const response = telegramMenuReply(request.body, config.appOrigin);
+    return response === null ? reply.status(204).send() : response;
+  });
 
   app.post("/api/auth/development", async (_request, reply) => {
     if (config.developmentTelegramUserId === null || config.environment === "production") {

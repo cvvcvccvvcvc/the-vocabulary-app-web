@@ -5,6 +5,7 @@ Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, bro
 ## First release
 
 - Telegram identity shared by the website and Telegram Mini App.
+- The bot's `/start` and `/help` commands return a compact launch menu for Learn, Add Word, and Words. Each button opens the Mini App directly on that section.
 - Responsive Learn, Add Word, Words, and Settings sections. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
 - Centered review cards with compact labeled question and answer sides.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
