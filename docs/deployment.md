@@ -78,6 +78,7 @@ The existing server <code>.env</code> must define:
 | <code>SESSION_SECRET</code> | High-entropy application secret. |
 | <code>TELEGRAM_BOT_ID</code> | Telegram OIDC client ID. |
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
+| <code>TELEGRAM_START_PHOTO_FILE_ID</code> | Optional Telegram <code>file_id</code> for the image shown by <code>/start</code> and <code>/help</code>. Without it, the bot sends the text menu. |
 | <code>TELEGRAM_CLIENT_SECRET</code> | Telegram OIDC client secret. |
 | <code>ANALYTICS_OWNER_TELEGRAM_USER_ID</code> | Optional numeric Telegram ID allowed to open the website's <code>/analytics</code> page. When omitted, analytics are unavailable. |
 
@@ -133,6 +134,41 @@ Expected output:
 ```text
 relay_http=204
 ```
+
+### Upload the start menu photo
+
+Telegram stores the start image and returns a bot-specific <code>file_id</code>. Upload the
+tracked source image once from a trusted computer that can reach Telegram. The command sends
+the image to the specified private chat and prints only the environment entry to add to the
+server <code>.env</code>:
+
+```bash
+cd /path/to/Vocabulary
+read -s VOCABULARY_TELEGRAM_TOKEN
+echo
+read -r VOCABULARY_TELEGRAM_CHAT_ID
+curl -4 --http1.1 --fail --silent --show-error \
+  --form "chat_id=${VOCABULARY_TELEGRAM_CHAT_ID}" \
+  --form "photo=@deploy/assets/telegram-start.png;type=image/png" \
+  "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/sendPhoto" | \
+  python3 -c '
+import json
+import sys
+
+response = json.load(sys.stdin)
+photos = response.get("result", {}).get("photo", [])
+file_id = photos[-1].get("file_id") if photos else None
+if response.get("ok") is not True or not file_id:
+    raise SystemExit(response.get("description", "Telegram did not return a photo file_id"))
+print(f"TELEGRAM_START_PHOTO_FILE_ID={file_id}")
+  '
+unset VOCABULARY_TELEGRAM_TOKEN VOCABULARY_TELEGRAM_CHAT_ID
+```
+
+Add the printed line to the server <code>.env</code> and recreate the application container.
+Removing the entry and recreating the container safely restores the original text-only menu.
+The image itself is not read from disk at runtime; the tracked file is the source for this
+one-time Telegram upload.
 
 ### Register the relayed webhook
 

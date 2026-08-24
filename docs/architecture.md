@@ -29,7 +29,7 @@ The normal website uses Telegram's OIDC authorization-code flow with PKCE. Both 
 
 Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to the fixed Vocabulary HTTPS endpoint, and returns the endpoint response without interpreting it. It stores neither the bot token nor update data.
 
-The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendMessage` method and Mini App navigation buttons. Telegram executes that method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
+The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendPhoto` method, a caption, and Mini App navigation buttons. The photo is referenced by its Telegram `file_id`; when it is not configured, the application falls back to `sendMessage`. Telegram executes the method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in SQLite.
 

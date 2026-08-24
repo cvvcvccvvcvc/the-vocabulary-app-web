@@ -13,7 +13,7 @@ interface TelegramMessageUpdate {
 }
 
 export interface TelegramBotMethodRequest extends Record<string, unknown> {
-  method: "sendMessage";
+  method: "sendMessage" | "sendPhoto";
 }
 
 export function telegramWebhookSecret(botToken: string): string {
@@ -34,6 +34,7 @@ export function hasValidTelegramWebhookSecret(
 export function telegramMenuReply(
   update: unknown,
   appOrigin: string,
+  startPhotoFileId: string | null,
 ): TelegramBotMethodRequest | null {
   if (typeof update !== "object" || update === null) return null;
   const message = (update as TelegramMessageUpdate).message;
@@ -54,10 +55,14 @@ export function telegramMenuReply(
     return url.toString();
   }
 
+  const menuText = "Save words, review them, and build your vocabulary.\n\nChoose where to start:";
+  const content = startPhotoFileId === null
+    ? { method: "sendMessage" as const, text: menuText }
+    : { method: "sendPhoto" as const, photo: startPhotoFileId, caption: menuText };
+
   return {
-    method: "sendMessage",
+    ...content,
     chat_id: chatId,
-    text: "Save words, review them, and build your vocabulary.\n\nChoose where to start:",
     reply_markup: {
       inline_keyboard: [
         [{ text: "Learn", web_app: { url: sectionUrl("learn") } }],
