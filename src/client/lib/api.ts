@@ -1,5 +1,6 @@
 import type { LanguageSettings, ReviewDirection, ReviewMode, VocabularyWord } from "../../domain/index.js";
 import type {
+  AnalyticsResponse,
   AppConfiguration,
   BootstrapResponse,
   CreateWordRequest,
@@ -49,6 +50,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  analytics: () => request<AnalyticsResponse>("/api/admin/analytics"),
   configuration: () => request<AppConfiguration>("/api/config"),
   session: () => request<SessionResponse>("/api/session"),
   developmentLogin: () =>
@@ -93,4 +95,3 @@ export const api = {
       body: JSON.stringify(settings),
     }),
 };
-

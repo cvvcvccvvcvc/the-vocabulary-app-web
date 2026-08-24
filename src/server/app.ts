@@ -32,6 +32,7 @@ import {
   updateWordSchema,
   wordContentSchema,
 } from "./validation.js";
+import { AnalyticsRepository } from "./analytics.js";
 
 export interface BuiltServer {
   app: FastifyInstance;
@@ -45,6 +46,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   });
   const database = new VocabularyDatabase(config.databasePath);
   const repository = new VocabularyRepository(database.sqlite);
+  const analyticsRepository = new AnalyticsRepository(database.sqlite);
 
   await app.register(cookie, { secret: config.sessionSecret });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
@@ -148,6 +150,20 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
       settings: repository.settings(user.id),
       words: repository.listWords(user.id),
     };
+  });
+
+  app.get("/api/admin/analytics", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    if (
+      config.analyticsOwnerTelegramUserId === null
+      || !analyticsRepository.canAccess(user.id, config.analyticsOwnerTelegramUserId)
+    ) {
+      return reply.status(404).send({
+        error: { code: "not_found", message: "Route not found" },
+      });
+    }
+    return analyticsRepository.report();
   });
 
   app.post("/api/words", async (request, reply) => {

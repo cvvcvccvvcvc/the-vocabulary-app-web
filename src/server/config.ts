@@ -11,6 +11,7 @@ export interface ServerConfig {
   telegramBotToken: string | null;
   telegramClientSecret: string | null;
   developmentTelegramUserId: string | null;
+  analyticsOwnerTelegramUserId: string | null;
 }
 
 function optionalValue(value: string | undefined): string | null {
@@ -59,5 +60,8 @@ export function loadServerConfig(
     telegramClientSecret,
     developmentTelegramUserId:
       production ? null : optionalValue(environment.DEV_TELEGRAM_USER_ID),
+    analyticsOwnerTelegramUserId: optionalValue(
+      environment.ANALYTICS_OWNER_TELEGRAM_USER_ID,
+    ),
   };
 }

@@ -40,3 +40,53 @@ export interface ErrorResponse {
     message: string;
   };
 }
+
+export interface AnalyticsRegistrationDay {
+  date: string;
+  newUsers: number;
+  totalUsers: number;
+}
+
+export interface AnalyticsActivityPeriod {
+  periodStart: string;
+  activeUsers: number;
+}
+
+export interface AnalyticsUsageDay {
+  date: string;
+  answers: number;
+  wordsAdded: number;
+}
+
+export interface AnalyticsUser {
+  id: string;
+  displayName: string;
+  username: string | null;
+  photoUrl: string | null;
+  registeredAt: string;
+  lastStudiedAt: string | null;
+  activeCardCount: number;
+  wordsAddedCount: number;
+  answerCount: number;
+}
+
+export interface AnalyticsResponse {
+  generatedAt: string;
+  timeZone: "Asia/Yekaterinburg";
+  summary: {
+    totalUsers: number;
+    activeToday: number;
+    activeThisWeek: number;
+    activeThisMonth: number;
+    answersToday: number;
+    wordsAddedToday: number;
+  };
+  registrations: AnalyticsRegistrationDay[];
+  activity: {
+    days: AnalyticsActivityPeriod[];
+    weeks: AnalyticsActivityPeriod[];
+    months: AnalyticsActivityPeriod[];
+  };
+  usage: AnalyticsUsageDay[];
+  users: AnalyticsUser[];
+}

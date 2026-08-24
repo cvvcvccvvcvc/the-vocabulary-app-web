@@ -79,8 +79,14 @@ The existing server <code>.env</code> must define:
 | <code>TELEGRAM_BOT_ID</code> | Telegram OIDC client ID. |
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
 | <code>TELEGRAM_CLIENT_SECRET</code> | Telegram OIDC client secret. |
+| <code>ANALYTICS_OWNER_TELEGRAM_USER_ID</code> | Optional numeric Telegram ID allowed to open the website's <code>/analytics</code> page. When omitted, analytics are unavailable. |
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
+
+After setting `ANALYTICS_OWNER_TELEGRAM_USER_ID`, sign in to the normal website with that
+Telegram account and open `/analytics` directly. The page is deliberately absent from the
+normal application navigation. Its URL is not the security boundary; the API repeats the
+owner check for every analytics request.
 
 ## Telegram command menu
 

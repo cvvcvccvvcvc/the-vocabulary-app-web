@@ -33,6 +33,26 @@ The application independently verifies the same secret and answers `/start` or `
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in SQLite.
 
+## Owner analytics
+
+The website serves a standalone `/analytics` route outside the normal Vocabulary
+navigation. Its API requires an authenticated session and independently matches the
+session's internal user to `ANALYTICS_OWNER_TELEGRAM_USER_ID`. A missing configuration or
+a different authenticated user receives the same not-found response.
+
+Analytics are calculated on demand from existing canonical records; no tracking-event
+store is maintained:
+
+- registrations use `users.created_at`;
+- active DAU, WAU, and MAU count distinct users in `review_operations`;
+- answer volume uses `review_operations.created_at`;
+- added-word volume uses `words.created_at`, including words deleted later;
+- current card counts exclude soft-deleted words.
+
+DAU uses calendar days, WAU calendar weeks beginning Monday, and MAU calendar months.
+Periods are grouped in `Asia/Yekaterinburg`; stored timestamps remain UTC. The page never
+returns word text or meanings.
+
 ## Persistence
 
 SQLite is intentionally used for the first single-server deployment. The database is private to the API process and runs in WAL mode. SQL migrations are ordered files in `migrations/`.
