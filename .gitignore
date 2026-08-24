@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-server/
 coverage/
+.wrangler/
 data/*.sqlite
 data/*.sqlite-*
 .DS_Store

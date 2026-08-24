@@ -79,93 +79,74 @@ The existing server <code>.env</code> must define:
 | <code>TELEGRAM_BOT_ID</code> | Telegram OIDC client ID. |
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
 | <code>TELEGRAM_CLIENT_SECRET</code> | Telegram OIDC client secret. |
-| <code>TELEGRAM_POLLING_REPLICAS</code> | Optional. <code>0</code> keeps polling disabled; <code>1</code> starts one poller and its private proxy. Never use more than one. |
-| <code>NOFOX_SUBSCRIPTION_URL</code> | Optional polling fallback. Direct secret HTTPS subscription URL used when no local Clash provider has been installed. It must not be a browser redirect or app deep link. |
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
 
 ## Telegram command menu
 
-After deploying, register the command webhook from a machine that can reach Telegram's Bot API. The script below reads the bot token without echoing it or putting it in shell history. It configures only message updates and discards commands queued before registration.
+Telegram cannot reliably deliver webhooks directly to the RuVDS network. A small Cloudflare Worker therefore relays the request to the existing Vocabulary webhook and returns its response to Telegram. The Worker keeps no user data and does not receive the bot token. Both the Worker and the application verify the same Telegram webhook secret.
+
+### Deploy the relay
+
+Authenticate Wrangler once on a trusted computer, then deploy the tracked Worker configuration. The free <code>workers.dev</code> route is sufficient for this low-volume webhook.
+
+```bash
+cd /path/to/Vocabulary
+pnpm dlx wrangler@4.125.0 login
+pnpm dlx wrangler@4.125.0 deploy \
+  --config deploy/telegram-webhook-relay/wrangler.jsonc
+```
+
+Wrangler prints a URL such as <code>https://vocabulary-telegram-relay.example.workers.dev</code>. Keep that URL for the verification and webhook-registration steps.
+
+The relay secret is the existing deterministic webhook secret, not the bot token. Read the token without echoing it, derive the secret locally, and upload only the derived value:
 
 ```bash
 read -s VOCABULARY_TELEGRAM_TOKEN
 echo
 VOCABULARY_WEBHOOK_SECRET=$(printf 'vocabulary-webhook:%s' "$VOCABULARY_TELEGRAM_TOKEN" | openssl dgst -sha256 | awk '{print $2}')
+printf '%s' "$VOCABULARY_WEBHOOK_SECRET" | \
+  pnpm dlx wrangler@4.125.0 secret put TELEGRAM_WEBHOOK_SECRET \
+    --config deploy/telegram-webhook-relay/wrangler.jsonc
+```
+
+Before changing Telegram, make one harmless relay request. A <code>204</code> response proves that Cloudflare can reach the production webhook and that both secret checks agree:
+
+```bash
+read -r VOCABULARY_RELAY_URL
+curl --fail --silent --show-error --output /dev/null \
+  --write-out 'relay_http=%{http_code}\n' \
+  --header 'content-type: application/json' \
+  --header "x-telegram-bot-api-secret-token: $VOCABULARY_WEBHOOK_SECRET" \
+  --data '{}' \
+  "${VOCABULARY_RELAY_URL%/}/telegram"
+```
+
+Expected output:
+
+```text
+relay_http=204
+```
+
+### Register the relayed webhook
+
+Register the Worker URL from a machine that can reach Telegram's Bot API. This configures only message updates and discards commands queued before registration:
+
+```bash
 curl --fail --silent --show-error \
-  --form "url=https://vocabulary.194-87-238-188.sslip.io/api/telegram/webhook" \
+  --form "url=${VOCABULARY_RELAY_URL%/}/telegram" \
   --form "secret_token=$VOCABULARY_WEBHOOK_SECRET" \
   --form 'allowed_updates=["message"]' \
   --form 'drop_pending_updates=true' \
   "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/setWebhook"
-unset VOCABULARY_TELEGRAM_TOKEN VOCABULARY_WEBHOOK_SECRET
-```
-
-The webhook replies to `/start` and `/help` with buttons for Learn, Add Word, and Words. Register it again whenever the bot token changes.
-
-### Optional long polling through NoFox
-
-Use this mode only when Telegram cannot deliver webhooks to the production network. The main application remains direct. A separate poller sends only Telegram Bot API requests through a private Mihomo service; neither service publishes a host port.
-
-Rotate any subscription URL that has been disclosed before activation. Add the new direct HTTPS subscription URL and enable exactly one replica in the server `.env`:
-
-```dotenv
-TELEGRAM_POLLING_REPLICAS=1
-NOFOX_SUBSCRIPTION_URL=https://subscription.example/secret
-```
-
-Deploy without changing the normal release command:
-
-```bash
-cd /root/TheVocabularyApp/the-vocabulary-app-web
-docker compose --env-file .env -f deploy/compose.yml up -d --build --remove-orphans
-docker compose --env-file .env -f deploy/compose.yml ps
-docker compose --env-file .env -f deploy/compose.yml logs --tail=60 telegram-proxy telegram-poller
-```
-
-If the deployment host cannot reach the subscription endpoint, download a Clash provider on a trusted machine and transfer it to the host without printing its contents. After the polling services have been created, install that file in the proxy's private Docker volume and restart the proxy:
-
-```bash
-proxy_container=$(docker compose --env-file .env -f deploy/compose.yml ps -q telegram-proxy)
-test -n "$proxy_container"
-docker cp /secure/path/nofox-provider.yaml "$proxy_container:/opt/vocabulary/provider/nofox.yaml"
-unset proxy_container
-docker compose --env-file .env -f deploy/compose.yml restart telegram-proxy telegram-poller
-```
-
-The local provider takes precedence over `NOFOX_SUBSCRIPTION_URL` and survives normal `docker compose up` deployments. Treat it as a secret and keep its host copy mode `0600`. Refresh it manually when the VPN subscription changes. Removing Docker volumes, including `docker compose down -v`, deletes this copy.
-
-Before changing Telegram delivery mode, verify that the poller can reach the Bot API through the proxy. This prints Telegram's bot metadata, not the token:
-
-```bash
-docker compose --env-file .env -f deploy/compose.yml exec -T telegram-poller \
-  node -e 'fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getMe`).then(async r => console.log(r.status, await r.text()))'
-```
-
-An HTTP 200 response with <code>"ok":true</code> confirms the proxy path. The poller will report a webhook conflict until webhook delivery is disabled. From a trusted machine that can reach Telegram, remove the webhook and discard only the stale commands accumulated while delivery was broken:
-
-```bash
-read -s VOCABULARY_TELEGRAM_TOKEN
-echo
 curl --fail --silent --show-error \
-  --form 'drop_pending_updates=true' \
-  "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/deleteWebhook"
-unset VOCABULARY_TELEGRAM_TOKEN
+  "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/getWebhookInfo"
+unset VOCABULARY_TELEGRAM_TOKEN VOCABULARY_WEBHOOK_SECRET VOCABULARY_RELAY_URL
 ```
 
-Send `/start` in the bot's private chat, then confirm that the poller logs contain no new error. Do not run multiple polling replicas: Telegram update offsets require a single consumer.
+The webhook replies to `/start` and `/help` with buttons for Learn, Add Word, and Words. Register it again whenever the bot token or Worker URL changes. Update the Cloudflare secret before registering a webhook with a new bot token.
 
-### Roll back to the webhook
-
-First set <code>TELEGRAM_POLLING_REPLICAS=0</code> in the server `.env`, then apply Compose and confirm that the optional services are gone:
-
-```bash
-cd /root/TheVocabularyApp/the-vocabulary-app-web
-docker compose --env-file .env -f deploy/compose.yml up -d --remove-orphans
-docker compose --env-file .env -f deploy/compose.yml ps
-```
-
-Finally register the webhook again with the existing script above from a machine that can reach Telegram. No database or application rollback is required. On the current Russian network the restored webhook remains subject to the same Telegram reachability restriction; this procedure restores the previous architecture, not the blocked network path.
+If a Worker release fails, redeploy the last known-good Git commit before changing the Telegram webhook. The application endpoint and database are independent of the relay deployment.
 
 ## Operational notes
 
