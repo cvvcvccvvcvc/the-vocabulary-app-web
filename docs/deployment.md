@@ -80,7 +80,7 @@ The existing server <code>.env</code> must define:
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
 | <code>TELEGRAM_CLIENT_SECRET</code> | Telegram OIDC client secret. |
 | <code>TELEGRAM_POLLING_REPLICAS</code> | Optional. <code>0</code> keeps polling disabled; <code>1</code> starts one poller and its private proxy. Never use more than one. |
-| <code>NOFOX_SUBSCRIPTION_URL</code> | Required only for polling. Direct secret HTTPS subscription URL used by the private Mihomo proxy, not a browser redirect or app deep link. |
+| <code>NOFOX_SUBSCRIPTION_URL</code> | Optional polling fallback. Direct secret HTTPS subscription URL used when no local Clash provider has been installed. It must not be a browser redirect or app deep link. |
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
 
@@ -122,6 +122,18 @@ docker compose --env-file .env -f deploy/compose.yml up -d --build --remove-orph
 docker compose --env-file .env -f deploy/compose.yml ps
 docker compose --env-file .env -f deploy/compose.yml logs --tail=60 telegram-proxy telegram-poller
 ```
+
+If the deployment host cannot reach the subscription endpoint, download a Clash provider on a trusted machine and transfer it to the host without printing its contents. After the polling services have been created, install that file in the proxy's private Docker volume and restart the proxy:
+
+```bash
+proxy_container=$(docker compose --env-file .env -f deploy/compose.yml ps -q telegram-proxy)
+test -n "$proxy_container"
+docker cp /secure/path/nofox-provider.yaml "$proxy_container:/opt/vocabulary/provider/nofox.yaml"
+unset proxy_container
+docker compose --env-file .env -f deploy/compose.yml restart telegram-proxy telegram-poller
+```
+
+The local provider takes precedence over `NOFOX_SUBSCRIPTION_URL` and survives normal `docker compose up` deployments. Treat it as a secret and keep its host copy mode `0600`. Refresh it manually when the VPN subscription changes. Removing Docker volumes, including `docker compose down -v`, deletes this copy.
 
 Before changing Telegram delivery mode, verify that the poller can reach the Bot API through the proxy. This prints Telegram's bot metadata, not the token:
 

@@ -1,23 +1,10 @@
 #!/bin/sh
 set -eu
 
-if [ -z "${NOFOX_SUBSCRIPTION_URL:-}" ]; then
-  echo "NOFOX_SUBSCRIPTION_URL is required" >&2
-  exit 1
-fi
-
-case "$NOFOX_SUBSCRIPTION_URL" in
-  https://*) ;;
-  *)
-    echo "NOFOX_SUBSCRIPTION_URL must use HTTPS" >&2
-    exit 1
-    ;;
-esac
-
-escaped_subscription_url=$(printf '%s' "$NOFOX_SUBSCRIPTION_URL" | sed "s/'/''/g")
 runtime_directory=/tmp/vocabulary-mihomo
-mkdir -p "$runtime_directory/providers"
+persisted_provider=/opt/vocabulary/provider/nofox.yaml
 umask 077
+mkdir -p "$runtime_directory/providers"
 
 {
   printf '%s\n' \
@@ -28,15 +15,44 @@ umask 077
     'log-level: warning' \
     'ipv6: false' \
     'proxy-providers:' \
-    '  nofox:' \
-    '    type: http'
-  printf "    url: '%s'\n" "$escaped_subscription_url"
+    '  nofox:'
+
+  if [ -s "$persisted_provider" ]; then
+    if ! grep -q '^[[:space:]]*proxies:' "$persisted_provider"; then
+      echo "Persisted NoFox provider is not a Clash provider" >&2
+      exit 1
+    fi
+
+    cp "$persisted_provider" "$runtime_directory/providers/nofox.yaml"
+    printf '%s\n' \
+      '    type: file' \
+      '    path: ./providers/nofox.yaml'
+  else
+    if [ -z "${NOFOX_SUBSCRIPTION_URL:-}" ]; then
+      echo "A persisted NoFox provider or NOFOX_SUBSCRIPTION_URL is required" >&2
+      exit 1
+    fi
+
+    case "$NOFOX_SUBSCRIPTION_URL" in
+      https://*) ;;
+      *)
+        echo "NOFOX_SUBSCRIPTION_URL must use HTTPS" >&2
+        exit 1
+        ;;
+    esac
+
+    escaped_subscription_url=$(printf '%s' "$NOFOX_SUBSCRIPTION_URL" | sed "s/'/''/g")
+    printf '%s\n' '    type: http'
+    printf "    url: '%s'\n" "$escaped_subscription_url"
+    printf '%s\n' \
+      '    path: ./providers/nofox.yaml' \
+      '    interval: 3600' \
+      '    header:' \
+      '      User-Agent:' \
+      "        - 'FlClashX'"
+  fi
+
   printf '%s\n' \
-    '    path: ./providers/nofox.yaml' \
-    '    interval: 3600' \
-    '    header:' \
-    '      User-Agent:' \
-    "        - 'FlClashX'" \
     '    health-check:' \
     '      enable: true' \
     "      url: 'https://api.telegram.org'" \

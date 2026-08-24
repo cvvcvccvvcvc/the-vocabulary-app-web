@@ -28,6 +28,7 @@ services:
     entrypoint: ["/bin/sh", "/opt/vocabulary/mihomo-entrypoint.sh"]
     volumes:
       - ./mihomo-entrypoint.sh:/opt/vocabulary/mihomo-entrypoint.sh:ro
+      - telegram_proxy_config:/opt/vocabulary/provider
     expose:
       - "7890"
 
@@ -66,6 +67,6 @@ services:
 
 volumes:
   vocabulary_data:
+  telegram_proxy_config:
   caddy_data:
   caddy_config:
-
