@@ -79,6 +79,8 @@ The existing server <code>.env</code> must define:
 | <code>TELEGRAM_BOT_ID</code> | Telegram OIDC client ID. |
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
 | <code>TELEGRAM_CLIENT_SECRET</code> | Telegram OIDC client secret. |
+| <code>TELEGRAM_POLLING_REPLICAS</code> | Optional. <code>0</code> keeps polling disabled; <code>1</code> starts one poller and its private proxy. Never use more than one. |
+| <code>NOFOX_SUBSCRIPTION_URL</code> | Required only for polling. Direct secret HTTPS subscription URL used by the private Mihomo proxy, not a browser redirect or app deep link. |
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
 
@@ -88,6 +90,7 @@ After deploying, register the command webhook from a machine that can reach Tele
 
 ```bash
 read -s VOCABULARY_TELEGRAM_TOKEN
+echo
 VOCABULARY_WEBHOOK_SECRET=$(printf 'vocabulary-webhook:%s' "$VOCABULARY_TELEGRAM_TOKEN" | openssl dgst -sha256 | awk '{print $2}')
 curl --fail --silent --show-error \
   --form "url=https://vocabulary.194-87-238-188.sslip.io/api/telegram/webhook" \
@@ -99,6 +102,58 @@ unset VOCABULARY_TELEGRAM_TOKEN VOCABULARY_WEBHOOK_SECRET
 ```
 
 The webhook replies to `/start` and `/help` with buttons for Learn, Add Word, and Words. Register it again whenever the bot token changes.
+
+### Optional long polling through NoFox
+
+Use this mode only when Telegram cannot deliver webhooks to the production network. The main application remains direct. A separate poller sends only Telegram Bot API requests through a private Mihomo service; neither service publishes a host port.
+
+Rotate any subscription URL that has been disclosed before activation. Add the new direct HTTPS subscription URL and enable exactly one replica in the server `.env`:
+
+```dotenv
+TELEGRAM_POLLING_REPLICAS=1
+NOFOX_SUBSCRIPTION_URL=https://subscription.example/secret
+```
+
+Deploy without changing the normal release command:
+
+```bash
+cd /root/TheVocabularyApp/the-vocabulary-app-web
+docker compose --env-file .env -f deploy/compose.yml up -d --build --remove-orphans
+docker compose --env-file .env -f deploy/compose.yml ps
+docker compose --env-file .env -f deploy/compose.yml logs --tail=60 telegram-proxy telegram-poller
+```
+
+Before changing Telegram delivery mode, verify that the poller can reach the Bot API through the proxy. This prints Telegram's bot metadata, not the token:
+
+```bash
+docker compose --env-file .env -f deploy/compose.yml exec -T telegram-poller \
+  node -e 'fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getMe`).then(async r => console.log(r.status, await r.text()))'
+```
+
+An HTTP 200 response with <code>"ok":true</code> confirms the proxy path. The poller will report a webhook conflict until webhook delivery is disabled. From a trusted machine that can reach Telegram, remove the webhook and discard only the stale commands accumulated while delivery was broken:
+
+```bash
+read -s VOCABULARY_TELEGRAM_TOKEN
+echo
+curl --fail --silent --show-error \
+  --form 'drop_pending_updates=true' \
+  "https://api.telegram.org/bot${VOCABULARY_TELEGRAM_TOKEN}/deleteWebhook"
+unset VOCABULARY_TELEGRAM_TOKEN
+```
+
+Send `/start` in the bot's private chat, then confirm that the poller logs contain no new error. Do not run multiple polling replicas: Telegram update offsets require a single consumer.
+
+### Roll back to the webhook
+
+First set <code>TELEGRAM_POLLING_REPLICAS=0</code> in the server `.env`, then apply Compose and confirm that the optional services are gone:
+
+```bash
+cd /root/TheVocabularyApp/the-vocabulary-app-web
+docker compose --env-file .env -f deploy/compose.yml up -d --remove-orphans
+docker compose --env-file .env -f deploy/compose.yml ps
+```
+
+Finally register the webhook again with the existing script above from a machine that can reach Telegram. No database or application rollback is required. On the current Russian network the restored webhook remains subject to the same Telegram reachability restriction; this procedure restores the previous architecture, not the blocked network path.
 
 ## Operational notes
 

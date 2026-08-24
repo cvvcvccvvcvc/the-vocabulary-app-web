@@ -12,6 +12,10 @@ interface TelegramMessageUpdate {
   };
 }
 
+export interface TelegramBotMethodRequest extends Record<string, unknown> {
+  method: "sendMessage";
+}
+
 export function telegramWebhookSecret(botToken: string): string {
   return createHash("sha256").update(`vocabulary-webhook:${botToken}`).digest("hex");
 }
@@ -30,7 +34,7 @@ export function hasValidTelegramWebhookSecret(
 export function telegramMenuReply(
   update: unknown,
   appOrigin: string,
-): Record<string, unknown> | null {
+): TelegramBotMethodRequest | null {
   if (typeof update !== "object" || update === null) return null;
   const message = (update as TelegramMessageUpdate).message;
   const chatId = message?.chat?.id;

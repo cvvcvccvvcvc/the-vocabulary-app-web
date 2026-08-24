@@ -27,7 +27,9 @@ The Telegram Mini App sends raw `initData` to the server. The server validates i
 
 The normal website uses Telegram's OIDC authorization-code flow with PKCE. Both paths normalize the verified Telegram user ID into one internal user record and one server-side session.
 
-Telegram sends bot commands to the existing server webhook. The endpoint verifies Telegram's secret header and answers `/start` or `/help` directly with a Mini App navigation message, so the RuVDS host does not need an outbound Bot API connection. The webhook secret is deterministically derived from the bot token and is only supplied to Telegram during webhook registration.
+Telegram bot commands have two interchangeable delivery modes. The default webhook endpoint verifies Telegram's secret header and answers `/start` or `/help` directly with a Mini App navigation message. When Telegram cannot reach the deployment network, an optional single-replica poller receives the same message updates through long polling and sends the same menu through the Bot API. Only the poller uses the dedicated Mihomo HTTP proxy; application, database, and website traffic remain direct. The webhook code stays deployed as the rollback path, but Telegram permits only one delivery mode to be active at a time.
+
+The webhook secret is deterministically derived from the bot token and is only supplied to Telegram during webhook registration. The polling worker keeps the latest update offset in memory and confirms processed updates in its next `getUpdates` call. A crash between sending a reply and confirming its update can therefore produce a duplicate menu, but does not lose the command.
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in SQLite.
 
