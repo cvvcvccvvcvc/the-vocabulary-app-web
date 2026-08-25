@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { initializeTelegram, setTelegramVerticalSwipesEnabled } from "../../src/client/lib/telegram.js";
+import {
+  initializeTelegram,
+  requestTelegramWriteAccess,
+  setTelegramVerticalSwipesEnabled,
+} from "../../src/client/lib/telegram.js";
 
 const originalWindow = globalThis.window;
 const originalDocument = globalThis.document;
@@ -20,6 +24,7 @@ afterEach(() => {
 function installTelegram(platform: string, supportsVersion = true) {
   const enableVerticalSwipes = vi.fn();
   const disableVerticalSwipes = vi.fn();
+  const requestWriteAccess = vi.fn((callback: (granted: boolean) => void) => callback(true));
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
@@ -33,11 +38,12 @@ function installTelegram(platform: string, supportsVersion = true) {
           isVersionAtLeast: vi.fn(() => supportsVersion),
           enableVerticalSwipes,
           disableVerticalSwipes,
+          requestWriteAccess,
         },
       },
     },
   });
-  return { enableVerticalSwipes, disableVerticalSwipes };
+  return { enableVerticalSwipes, disableVerticalSwipes, requestWriteAccess };
 }
 
 describe("setTelegramVerticalSwipesEnabled", () => {
@@ -65,6 +71,21 @@ describe("setTelegramVerticalSwipesEnabled", () => {
     setTelegramVerticalSwipesEnabled(false);
 
     expect(telegram.disableVerticalSwipes).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestTelegramWriteAccess", () => {
+  it("resolves the native Telegram permission result", async () => {
+    const telegram = installTelegram("ios");
+
+    await expect(requestTelegramWriteAccess()).resolves.toBe(true);
+    expect(telegram.requestWriteAccess).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed outside a supported Telegram client", async () => {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+
+    await expect(requestTelegramWriteAccess()).resolves.toBe(false);
   });
 });
 

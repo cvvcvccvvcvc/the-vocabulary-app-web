@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildServer, type BuiltServer } from "../../src/server/app.js";
 import type { ServerConfig } from "../../src/server/config.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
-import { telegramMenuReply, telegramWebhookSecret } from "../../src/server/telegramBot.js";
+import {
+  telegramMenuReply,
+  telegramReminderMessage,
+  telegramWebhookSecret,
+} from "../../src/server/telegramBot.js";
 import type { VocabularyWord } from "../../src/domain/index.js";
 
 const config: ServerConfig = {
@@ -17,6 +21,7 @@ const config: ServerConfig = {
   telegramBotToken: "123456:test-token",
   telegramStartPhotoFileId: "telegram-start-photo-file-id",
   telegramClientSecret: null,
+  telegramReminderDispatchSecret: "test-reminder-dispatch-secret",
   developmentTelegramUserId: "1001",
   analyticsOwnerTelegramUserId: "1001",
 };
@@ -136,6 +141,120 @@ describe("Vocabulary API", () => {
       method: "sendMessage",
       chat_id: 42,
       text: "Save words, review them, and build your vocabulary.\n\nChoose where to start:",
+    });
+  });
+
+  it("uses neutral reminder copy with correct Russian card forms", () => {
+    expect(telegramReminderMessage("42", 1, config.appOrigin).text)
+      .toBe("К повторению готова 1 карточка.");
+    expect(telegramReminderMessage("42", 2, config.appOrigin).text)
+      .toBe("К повторению готовы 2 карточки.");
+    expect(telegramReminderMessage("42", 5, config.appOrigin).text)
+      .toBe("К повторению готовы 5 карточек.");
+    expect(telegramReminderMessage("42", 21, config.appOrigin).text)
+      .toBe("К повторению готова 21 карточка.");
+  });
+
+  it("hides reminder dispatch when the server secret is absent", async () => {
+    const inactive = await buildServer({
+      ...config,
+      telegramReminderDispatchSecret: null,
+    });
+    try {
+      const configuration = await inactive.app.inject({ method: "GET", url: "/api/config" });
+      expect(configuration.json()).toMatchObject({ telegramRemindersAvailable: false });
+
+      const dispatch = await inactive.app.inject({
+        method: "POST",
+        url: "/api/internal/telegram-reminders/claim",
+        headers: { authorization: "Bearer test-reminder-dispatch-secret" },
+      });
+      expect(dispatch.statusCode).toBe(404);
+    } finally {
+      await inactive.app.close();
+    }
+  });
+
+  it("dispatches opted-in Telegram reminders through the protected internal API", async () => {
+    const repository = new VocabularyRepository(server.database.sqlite);
+    const user = repository.ensureUser({
+      telegramUserId: "1001",
+      displayName: "Local developer",
+      username: "local",
+      photoUrl: null,
+    });
+    const lastStudiedAt = new Date(Date.now() - 2 * 86_400_000);
+    const word = repository.createWord(
+      user.id,
+      { learningText: "memory", meanings: ["память"], comment: "" },
+      lastStudiedAt,
+    );
+    repository.answerWord(
+      user.id,
+      word.id,
+      randomUUID(),
+      true,
+      "scheduled",
+      lastStudiedAt,
+    );
+
+    const enabled = await server.app.inject({
+      method: "PUT",
+      url: "/api/settings/telegram-reminders",
+      headers: { cookie },
+      payload: { enabled: true },
+    });
+    expect(enabled.json()).toEqual({ enabled: true });
+
+    const unauthorized = await server.app.inject({
+      method: "POST",
+      url: "/api/internal/telegram-reminders/claim",
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const claimed = await server.app.inject({
+      method: "POST",
+      url: "/api/internal/telegram-reminders/claim",
+      headers: { authorization: "Bearer test-reminder-dispatch-secret" },
+    });
+    expect(claimed.statusCode).toBe(200);
+    const payload = claimed.json<{
+      reminders: Array<{ eventId: string; request: Record<string, unknown> }>;
+    }>();
+    expect(payload.reminders).toHaveLength(1);
+    expect(payload.reminders[0]?.request).toMatchObject({
+      method: "sendMessage",
+      chat_id: "1001",
+      text: "К повторению готова 1 карточка.",
+      reply_markup: {
+        inline_keyboard: [[{
+          text: "Повторить",
+          web_app: { url: "http://127.0.0.1:5173/?tab=learn" },
+        }]],
+      },
+    });
+
+    const completed = await server.app.inject({
+      method: "POST",
+      url: "/api/internal/telegram-reminders/complete",
+      headers: { authorization: "Bearer test-reminder-dispatch-secret" },
+      payload: {
+        results: [{
+          eventId: payload.reminders[0]?.eventId,
+          ok: false,
+          errorCode: 403,
+        }],
+      },
+    });
+    expect(completed.statusCode).toBe(204);
+
+    const bootstrap = await server.app.inject({
+      method: "GET",
+      url: "/api/bootstrap",
+      headers: { cookie },
+    });
+    expect(bootstrap.json<{ telegramReminders: unknown }>().telegramReminders).toEqual({
+      enabled: false,
     });
   });
 

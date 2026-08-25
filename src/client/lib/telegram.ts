@@ -7,6 +7,7 @@ interface TelegramWebApp {
   expand(): void;
   isVersionAtLeast?(version: string): boolean;
   requestFullscreen?(): void;
+  requestWriteAccess?(callback: (granted: boolean) => void): void;
   enableVerticalSwipes?(): void;
   disableVerticalSwipes?(): void;
   setBackgroundColor?(color: string): void;
@@ -77,4 +78,15 @@ export function telegramImpact(style: "light" | "medium" | "heavy" = "light"): v
 
 export function telegramNotification(type: "error" | "success" | "warning"): void {
   window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred(type);
+}
+
+export function requestTelegramWriteAccess(): Promise<boolean> {
+  const webApp = window.Telegram?.WebApp;
+  if (
+    webApp?.requestWriteAccess === undefined
+    || webApp.isVersionAtLeast?.("6.9") === false
+  ) {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => webApp.requestWriteAccess?.(resolve));
 }

@@ -12,6 +12,7 @@ export interface UserProfile {
 
 export interface AppConfiguration {
   developmentLoginEnabled: boolean;
+  telegramRemindersAvailable: boolean;
 }
 
 export interface SessionResponse {
@@ -21,7 +22,12 @@ export interface SessionResponse {
 export interface BootstrapResponse {
   user: UserProfile;
   settings: LanguageSettings;
+  telegramReminders: TelegramReminderSettings;
   words: VocabularyWord[];
+}
+
+export interface TelegramReminderSettings {
+  enabled: boolean;
 }
 
 export interface CreateWordRequest {

@@ -35,6 +35,18 @@ export const answerWordSchema = z.object({
   operationId: z.uuid(),
 });
 
+export const telegramReminderSettingsSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const telegramReminderResultsSchema = z.object({
+  results: z.array(z.object({
+    eventId: z.uuid(),
+    ok: z.boolean(),
+    errorCode: z.number().int().positive().nullable(),
+  })).max(20),
+});
+
 export const settingsSchema = z
   .object({
     learningLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),

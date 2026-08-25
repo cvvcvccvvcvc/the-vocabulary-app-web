@@ -1512,6 +1512,64 @@ button.titlebar-icon.active {
   box-shadow: 0 1px 5px rgb(0 0 0 / 8%);
 }
 
+.reminder-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.reminder-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.reminder-copy strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.reminder-copy small {
+  max-width: 430px;
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.settings-switch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  padding: 2px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--badge);
+  flex: 0 0 auto;
+  transition: background 160ms ease;
+}
+
+.settings-switch span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 22%);
+  transition: transform 160ms ease;
+}
+
+.settings-switch[aria-checked="true"] {
+  background: var(--accent);
+}
+
+.settings-switch[aria-checked="true"] span {
+  transform: translateX(18px);
+}
+
+.settings-switch:disabled {
+  opacity: 0.55;
+}
+
 .account-card {
   display: flex;
   align-items: center;
