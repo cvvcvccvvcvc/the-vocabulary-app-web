@@ -5,6 +5,7 @@ import type { ServerConfig } from "../../src/server/config.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
 import { telegramMenuReply, telegramWebhookSecret } from "../../src/server/telegramBot.js";
 import type { VocabularyWord } from "../../src/domain/index.js";
+import type { UserStatisticsResponse } from "../../src/shared/contracts.js";
 
 const config: ServerConfig = {
   environment: "test",
@@ -214,6 +215,49 @@ describe("Vocabulary API", () => {
     expect(first.json<VocabularyWord>().level).toBe(1);
     expect(second.json<VocabularyWord>().level).toBe(1);
     expect(second.json<VocabularyWord>().correctCount).toBe(1);
+  });
+
+  it("returns validated, authenticated user statistics", async () => {
+    const unauthorized = await server.app.inject({
+      method: "GET",
+      url: "/api/statistics?timeZone=UTC",
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const invalid = await server.app.inject({
+      method: "GET",
+      url: "/api/statistics?timeZone=Not%2FA%2FZone",
+      headers: { cookie },
+    });
+    expect(invalid.statusCode).toBe(400);
+
+    const created = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "progress", meanings: ["прогресс"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    await server.app.inject({
+      method: "POST",
+      url: `/api/words/${created.id}/answer`,
+      headers: { cookie },
+      payload: { correct: false, mode: "free", operationId: randomUUID() },
+    });
+
+    const response = await server.app.inject({
+      method: "GET",
+      url: "/api/statistics?timeZone=UTC",
+      headers: { cookie },
+    });
+    expect(response.statusCode).toBe(200);
+    const statistics = response.json<UserStatisticsResponse>();
+    expect(statistics.timeZone).toBe("UTC");
+    expect(statistics.streak).toEqual({ current: 1, studiedToday: true });
+    expect(statistics.activity).toHaveLength(28);
+    expect(statistics.activity.at(-1)?.answers).toBe(1);
+    expect(statistics.vocabulary.totalWords).toBe(1);
   });
 
   it("persists language and theme settings in the user profile", async () => {

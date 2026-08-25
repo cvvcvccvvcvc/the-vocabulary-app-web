@@ -29,10 +29,12 @@ import {
   answerWordSchema,
   settingsSchema,
   showWordSchema,
+  statisticsQuerySchema,
   updateWordSchema,
   wordContentSchema,
 } from "./validation.js";
 import { AnalyticsRepository } from "./analytics.js";
+import { StatisticsRepository } from "./statistics.js";
 
 export interface BuiltServer {
   app: FastifyInstance;
@@ -47,6 +49,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   const database = new VocabularyDatabase(config.databasePath);
   const repository = new VocabularyRepository(database.sqlite);
   const analyticsRepository = new AnalyticsRepository(database.sqlite);
+  const statisticsRepository = new StatisticsRepository(database.sqlite);
 
   await app.register(cookie, { secret: config.sessionSecret });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
@@ -168,6 +171,13 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
       });
     }
     return analyticsRepository.report();
+  });
+
+  app.get("/api/statistics", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    const { timeZone } = statisticsQuerySchema.parse(request.query);
+    return statisticsRepository.report(user.id, timeZone);
   });
 
   app.post("/api/words", async (request, reply) => {

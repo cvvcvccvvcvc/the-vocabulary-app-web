@@ -6,6 +6,7 @@ import type {
   CreateWordRequest,
   ErrorResponse,
   SessionResponse,
+  UserStatisticsResponse,
   UpdateWordRequest,
 } from "../../shared/contracts.js";
 
@@ -62,6 +63,8 @@ export const api = {
     }),
   logout: () => request<void>("/api/logout", { method: "POST" }),
   bootstrap: () => request<BootstrapResponse>("/api/bootstrap"),
+  statistics: (timeZone: string) =>
+    request<UserStatisticsResponse>(`/api/statistics?timeZone=${encodeURIComponent(timeZone)}`),
   createWord: (input: CreateWordRequest) =>
     request<VocabularyWord>("/api/words", {
       method: "POST",

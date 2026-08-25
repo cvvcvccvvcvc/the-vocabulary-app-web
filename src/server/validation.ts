@@ -35,6 +35,22 @@ export const answerWordSchema = z.object({
   operationId: z.uuid(),
 });
 
+export const statisticsQuerySchema = z.object({
+  timeZone: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Time zone must be a valid IANA identifier"),
+});
+
 export const settingsSchema = z
   .object({
     learningLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),

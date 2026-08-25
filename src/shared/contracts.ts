@@ -90,3 +90,24 @@ export interface AnalyticsResponse {
   usage: AnalyticsUsageDay[];
   users: AnalyticsUser[];
 }
+
+export interface UserStatisticsDay {
+  date: string;
+  answers: number;
+  wordsAdded: number;
+}
+
+export interface UserStatisticsResponse {
+  generatedAt: string;
+  timeZone: string;
+  streak: {
+    current: number;
+    studiedToday: boolean;
+  };
+  activity: UserStatisticsDay[];
+  vocabulary: {
+    totalWords: number;
+    dueWords: number;
+    wordsByLevel: number[];
+  };
+}
