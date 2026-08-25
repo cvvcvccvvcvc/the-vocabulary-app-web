@@ -1,25 +1,38 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./Icons.js";
 
-export type Section = "learn" | "add" | "words" | "settings";
+export type PrimarySection = "learn" | "add" | "words" | "progress";
+export type Section = PrimarySection | "settings";
 
-const sections: Array<{ id: Section; label: string; shortLabel: string; icon: IconName; mobileIcon: IconName }> = [
+const sections: Array<{ id: PrimarySection; label: string; shortLabel: string; icon: IconName; mobileIcon: IconName }> = [
   { id: "learn", label: "Learn", shortLabel: "Learn", icon: "learn", mobileIcon: "learn" },
   { id: "add", label: "Add Word", shortLabel: "Add", icon: "add", mobileIcon: "addCircle" },
   { id: "words", label: "Words", shortLabel: "Words", icon: "list", mobileIcon: "book" },
-  { id: "settings", label: "Settings", shortLabel: "Settings", icon: "settings", mobileIcon: "settings" },
+  { id: "progress", label: "Progress", shortLabel: "Progress", icon: "progress", mobileIcon: "progress" },
 ];
 
 interface ShellProps {
   activeSection: Section;
+  activeNavigationSection: PrimarySection;
   theme: "light" | "dark";
   children: ReactNode;
-  onSectionChange(section: Section): void;
+  onSectionChange(section: PrimarySection): void;
+  onSettingsOpen(): void;
   onThemeToggle(): void;
 }
 
-export function Shell({ activeSection, theme, children, onSectionChange, onThemeToggle }: ShellProps) {
-  const title = sections.find((section) => section.id === activeSection)?.label ?? "Vocabulary";
+export function Shell({
+  activeSection,
+  activeNavigationSection,
+  theme,
+  children,
+  onSectionChange,
+  onSettingsOpen,
+  onThemeToggle,
+}: ShellProps) {
+  const title = activeSection === "settings"
+    ? "Settings"
+    : sections.find((section) => section.id === activeSection)?.label ?? "Vocabulary";
 
   return (
     <div className="app-shell">
@@ -33,7 +46,7 @@ export function Shell({ activeSection, theme, children, onSectionChange, onTheme
             className={activeSection === "settings" ? "titlebar-icon active" : "titlebar-icon"}
             type="button"
             aria-label="Settings"
-            onClick={() => onSectionChange("settings")}
+            onClick={onSettingsOpen}
           >
             <Icon name="settings" />
           </button>
@@ -46,10 +59,10 @@ export function Shell({ activeSection, theme, children, onSectionChange, onTheme
 
       <aside className="sidebar">
         <nav className="sidebar-navigation" aria-label="Main navigation">
-          {sections.filter((section) => section.id !== "settings").map((section) => (
+          {sections.map((section) => (
             <button
               key={section.id}
-              className={section.id === activeSection ? "nav-item active" : "nav-item"}
+              className={section.id === activeNavigationSection ? "nav-item active" : "nav-item"}
               type="button"
               onClick={() => onSectionChange(section.id)}
             >
@@ -66,7 +79,7 @@ export function Shell({ activeSection, theme, children, onSectionChange, onTheme
         {sections.map((section) => (
           <button
             key={section.id}
-            className={section.id === activeSection ? "bottom-nav-item active" : "bottom-nav-item"}
+            className={section.id === activeNavigationSection ? "bottom-nav-item active" : "bottom-nav-item"}
             type="button"
             onClick={() => onSectionChange(section.id)}
           >

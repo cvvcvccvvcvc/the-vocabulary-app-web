@@ -8,11 +8,12 @@ import { Icon } from "./Icons.js";
 interface SettingsScreenProps {
   settings: LanguageSettings;
   user: UserProfile;
+  onBack(): void;
   onUpdated(settings: LanguageSettings): void;
   onLogout(): Promise<void>;
 }
 
-export function SettingsScreen({ settings, user, onUpdated, onLogout }: SettingsScreenProps) {
+export function SettingsScreen({ settings, user, onBack, onUpdated, onLogout }: SettingsScreenProps) {
   const [draft, setDraft] = useState(settings);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,6 +51,13 @@ export function SettingsScreen({ settings, user, onUpdated, onLogout }: Settings
 
   return (
     <section className="screen settings-screen">
+      <header className="mobile-screen-header settings-mobile-header">
+        <button className="mobile-header-button" type="button" aria-label="Back" onClick={onBack}>
+          <Icon name="back" />
+        </button>
+        <h1>Settings</h1>
+        <span className="mobile-header-spacer" aria-hidden="true" />
+      </header>
       <div className="settings-stack">
         <section className="settings-card">
           <header>

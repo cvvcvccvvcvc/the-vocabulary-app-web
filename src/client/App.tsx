@@ -4,8 +4,9 @@ import type { AppConfiguration, UserProfile } from "../shared/contracts.js";
 import { AddWordScreen } from "./components/AddWordScreen.js";
 import { AuthScreen } from "./components/AuthScreen.js";
 import { LearnScreen } from "./components/LearnScreen.js";
+import { ProgressScreen } from "./components/ProgressScreen.js";
 import { SettingsScreen } from "./components/SettingsScreen.js";
-import { Shell, type Section } from "./components/Shell.js";
+import { Shell, type PrimarySection, type Section } from "./components/Shell.js";
 import { WordsScreen } from "./components/WordsScreen.js";
 import { api, ApiError } from "./lib/api.js";
 import { sectionFromSearch } from "./lib/section.js";
@@ -23,6 +24,7 @@ export function App() {
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
   const [section, setSection] = useState<Section>(() => sectionFromSearch(window.location.search));
+  const [returnSection, setReturnSection] = useState<PrimarySection>(() => sectionFromSearch(window.location.search));
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
@@ -90,6 +92,16 @@ export function App() {
     );
   }, []);
 
+  function selectSection(nextSection: PrimarySection): void {
+    setReturnSection(nextSection);
+    setSection(nextSection);
+  }
+
+  function openSettings(): void {
+    if (section !== "settings") setReturnSection(section);
+    setSection("settings");
+  }
+
   if (loading) {
     return (
       <main className="auth-screen">
@@ -120,7 +132,7 @@ export function App() {
               current === null ? current : { ...current, words: [...current.words, word] },
             )
           }
-          onViewWords={() => setSection("words")}
+          onViewWords={() => selectSection("words")}
         />
       );
       break;
@@ -145,6 +157,7 @@ export function App() {
         <SettingsScreen
           settings={application.settings}
           user={application.user}
+          onBack={() => setSection(returnSection)}
           onUpdated={(settings) =>
             setApplication((current) => (current === null ? current : { ...current, settings }))
           }
@@ -152,6 +165,15 @@ export function App() {
             await api.logout();
             setApplication(null);
           }}
+        />
+      );
+      break;
+    case "progress":
+      content = (
+        <ProgressScreen
+          onAddWord={() => selectSection("add")}
+          onLearn={() => selectSection("learn")}
+          onOpenSettings={openSettings}
         />
       );
       break;
@@ -169,8 +191,10 @@ export function App() {
   return (
     <Shell
       activeSection={section}
+      activeNavigationSection={section === "settings" ? returnSection : section}
       theme={resolvedTheme}
-      onSectionChange={setSection}
+      onSectionChange={selectSection}
+      onSettingsOpen={openSettings}
       onThemeToggle={() => {
         const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
         void api.updateSettings({ ...application.settings, theme: nextTheme }).then((settings) => {

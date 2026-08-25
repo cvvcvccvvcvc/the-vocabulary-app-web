@@ -1,6 +1,6 @@
 # Architecture
 
-Vocabulary is a single TypeScript project with four explicit layers:
+The Vocabulary App is a single TypeScript project with four explicit layers:
 
 ```text
 src/client  -> src/shared <- src/server
@@ -21,6 +21,24 @@ The browser loads the user's active vocabulary into memory. This keeps review se
 
 The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. The server applies the domain rule in a transaction and returns the updated word.
 
+## User progress
+
+The authenticated `GET /api/statistics` endpoint calculates one user's progress on demand
+from canonical `words` and `review_operations` rows. Every query is scoped by the session's
+internal user ID. No separate event store, cached rollup, background worker, or new service
+is introduced.
+
+The client supplies the device's current IANA time-zone identifier. The server validates it,
+keeps timestamps in UTC, and performs calendar-day grouping in that requested zone. The
+response contains 28 contiguous days, including zero-activity days, along with the current
+streak and current active-word totals. Streak calculation is a pure domain operation; the
+server supplies already-normalized local day identifiers.
+
+`review_operations` is the source for accepted answers, so its operation ID preserves
+idempotency for statistics as well as review mutations. Both Scheduled Review and Free
+Review answers count. Current vocabulary and level distribution exclude soft-deleted words;
+historical additions remain in the 28-day activity history.
+
 ## Authentication
 
 The Telegram Mini App sends raw `initData` to the server. The server validates its HMAC signature and freshness before accepting the Telegram user identity.
@@ -35,7 +53,7 @@ Session cookies are HTTP-only, secure in production, and backed by hashed random
 
 ## Owner analytics
 
-The website serves a standalone `/analytics` route outside the normal Vocabulary
+The website serves a standalone `/analytics` route outside the normal application
 navigation. Its API requires an authenticated session and independently matches the
 session's internal user to `ANALYTICS_OWNER_TELEGRAM_USER_ID`. A missing configuration or
 a different authenticated user receives the same not-found response.
