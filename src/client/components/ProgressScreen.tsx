@@ -35,6 +35,10 @@ export function ProgressScreen({ onAddWord, onLearn, onOpenSettings }: ProgressS
     };
   }, [reloadKey, timeZone]);
 
+  const isEmptyProgress = report !== null
+    && report.vocabulary.totalWords === 0
+    && report.activity.every((day) => day.answers === 0);
+
   return (
     <section className="screen progress-screen">
       <header className="mobile-screen-header progress-mobile-header">
@@ -62,11 +66,27 @@ export function ProgressScreen({ onAddWord, onLearn, onOpenSettings }: ProgressS
 
       {report !== null && (
         <div className="progress-stack">
-          <StreakCard report={report} onAddWord={onAddWord} onLearn={onLearn} />
-          <ActivityCard activity={report.activity} />
-          <CollectionCard report={report} />
+          {isEmptyProgress ? (
+            <EmptyProgress onAddWord={onAddWord} />
+          ) : (
+            <>
+              <StreakCard report={report} onAddWord={onAddWord} onLearn={onLearn} />
+              <ActivityCard activity={report.activity} />
+              <CollectionCard report={report} />
+            </>
+          )}
         </div>
       )}
+    </section>
+  );
+}
+
+function EmptyProgress({ onAddWord }: { onAddWord(): void }) {
+  return (
+    <section className="progress-card progress-empty-state">
+      <h2>Add your first word</h2>
+      <p>Your progress will appear here after you begin reviewing.</p>
+      <button className="primary-button" type="button" onClick={onAddWord}>Add word</button>
     </section>
   );
 }
@@ -94,7 +114,10 @@ function StreakCard({
         <span className="streak-icon" aria-hidden="true"><Icon name="flame" /></span>
         <div>
           <p className="progress-eyebrow" id="streak-title">Current streak</p>
-          <p className="streak-value"><strong>{formatNumber(current)}</strong><span>day streak</span></p>
+          <p className="streak-value">
+            <strong>{formatNumber(current)}</strong>
+            <span>{current === 1 ? "day" : "days"}</span>
+          </p>
           {!studiedToday && <p className="streak-status">{status}</p>}
         </div>
       </div>
@@ -130,16 +153,15 @@ function WeekActivity({ days }: { days: UserStatisticsDay[] }) {
 }
 
 function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
-  const answers = activity.reduce((sum, day) => sum + day.answers, 0);
   const activeDays = activity.filter((day) => day.answers > 0).length;
-  const summary = `${formatNumber(answers)} reviews · ${formatNumber(activeDays)} active days`;
+  const summary = formatUnit(activeDays, "active day", "active days");
 
   return (
     <section className="progress-card activity-card" aria-labelledby="activity-title">
       <header className="progress-card-heading">
         <div>
-          <p className="progress-eyebrow">Past month</p>
-          <h2 id="activity-title">Activity</h2>
+          <p className="progress-eyebrow">Last 30 days</p>
+          <h2 id="activity-title">Review activity</h2>
         </div>
         <p id="activity-summary">{summary}</p>
       </header>
@@ -149,58 +171,47 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
 }
 
 function ActivityChart({ activity, label }: { activity: UserStatisticsDay[]; label: string }) {
-  const width = 680;
-  const height = 190;
-  const padding = { top: 14, right: 8, bottom: 30, left: 30 };
-  const innerWidth = width - padding.left - padding.right;
-  const innerHeight = height - padding.top - padding.bottom;
-  const maximum = Math.max(1, ...activity.map((day) => day.answers));
-  const ticks = Array.from(new Set([0, Math.ceil(maximum / 2), maximum]));
-  const step = innerWidth / activity.length;
+  const observedMaximum = Math.max(1, ...activity.map((day) => day.answers));
+  const tickStep = Math.max(1, Math.ceil(observedMaximum / 2));
+  const maximum = tickStep * 2;
+  const ticks = [maximum, tickStep, 0];
+  const columns = { gridTemplateColumns: `repeat(${activity.length}, minmax(0, 1fr))` };
 
   return (
-    <svg className="progress-activity-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Daily review activity. ${label}.`}>
-      {ticks.map((tick) => {
-        const y = padding.top + innerHeight - (tick / maximum) * innerHeight;
-        return (
-          <g key={tick}>
-            <line className="progress-grid-line" x1={padding.left} x2={width - padding.right} y1={y} y2={y} />
-            <text className="progress-axis-text" x={padding.left - 7} y={y + 4} textAnchor="end">{tick}</text>
-          </g>
-        );
-      })}
-      {activity.map((day, index) => {
-        const barWidth = Math.max(5, step * 0.58);
-        const barHeight = (day.answers / maximum) * innerHeight;
-        const x = padding.left + step * index + (step - barWidth) / 2;
-        const y = padding.top + innerHeight - barHeight;
-        return (
-          <rect
-            key={day.date}
-            className="progress-activity-bar"
-            x={x}
-            y={y}
-            width={barWidth}
-            height={barHeight}
-            rx={Math.min(4, barWidth / 2)}
-          >
-            <title>{`${formatLongDate(day.date)}: ${day.answers} reviews`}</title>
-          </rect>
-        );
-      })}
-      {activity.map((day, index) => {
-        const lastIndex = activity.length - 1;
-        const isLastDay = index === lastIndex;
-        const isWeeklyLabel = index % 7 === 0 && lastIndex - index > 2;
-        if (!isLastDay && !isWeeklyLabel) return null;
-        const x = padding.left + step * index + step / 2;
-        return (
-          <text key={day.date} className="progress-axis-text" x={x} y={height - 9} textAnchor="middle">
-            {formatShortDate(day.date)}
-          </text>
-        );
-      })}
-    </svg>
+    <figure className="progress-activity-chart" role="img" aria-label={`Daily review activity. ${label}.`}>
+      <div className="progress-activity-y-axis" aria-hidden="true">
+        {ticks.map((tick) => <span key={tick}>{tick}</span>)}
+      </div>
+      <div className="progress-activity-plot" aria-hidden="true">
+        <div className="progress-grid-lines">
+          {ticks.map((tick) => <span key={tick} />)}
+        </div>
+        <div className="progress-activity-bars" style={columns}>
+          {activity.map((day) => (
+            <span
+              className="progress-activity-bar"
+              key={day.date}
+              style={{ height: `${(day.answers / maximum) * 100}%` }}
+              title={`${formatLongDate(day.date)}: ${formatUnit(day.answers, "review")}`}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="progress-date-labels" style={columns} aria-hidden="true">
+        {activity.map((day, index) => {
+          const lastIndex = activity.length - 1;
+          const isLastDay = index === lastIndex;
+          const isWeeklyLabel = index % 7 === 0 && lastIndex - index > 2;
+          if (!isLastDay && !isWeeklyLabel) return null;
+          const edgeClass = index === 0 ? " edge-start" : isLastDay ? " edge-end" : "";
+          return (
+            <span className={`progress-date-label${edgeClass}`} key={day.date} style={{ gridColumn: index + 1 }}>
+              {formatShortDate(day.date)}
+            </span>
+          );
+        })}
+      </div>
+    </figure>
   );
 }
 
@@ -212,22 +223,22 @@ function CollectionCard({ report }: { report: UserStatisticsResponse }) {
 
   return (
     <section className="progress-card collection-card" aria-labelledby="collection-title">
-      <header className="collection-heading">
-        <h2 className="progress-eyebrow" id="collection-title">Your collection</h2>
-        <p className="collection-total">
-          <strong>{formatNumber(report.vocabulary.totalWords)}</strong>
-          <span>words</span>
-        </p>
+      <header className="progress-card-heading">
+        <div>
+          <p className="progress-eyebrow">Your collection</p>
+          <h2 id="collection-title">Word levels</h2>
+        </div>
+        <p>{formatUnit(report.vocabulary.totalWords, "word")}</p>
       </header>
 
-      <div className="level-progress-heading">
-        <span>Levels</span>
-      </div>
       <div className="level-progress-chart" role="img" aria-label={levelDescription}>
         {report.vocabulary.wordsByLevel.map((count, level) => (
           <div className="level-progress-column" key={level}>
-            <span className="level-progress-track" aria-hidden="true">
-              <span style={{ height: count === 0 ? 0 : `${Math.max(8, (count / levelMaximum) * 100)}%` }} />
+            <span className="level-progress-count" aria-hidden="true">
+              {count > 0 ? formatNumber(count) : ""}
+            </span>
+            <span className="level-progress-bar-area" aria-hidden="true">
+              <span className="level-progress-bar" style={{ height: `${(count / levelMaximum) * 100}%` }} />
             </span>
             <small>{level}</small>
           </div>
@@ -255,4 +266,8 @@ function formatLongDate(day: string): string {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
+}
+
+function formatUnit(value: number, singular: string, plural = `${singular}s`): string {
+  return `${formatNumber(value)} ${value === 1 ? singular : plural}`;
 }

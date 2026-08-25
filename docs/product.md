@@ -18,7 +18,10 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
-- A personal Progress screen with the current streak, the last seven calendar days, a rolling one-month review activity chart, the current word count, and the distribution of active words across levels 0–9.
+- A personal Progress screen with the current streak, the last seven calendar days, active
+  days and daily review activity over a rolling 30-day period, the current word count, and
+  the distribution of active words across levels 0–9. A brand-new account sees one Add Word
+  action instead of empty charts.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.

@@ -22,8 +22,6 @@
   --danger-soft: rgb(217 48 37 / 9%);
   --success: #1f9d3c;
   --success-soft: rgb(31 157 60 / 10%);
-  --streak: #e98200;
-  --streak-soft: rgb(233 130 0 / 11%);
   --titlebar-height: 64px;
   --sidebar-width: 220px;
   --app-safe-top: max(env(safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px));
@@ -51,8 +49,6 @@
   --danger-soft: rgb(255 69 58 / 16%);
   --success: #30d158;
   --success-soft: rgb(48 209 88 / 16%);
-  --streak: #ff9f0a;
-  --streak-soft: rgb(255 159 10 / 14%);
 }
 
 * {
@@ -1492,8 +1488,8 @@ button.titlebar-icon.active {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  color: var(--streak);
-  background: var(--streak-soft);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   flex: 0 0 auto;
   place-items: center;
 }
@@ -1546,8 +1542,8 @@ button.titlebar-icon.active {
 .streak-week li {
   display: grid;
   justify-items: center;
-  color: var(--tertiary);
-  font-size: 11px;
+  color: var(--secondary);
+  font-size: 12px;
   font-weight: 600;
   gap: 7px;
 }
@@ -1571,11 +1567,11 @@ button.titlebar-icon.active {
 .streak-day.active {
   border-color: transparent;
   color: #fff;
-  background: var(--streak);
+  background: var(--accent);
 }
 
 .streak-week li.today .streak-day:not(.active) {
-  border-color: color-mix(in srgb, var(--streak) 50%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .streak-action {
@@ -1584,111 +1580,170 @@ button.titlebar-icon.active {
   padding-inline: 18px;
 }
 
-.activity-card {
+.activity-card,
+.collection-card {
   display: grid;
   gap: 18px;
 }
 
 .progress-activity-chart {
-  display: block;
+  display: grid;
   width: 100%;
-  height: auto;
-  overflow: visible;
+  margin: 0;
+  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-rows: 160px 18px;
+  column-gap: 8px;
+  row-gap: 8px;
 }
 
-.progress-grid-line {
-  stroke: var(--separator);
-  stroke-width: 1;
-}
-
-.progress-axis-text {
-  fill: var(--tertiary);
-  font-size: 10px;
+.progress-activity-y-axis {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  color: var(--secondary);
+  flex-direction: column;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.progress-activity-plot {
+  position: relative;
+  min-width: 0;
+}
+
+.progress-grid-lines,
+.progress-activity-bars {
+  position: absolute;
+  inset: 0;
+}
+
+.progress-grid-lines {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+}
+
+.progress-grid-lines span {
+  width: 100%;
+  border-top: 1px solid var(--separator);
+}
+
+.progress-activity-bars {
+  display: grid;
+  align-items: end;
 }
 
 .progress-activity-bar {
-  fill: var(--accent);
-  opacity: 0.88;
+  width: min(64%, 12px);
+  justify-self: center;
+  border-radius: 4px 4px 1px 1px;
+  background: var(--accent);
 }
 
-.collection-card {
+.progress-date-labels {
   display: grid;
-  gap: 22px;
-}
-
-.collection-heading {
-  display: flex;
-  min-height: 38px;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.collection-heading .progress-eyebrow {
-  margin: 0;
-}
-
-.collection-total {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-}
-
-.collection-total strong {
-  font-size: 28px;
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--secondary);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
+  line-height: 18px;
 }
 
-.collection-total span {
-  color: var(--secondary);
-  font-size: 12px;
+.progress-date-label {
+  width: max-content;
+  justify-self: center;
+  white-space: nowrap;
 }
 
-.level-progress-heading {
-  display: flex;
-  justify-content: space-between;
-  color: var(--secondary);
-  font-size: 12px;
-  font-weight: 600;
+.progress-date-label.edge-start {
+  justify-self: start;
+}
+
+.progress-date-label.edge-end {
+  justify-self: end;
 }
 
 .level-progress-chart {
+  position: relative;
   display: grid;
-  height: 128px;
+  height: 140px;
   grid-template-columns: repeat(10, 1fr);
   gap: 8px;
+}
+
+.level-progress-chart::before {
+  position: absolute;
+  right: 0;
+  bottom: 22px;
+  left: 0;
+  border-top: 1px solid var(--separator);
+  content: "";
 }
 
 .level-progress-column {
   display: grid;
   min-width: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: 16px minmax(0, 1fr) 16px;
   justify-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
-.level-progress-track {
+.level-progress-count {
+  color: var(--secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+}
+
+.level-progress-bar-area {
   display: flex;
-  width: min(100%, 22px);
+  width: 100%;
   height: 100%;
-  overflow: hidden;
   align-items: end;
-  border-radius: 7px;
-  background: var(--hover);
+  justify-content: center;
 }
 
-.level-progress-track > span {
-  width: 100%;
-  border-radius: 7px;
+.level-progress-bar {
+  width: min(64%, 22px);
+  border-radius: 5px 5px 1px 1px;
   background: var(--accent);
+  z-index: 1;
 }
 
 .level-progress-column small {
   color: var(--secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
+  line-height: 16px;
+}
+
+.progress-empty-state {
+  display: grid;
+  min-height: 240px;
+  align-content: center;
+  justify-items: start;
+  gap: 10px;
+}
+
+.progress-empty-state h2 {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.progress-empty-state p {
+  max-width: 380px;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.progress-empty-state .primary-button {
+  min-height: 42px;
+  margin-top: 8px;
+  padding-inline: 18px;
 }
 
 .progress-message {
@@ -2507,16 +2562,16 @@ button.titlebar-icon.active {
   }
 
   .progress-activity-chart {
-    min-height: 158px;
-  }
-
-  .collection-total strong {
-    font-size: 26px;
+    grid-template-rows: 140px 18px;
   }
 
   .level-progress-chart {
-    height: 112px;
+    height: 128px;
     gap: 5px;
+  }
+
+  .progress-empty-state {
+    min-height: 220px;
   }
 
   .settings-screen {
