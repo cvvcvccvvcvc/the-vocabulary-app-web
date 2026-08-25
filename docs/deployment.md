@@ -80,6 +80,7 @@ The existing server <code>.env</code> must define:
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
 | <code>TELEGRAM_START_PHOTO_FILE_ID</code> | Optional Telegram <code>file_id</code> for the image shown by <code>/start</code> and <code>/help</code>. Without it, the bot sends the text menu. |
 | <code>TELEGRAM_CLIENT_SECRET</code> | Telegram OIDC client secret. |
+| <code>TELEGRAM_REMINDER_DISPATCH_SECRET</code> | Optional high-entropy secret shared only with the Cloudflare Worker. When omitted, reminder dispatch and its client setting are disabled. |
 | <code>ANALYTICS_OWNER_TELEGRAM_USER_ID</code> | Optional numeric Telegram ID allowed to open the website's <code>/analytics</code> page. When omitted, analytics are unavailable. |
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
@@ -89,9 +90,13 @@ Telegram account and open `/analytics` directly. The page is deliberately absent
 normal application navigation. Its URL is not the security boundary; the API repeats the
 owner check for every analytics request.
 
-## Telegram command menu
+## Telegram bot integration
 
-Telegram cannot reliably deliver webhooks directly to the RuVDS network. A small Cloudflare Worker therefore relays the request to the existing Vocabulary webhook and returns its response to Telegram. The Worker keeps no user data and does not receive the bot token. Both the Worker and the application verify the same Telegram webhook secret.
+Telegram cannot reliably deliver webhooks directly to the RuVDS network. A small Cloudflare Worker therefore relays the request to the existing Vocabulary webhook and returns its response to Telegram. The webhook path keeps no user data and authenticates with a derived secret rather than the bot token. Both the Worker and the application verify the same Telegram webhook secret.
+
+The same Worker also runs hourly to deliver opt-in Scheduled Review reminders. That path
+requires the bot token and a separate dispatch secret in Cloudflare, but keeps all user and
+delivery state in the server's SQLite database.
 
 ### Deploy the relay
 
@@ -116,6 +121,26 @@ printf '%s' "$VOCABULARY_WEBHOOK_SECRET" | \
   pnpm dlx wrangler@4.125.0 secret put TELEGRAM_WEBHOOK_SECRET \
     --config deploy/telegram-webhook-relay/wrangler.jsonc
 ```
+
+Reminder delivery additionally requires the bot token and the same independent dispatch
+secret that will later be placed in the server's real `.env`. Upload both as Cloudflare
+secrets; never add either value to `wrangler.jsonc`:
+
+```bash
+read -s VOCABULARY_TELEGRAM_TOKEN
+echo
+read -s VOCABULARY_REMINDER_DISPATCH_SECRET
+echo
+printf '%s' "$VOCABULARY_TELEGRAM_TOKEN" | \
+  pnpm dlx wrangler@4.125.0 secret put TELEGRAM_BOT_TOKEN \
+    --config deploy/telegram-webhook-relay/wrangler.jsonc
+printf '%s' "$VOCABULARY_REMINDER_DISPATCH_SECRET" | \
+  pnpm dlx wrangler@4.125.0 secret put TELEGRAM_REMINDER_DISPATCH_SECRET \
+    --config deploy/telegram-webhook-relay/wrangler.jsonc
+```
+
+Keep `VOCABULARY_REMINDER_DISPATCH_SECRET` available until the matching
+`TELEGRAM_REMINDER_DISPATCH_SECRET` entry has been added to the server's real `.env`.
 
 Before changing Telegram, make one harmless relay request. A <code>204</code> response proves that Cloudflare can reach the production webhook and that both secret checks agree:
 
@@ -190,9 +215,28 @@ The webhook replies to `/start` and `/help` with buttons for Learn, Add Word, an
 
 If a Worker release fails, redeploy the last known-good Git commit before changing the Telegram webhook. The application endpoint and database are independent of the relay deployment.
 
+### Release reminders safely
+
+The application and Worker are deployed separately. Use this phased rollout:
+
+1. Merge `dev` into `main`. The server, client, and migration deploy automatically, while
+   reminders remain hidden because the server dispatch secret is absent.
+2. Upload `TELEGRAM_BOT_TOKEN` and `TELEGRAM_REMINDER_DISPATCH_SECRET` to Cloudflare.
+3. Deploy the Worker from the exact commit now on `main`; this adds the hourly Cron Trigger
+   without changing the existing webhook URL.
+4. Add the same dispatch secret to the server's real `.env` as
+   `TELEGRAM_REMINDER_DISPATCH_SECRET`, then recreate the application container.
+5. Confirm `/api/config` reports `telegramRemindersAvailable: true`, inspect the next Cron
+   event in Cloudflare, and enable reminders on a test account from the Telegram Mini App.
+
+For rollback, removing the server dispatch secret and recreating the application disables
+the feature and hides its setting. A Worker-only problem can be handled by redeploying the
+previous Worker version. Neither rollback requires changing the Telegram webhook URL.
+
 ## Operational notes
 
 - Do not expose the SQLite volume or application port directly.
 - Keep enough free disk space for a second Docker image during builds.
 - Back up the SQLite database off-server.
 - Inspect failed releases in GitHub Actions before retrying manually.
+- Keep the Worker deployment aligned with the exact production `main` commit.

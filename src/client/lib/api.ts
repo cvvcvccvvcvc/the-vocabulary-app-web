@@ -6,6 +6,7 @@ import type {
   CreateWordRequest,
   ErrorResponse,
   SessionResponse,
+  TelegramReminderSettings,
   UpdateWordRequest,
 } from "../../shared/contracts.js";
 
@@ -93,5 +94,10 @@ export const api = {
     request<LanguageSettings>("/api/settings", {
       method: "PUT",
       body: JSON.stringify(settings),
+    }),
+  updateTelegramReminders: (enabled: boolean) =>
+    request<TelegramReminderSettings>("/api/settings/telegram-reminders", {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
     }),
 };

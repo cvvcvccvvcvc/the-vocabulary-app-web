@@ -18,11 +18,12 @@ Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, bro
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
+- Opt-in Telegram reminders when Scheduled Review cards are ready.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
 
-Automatic translation, external dictionary lookup, offline mutation replay, reminders,
+Automatic translation, external dictionary lookup, offline mutation replay,
 user-facing learning statistics, tags, and decks are deferred until the core online
 experience is proven.
 
@@ -44,6 +45,22 @@ Scheduled Review serves new and due words. Correct answers raise the level by on
 Free Review starts only when Scheduled Review is empty. It draws from all active words and never changes `level` or `nextReviewAt`.
 
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
+
+## Telegram reminders
+
+Telegram reminders are disabled by default. The setting can be enabled only from the
+Telegram Mini App after Telegram grants the bot write access, and it can be disabled from
+any authenticated client.
+
+Each completed review answer starts a new reminder cycle, regardless of answer correctness
+or review mode. The server checks the cycle after 1, 2, 4, 7, 14, and 30 elapsed days. At
+each milestone it sends one reminder only when at least one active card is ready for
+Scheduled Review. A milestone with no due cards is consumed without sending. No more
+reminders are sent after day 30 until another answer starts a new cycle.
+
+The message uses the current due-card count and the neutral Russian copy “К повторению
+готовы N карточек.” with correct singular and plural forms. Its “Повторить” button opens
+Learn, where Scheduled Review remains ahead of Free Review.
 
 ## Data ownership
 

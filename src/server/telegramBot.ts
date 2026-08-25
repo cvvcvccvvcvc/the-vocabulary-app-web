@@ -16,6 +16,12 @@ export interface TelegramBotMethodRequest extends Record<string, unknown> {
   method: "sendMessage" | "sendPhoto";
 }
 
+function sectionUrl(appOrigin: string, section: "learn" | "add" | "words"): string {
+  const url = new URL(appOrigin);
+  url.searchParams.set("tab", section);
+  return url.toString();
+}
+
 export function telegramWebhookSecret(botToken: string): string {
   return createHash("sha256").update(`vocabulary-webhook:${botToken}`).digest("hex");
 }
@@ -49,12 +55,6 @@ export function telegramMenuReply(
     return null;
   }
 
-  function sectionUrl(section: "learn" | "add" | "words"): string {
-    const url = new URL(appOrigin);
-    url.searchParams.set("tab", section);
-    return url.toString();
-  }
-
   const menuText = "Save words, review them, and build your vocabulary.\n\nChoose where to start:";
   const content = startPhotoFileId === null
     ? { method: "sendMessage" as const, text: menuText }
@@ -65,12 +65,41 @@ export function telegramMenuReply(
     chat_id: chatId,
     reply_markup: {
       inline_keyboard: [
-        [{ text: "Learn", web_app: { url: sectionUrl("learn") } }],
+        [{ text: "Learn", web_app: { url: sectionUrl(appOrigin, "learn") } }],
         [
-          { text: "Add Word", web_app: { url: sectionUrl("add") } },
-          { text: "Words", web_app: { url: sectionUrl("words") } },
+          { text: "Add Word", web_app: { url: sectionUrl(appOrigin, "add") } },
+          { text: "Words", web_app: { url: sectionUrl(appOrigin, "words") } },
         ],
       ],
     },
   };
+}
+
+export function telegramReminderMessage(
+  chatId: string,
+  dueCardCount: number,
+  appOrigin: string,
+): TelegramBotMethodRequest {
+  return {
+    method: "sendMessage",
+    chat_id: chatId,
+    text: reminderText(dueCardCount),
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "Повторить", web_app: { url: sectionUrl(appOrigin, "learn") } },
+      ]],
+    },
+  };
+}
+
+function reminderText(count: number): string {
+  const remainder100 = count % 100;
+  const remainder10 = count % 10;
+  const noun = remainder10 === 1 && remainder100 !== 11
+    ? "карточка"
+    : remainder10 >= 2 && remainder10 <= 4 && !(remainder100 >= 12 && remainder100 <= 14)
+      ? "карточки"
+      : "карточек";
+  const adjective = noun === "карточка" ? "готова" : "готовы";
+  return `К повторению ${adjective} ${count} ${noun}.`;
 }
