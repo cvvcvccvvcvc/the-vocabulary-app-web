@@ -64,7 +64,7 @@ export function ProgressScreen({ onAddWord, onLearn, onOpenSettings }: ProgressS
         <div className="progress-stack">
           <StreakCard report={report} onAddWord={onAddWord} onLearn={onLearn} />
           <ActivityCard activity={report.activity} />
-          <VocabularyCard report={report} />
+          <CollectionCard report={report} />
         </div>
       )}
     </section>
@@ -82,13 +82,11 @@ function StreakCard({
 }) {
   const { current, studiedToday } = report.streak;
   const hasWords = report.vocabulary.totalWords > 0;
-  const status = studiedToday
-    ? "Studied today"
-    : current > 0
-      ? "Review one card today to keep it going."
-      : hasWords
-        ? "Review one card today to start a streak."
-        : "Add your first word, then begin reviewing.";
+  const status = current > 0
+    ? "Review one card today to keep it going."
+    : hasWords
+      ? "Review one card today to start a streak."
+      : "Add your first word, then begin reviewing.";
 
   return (
     <section className="progress-card streak-card" aria-labelledby="streak-title">
@@ -97,10 +95,7 @@ function StreakCard({
         <div>
           <p className="progress-eyebrow" id="streak-title">Current streak</p>
           <p className="streak-value"><strong>{formatNumber(current)}</strong><span>day streak</span></p>
-          <p className={studiedToday ? "streak-status complete" : "streak-status"}>
-            {studiedToday && <span aria-hidden="true">✓</span>}
-            {status}
-          </p>
+          {!studiedToday && <p className="streak-status">{status}</p>}
         </div>
       </div>
 
@@ -143,7 +138,7 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
     <section className="progress-card activity-card" aria-labelledby="activity-title">
       <header className="progress-card-heading">
         <div>
-          <p className="progress-eyebrow">Last 28 days</p>
+          <p className="progress-eyebrow">Past month</p>
           <h2 id="activity-title">Activity</h2>
         </div>
         <p id="activity-summary">{summary}</p>
@@ -194,7 +189,10 @@ function ActivityChart({ activity, label }: { activity: UserStatisticsDay[]; lab
         );
       })}
       {activity.map((day, index) => {
-        if (index % 7 !== 0 && index !== activity.length - 1) return null;
+        const lastIndex = activity.length - 1;
+        const isLastDay = index === lastIndex;
+        const isWeeklyLabel = index % 7 === 0 && lastIndex - index > 2;
+        if (!isLastDay && !isWeeklyLabel) return null;
         const x = padding.left + step * index + step / 2;
         return (
           <text key={day.date} className="progress-axis-text" x={x} y={height - 9} textAnchor="middle">
@@ -206,31 +204,24 @@ function ActivityChart({ activity, label }: { activity: UserStatisticsDay[]; lab
   );
 }
 
-function VocabularyCard({ report }: { report: UserStatisticsResponse }) {
-  const added = report.activity.reduce((sum, day) => sum + day.wordsAdded, 0);
+function CollectionCard({ report }: { report: UserStatisticsResponse }) {
   const levelMaximum = Math.max(1, ...report.vocabulary.wordsByLevel);
   const levelDescription = report.vocabulary.wordsByLevel
     .map((count, level) => `Level ${level}: ${count}`)
     .join(", ");
 
   return (
-    <section className="progress-card vocabulary-progress-card" aria-labelledby="vocabulary-progress-title">
-      <header className="progress-card-heading">
-        <div>
-          <p className="progress-eyebrow">Your collection</p>
-          <h2 id="vocabulary-progress-title">Vocabulary</h2>
-        </div>
+    <section className="progress-card collection-card" aria-labelledby="collection-title">
+      <header className="collection-heading">
+        <h2 className="progress-eyebrow" id="collection-title">Your collection</h2>
+        <p className="collection-total">
+          <strong>{formatNumber(report.vocabulary.totalWords)}</strong>
+          <span>words</span>
+        </p>
       </header>
 
-      <div className="vocabulary-metrics">
-        <ProgressMetric label="Words" value={report.vocabulary.totalWords} />
-        <ProgressMetric label="Due now" value={report.vocabulary.dueWords} />
-        <ProgressMetric label="Added in 28 days" value={added} />
-      </div>
-
       <div className="level-progress-heading">
-        <span>Current levels</span>
-        <span>0–9</span>
+        <span>Levels</span>
       </div>
       <div className="level-progress-chart" role="img" aria-label={levelDescription}>
         {report.vocabulary.wordsByLevel.map((count, level) => (
@@ -244,10 +235,6 @@ function VocabularyCard({ report }: { report: UserStatisticsResponse }) {
       </div>
     </section>
   );
-}
-
-function ProgressMetric({ label, value }: { label: string; value: number }) {
-  return <div className="progress-metric"><strong>{formatNumber(value)}</strong><span>{label}</span></div>;
 }
 
 function parseDay(day: string): Date {

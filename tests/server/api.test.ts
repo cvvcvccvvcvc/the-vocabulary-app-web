@@ -255,7 +255,7 @@ describe("Vocabulary API", () => {
     const statistics = response.json<UserStatisticsResponse>();
     expect(statistics.timeZone).toBe("UTC");
     expect(statistics.streak).toEqual({ current: 1, studiedToday: true });
-    expect(statistics.activity).toHaveLength(28);
+    expect(statistics.activity).toHaveLength(30);
     expect(statistics.activity.at(-1)?.answers).toBe(1);
     expect(statistics.vocabulary.totalWords).toBe(1);
   });

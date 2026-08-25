@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { calculateCurrentStreak, previousDay } from "../domain/index.js";
 import type { UserStatisticsDay, UserStatisticsResponse } from "../shared/contracts.js";
 
-const activityDayCount = 28;
+const activityDayCount = 30;
 const activityLookbackMilliseconds = 30 * 86_400_000;
 
 interface TimestampRow {

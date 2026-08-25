@@ -30,14 +30,13 @@ is introduced.
 
 The client supplies the device's current IANA time-zone identifier. The server validates it,
 keeps timestamps in UTC, and performs calendar-day grouping in that requested zone. The
-response contains 28 contiguous days, including zero-activity days, along with the current
+response contains 30 contiguous days, including zero-activity days, along with the current
 streak and current active-word totals. Streak calculation is a pure domain operation; the
 server supplies already-normalized local day identifiers.
 
 `review_operations` is the source for accepted answers, so its operation ID preserves
 idempotency for statistics as well as review mutations. Both Scheduled Review and Free
-Review answers count. Current vocabulary and level distribution exclude soft-deleted words;
-historical additions remain in the 28-day activity history.
+Review answers count. Current vocabulary and level distribution exclude soft-deleted words.
 
 ## Authentication
 

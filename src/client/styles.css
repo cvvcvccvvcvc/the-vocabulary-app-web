@@ -1534,11 +1534,6 @@ button.titlebar-icon.active {
   gap: 6px;
 }
 
-.streak-status.complete {
-  color: var(--success);
-  font-weight: 600;
-}
-
 .streak-week {
   display: grid;
   margin: 0;
@@ -1617,39 +1612,38 @@ button.titlebar-icon.active {
   opacity: 0.88;
 }
 
-.vocabulary-progress-card {
+.collection-card {
   display: grid;
   gap: 22px;
 }
 
-.vocabulary-metrics {
-  display: grid;
-  padding: 16px 0;
-  border-block: 1px solid var(--separator);
-  grid-template-columns: repeat(3, 1fr);
+.collection-heading {
+  display: flex;
+  min-height: 38px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
 }
 
-.progress-metric {
-  display: grid;
-  min-width: 0;
-  padding-inline: 18px;
-  gap: 4px;
+.collection-heading .progress-eyebrow {
+  margin: 0;
 }
 
-.progress-metric + .progress-metric {
-  border-left: 1px solid var(--separator);
+.collection-total {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
 }
 
-.progress-metric strong {
+.collection-total strong {
   font-size: 28px;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.035em;
 }
 
-.progress-metric span {
+.collection-total span {
   color: var(--secondary);
   font-size: 12px;
-  line-height: 1.3;
 }
 
 .level-progress-heading {
@@ -2516,16 +2510,8 @@ button.titlebar-icon.active {
     min-height: 158px;
   }
 
-  .progress-metric {
-    padding-inline: 10px;
-  }
-
-  .progress-metric:first-child {
-    padding-left: 2px;
-  }
-
-  .progress-metric strong {
-    font-size: 24px;
+  .collection-total strong {
+    font-size: 26px;
   }
 
   .level-progress-chart {
