@@ -27,9 +27,20 @@ The Telegram Mini App sends raw `initData` to the server. The server validates i
 
 The normal website uses Telegram's OIDC authorization-code flow with PKCE. Both paths normalize the verified Telegram user ID into one internal user record and one server-side session.
 
-Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to the fixed Vocabulary HTTPS endpoint, and returns the endpoint response without interpreting it. It stores neither the bot token nor update data.
+Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to the fixed Vocabulary HTTPS endpoint, and returns the endpoint response without interpreting it.
 
 The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendPhoto` method, a caption, and Mini App navigation buttons. The photo is referenced by its Telegram `file_id`; when it is not configured, the application falls back to `sendMessage`. Telegram executes the method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
+
+The same Worker has an hourly Cron Trigger for opt-in reminders. It authenticates to a
+fixed internal endpoint on The Vocabulary App, claims at most 20 reminder jobs, calls Telegram's
+`sendMessage`, and reports delivery results. SQLite remains authoritative for eligibility,
+milestone consumption, and deduplication. Claims are recorded before delivery, so an
+ambiguous network failure can omit a non-critical reminder but cannot send it twice.
+
+The Worker stores the bot token and a separate reminder dispatch secret as encrypted
+Cloudflare secrets. It keeps no user data or reminder state. Missing reminder configuration
+disables the internal endpoints and hides the client setting without affecting `/start`,
+`/help`, or authentication.
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in SQLite.
 
@@ -57,17 +68,20 @@ returns word text or meanings.
 
 SQLite is intentionally used for the first single-server deployment. The database is private to the API process and runs in WAL mode. SQL migrations are ordered files in `migrations/`.
 
-The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names. Language and appearance preferences live in `user_settings` so they follow the authenticated profile across devices.
+The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names. Language and appearance preferences live in `user_settings` so they follow the authenticated profile across devices. Telegram reminder opt-in and milestone events use separate tables because delivery state is operational rather than a language setting.
 
 ## Deployment
 
 The first production topology is one RuVDS instance plus a stateless webhook relay:
 
 ```text
-Telegram -> Cloudflare Worker -> Caddy :443 -> Vocabulary webhook
-Internet ----------------------> Caddy :443 -> Vocabulary API
-                                               |-- static client build
-                                               +-- SQLite volume
+Telegram -------> Cloudflare Worker ------> Vocabulary webhook
+Worker Cron ----> reminder dispatch API --> SQLite
+Worker Cron ------------------------------> Telegram Bot API
+Internet ---------------------------------> Vocabulary API
+                                             |-- static client build
+                                             +-- SQLite volume
 ```
 
-No database port is exposed. Only HTTPS and restricted administrative access are public. The relay has no database, storage, or bot token.
+No database port is exposed. Only HTTPS and restricted administrative access are public.
+The Worker has encrypted transport secrets but no database or user storage.

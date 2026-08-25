@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../domain/index.js";
-import type { AppConfiguration, UserProfile } from "../shared/contracts.js";
+import type {
+  AppConfiguration,
+  TelegramReminderSettings,
+  UserProfile,
+} from "../shared/contracts.js";
 import { AddWordScreen } from "./components/AddWordScreen.js";
 import { AuthScreen } from "./components/AuthScreen.js";
 import { LearnScreen } from "./components/LearnScreen.js";
@@ -15,11 +19,13 @@ interface ApplicationData {
   user: UserProfile;
   words: VocabularyWord[];
   settings: LanguageSettings;
+  telegramReminders: TelegramReminderSettings;
 }
 
 export function App() {
   const [configuration, setConfiguration] = useState<AppConfiguration>({
     developmentLoginEnabled: false,
+    telegramRemindersAvailable: false,
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
   const [section, setSection] = useState<Section>(() => sectionFromSearch(window.location.search));
@@ -144,9 +150,17 @@ export function App() {
       content = (
         <SettingsScreen
           settings={application.settings}
+          telegramReminders={application.telegramReminders}
+          telegramRemindersAvailable={configuration.telegramRemindersAvailable}
+          telegramLaunch={telegramLaunch !== ""}
           user={application.user}
           onUpdated={(settings) =>
             setApplication((current) => (current === null ? current : { ...current, settings }))
+          }
+          onTelegramRemindersUpdated={(telegramReminders) =>
+            setApplication((current) =>
+              current === null ? current : { ...current, telegramReminders }
+            )
           }
           onLogout={async () => {
             await api.logout();

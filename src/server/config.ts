@@ -11,6 +11,7 @@ export interface ServerConfig {
   telegramBotToken: string | null;
   telegramStartPhotoFileId: string | null;
   telegramClientSecret: string | null;
+  telegramReminderDispatchSecret: string | null;
   developmentTelegramUserId: string | null;
   analyticsOwnerTelegramUserId: string | null;
 }
@@ -35,6 +36,9 @@ export function loadServerConfig(
   const telegramBotId = optionalValue(environment.TELEGRAM_BOT_ID);
   const telegramBotToken = optionalValue(environment.TELEGRAM_BOT_TOKEN);
   const telegramClientSecret = optionalValue(environment.TELEGRAM_CLIENT_SECRET);
+  const telegramReminderDispatchSecret = optionalValue(
+    environment.TELEGRAM_REMINDER_DISPATCH_SECRET,
+  );
 
   if (production) {
     if (!appOrigin.startsWith("https://")) {
@@ -45,6 +49,12 @@ export function loadServerConfig(
     }
     if (telegramBotId === null || telegramBotToken === null || telegramClientSecret === null) {
       throw new Error("Telegram credentials are required in production");
+    }
+    if (
+      telegramReminderDispatchSecret !== null
+      && telegramReminderDispatchSecret.length < 32
+    ) {
+      throw new Error("TELEGRAM_REMINDER_DISPATCH_SECRET must contain at least 32 characters");
     }
   }
 
@@ -60,6 +70,7 @@ export function loadServerConfig(
     telegramBotToken,
     telegramStartPhotoFileId: optionalValue(environment.TELEGRAM_START_PHOTO_FILE_ID),
     telegramClientSecret,
+    telegramReminderDispatchSecret,
     developmentTelegramUserId:
       production ? null : optionalValue(environment.DEV_TELEGRAM_USER_ID),
     analyticsOwnerTelegramUserId: optionalValue(

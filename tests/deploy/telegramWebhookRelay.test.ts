@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { relayTelegramWebhook } from "../../deploy/telegram-webhook-relay/worker.js";
+import {
+  dispatchTelegramReminders,
+  relayTelegramWebhook,
+} from "../../deploy/telegram-webhook-relay/worker.js";
 
 const environment = {
   ORIGIN_WEBHOOK_URL: "https://vocabulary.example/api/telegram/webhook",
+  ORIGIN_REMINDER_API_URL: "https://vocabulary.example/api/internal/telegram-reminders/",
+  TELEGRAM_BOT_TOKEN: "123456:test-token",
+  TELEGRAM_REMINDER_DISPATCH_SECRET: "reminder-secret",
   TELEGRAM_WEBHOOK_SECRET: "expected-secret",
 };
 
@@ -98,5 +104,81 @@ describe("Telegram webhook relay", () => {
     expect(invalidOrigin.status).toBe(500);
     expect(unavailableOrigin.status).toBe(502);
     expect(fetchImplementation).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Telegram reminder dispatch", () => {
+  it("claims reminders, sends them through Telegram, and reports success", async () => {
+    const request = {
+      method: "sendMessage",
+      chat_id: "1001",
+      text: "К повторению готовы 6 карточек.",
+    };
+    const fetchImplementation = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/claim")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe("Bearer reminder-secret");
+        return Response.json({ reminders: [{ eventId: "event-1", request }] });
+      }
+      if (url.includes("api.telegram.org")) {
+        expect(url).toBe("https://api.telegram.org/bot123456:test-token/sendMessage");
+        await expect(new Response(init?.body).json()).resolves.toEqual({
+          chat_id: "1001",
+          text: "К повторению готовы 6 карточек.",
+        });
+        return Response.json({ ok: true, result: { message_id: 42 } });
+      }
+      if (url.endsWith("/complete")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe("Bearer reminder-secret");
+        await expect(new Response(init?.body).json()).resolves.toEqual({
+          results: [{ eventId: "event-1", ok: true, errorCode: null }],
+        });
+        return new Response(null, { status: 204 });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    await expect(dispatchTelegramReminders(environment, fetchImplementation)).resolves.toEqual({
+      claimed: 1,
+      sent: 1,
+    });
+    expect(fetchImplementation).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports Telegram rejection without retrying the reminder", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/claim")) {
+        return Response.json({
+          reminders: [{
+            eventId: "event-2",
+            request: { method: "sendMessage", chat_id: "1001", text: "Reminder" },
+          }],
+        });
+      }
+      if (url.includes("api.telegram.org")) {
+        return Response.json({ ok: false, error_code: 403 }, { status: 403 });
+      }
+      await expect(new Response(init?.body).json()).resolves.toEqual({
+        results: [{ eventId: "event-2", ok: false, errorCode: 403 }],
+      });
+      return new Response(null, { status: 204 });
+    });
+
+    await expect(dispatchTelegramReminders(environment, fetchImplementation)).resolves.toEqual({
+      claimed: 1,
+      sent: 0,
+    });
+    expect(fetchImplementation).toHaveBeenCalledTimes(3);
+  });
+
+  it("does nothing when reminder secrets are not configured", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>();
+
+    await expect(dispatchTelegramReminders(
+      { ...environment, TELEGRAM_BOT_TOKEN: "" },
+      fetchImplementation,
+    )).resolves.toEqual({ claimed: 0, sent: 0 });
+    expect(fetchImplementation).not.toHaveBeenCalled();
   });
 });

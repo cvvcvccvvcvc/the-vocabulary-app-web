@@ -11,6 +11,7 @@ import { clearSessionCookie, requireUser, SESSION_COOKIE, setSessionCookie } fro
 import {
   hasValidTelegramWebhookSecret,
   telegramMenuReply,
+  telegramReminderMessage,
   telegramWebhookSecret,
 } from "./telegramBot.js";
 import {
@@ -26,9 +27,15 @@ import {
   WordVersionConflictError,
 } from "./repository.js";
 import {
+  hasValidReminderAuthorization,
+  TelegramReminderRepository,
+} from "./reminders.js";
+import {
   answerWordSchema,
   settingsSchema,
   showWordSchema,
+  telegramReminderResultsSchema,
+  telegramReminderSettingsSchema,
   updateWordSchema,
   wordContentSchema,
 } from "./validation.js";
@@ -47,6 +54,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   const database = new VocabularyDatabase(config.databasePath);
   const repository = new VocabularyRepository(database.sqlite);
   const analyticsRepository = new AnalyticsRepository(database.sqlite);
+  const reminderRepository = new TelegramReminderRepository(database.sqlite);
 
   await app.register(cookie, { secret: config.sessionSecret });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
@@ -58,7 +66,41 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   app.get("/api/health", async () => ({ status: "ok" }));
   app.get("/api/config", async () => ({
     developmentLoginEnabled: config.developmentTelegramUserId !== null,
+    telegramRemindersAvailable: config.telegramReminderDispatchSecret !== null,
   }));
+
+  app.post("/api/internal/telegram-reminders/claim", async (request, reply) => {
+    if (!hasValidReminderAuthorization(
+      request.headers.authorization,
+      config.telegramReminderDispatchSecret,
+    )) {
+      return reply.status(config.telegramReminderDispatchSecret === null ? 404 : 401).send();
+    }
+
+    return {
+      reminders: reminderRepository.claimDue().map((reminder) => ({
+        eventId: reminder.eventId,
+        request: telegramReminderMessage(
+          reminder.chatId,
+          reminder.dueCardCount,
+          config.appOrigin,
+        ),
+      })),
+    };
+  });
+
+  app.post("/api/internal/telegram-reminders/complete", async (request, reply) => {
+    if (!hasValidReminderAuthorization(
+      request.headers.authorization,
+      config.telegramReminderDispatchSecret,
+    )) {
+      return reply.status(config.telegramReminderDispatchSecret === null ? 404 : 401).send();
+    }
+
+    const input = telegramReminderResultsSchema.parse(request.body);
+    reminderRepository.complete(input.results);
+    return reply.status(204).send();
+  });
 
   app.post("/api/telegram/webhook", async (request, reply) => {
     if (config.telegramBotToken === null) {
@@ -152,6 +194,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     return {
       user,
       settings: repository.settings(user.id),
+      telegramReminders: reminderRepository.settings(user.id),
       words: repository.listWords(user.id),
     };
   });
@@ -220,6 +263,18 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     const user = requireUser(request, reply, repository);
     if (user === null) return;
     return repository.updateSettings(user.id, settingsSchema.parse(request.body));
+  });
+
+  app.put("/api/settings/telegram-reminders", async (request, reply) => {
+    if (config.telegramReminderDispatchSecret === null) {
+      return reply.status(404).send({
+        error: { code: "not_found", message: "Route not found" },
+      });
+    }
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    const input = telegramReminderSettingsSchema.parse(request.body);
+    return reminderRepository.updateSettings(user.id, input.enabled);
   });
 
   app.setErrorHandler((error, _request, reply) => {
