@@ -1572,40 +1572,6 @@ button.titlebar-icon.active {
   gap: 18px;
 }
 
-.activity-metrics {
-  display: grid;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  background: var(--hover);
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.activity-metrics > div {
-  display: grid;
-  min-width: 0;
-  padding: 13px 15px;
-  gap: 3px;
-}
-
-.activity-metrics > div + div {
-  border-left: 1px solid var(--border);
-}
-
-.activity-metrics strong {
-  font-size: 24px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
-  line-height: 1;
-}
-
-.activity-metrics span {
-  color: var(--secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
 .activity-heatmap {
   display: grid;
   width: min(100%, 420px);
@@ -1757,12 +1723,6 @@ button.titlebar-icon.active {
   font-size: 17px;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
-}
-
-.selected-day-details span {
-  color: var(--secondary);
-  font-size: 12px;
-  line-height: 1.4;
 }
 
 .progress-empty-state {

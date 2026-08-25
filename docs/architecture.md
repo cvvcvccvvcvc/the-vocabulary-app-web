@@ -31,17 +31,14 @@ is introduced.
 The client supplies the device's current IANA time-zone identifier. The server validates it,
 keeps timestamps in UTC, and performs calendar-day grouping in that requested zone. The
 response contains 84 contiguous days, including zero-activity days, along with the current
-streak and current active-word total. Each day contains review volume, first-try review
-outcomes, and additions. Streak calculation is a pure domain operation; the server supplies
-already-normalized local day identifiers.
+streak and current active-word total. Each day contains review and addition volume. Streak
+calculation is a pure domain operation; the server supplies already-normalized local day
+identifiers.
 
 `review_operations` is the source for accepted answers, so its operation ID preserves
 idempotency for statistics as well as review mutations. Both Scheduled Review and Free
-Review answers count. Each operation stores its accepted answer outcome explicitly. The
-statistics query orders operations deterministically and treats the first operation for a
-word on a local day as its first try; later operations remain part of volume only. Current
-vocabulary excludes soft-deleted words, while historical additions continue to use their
-original creation timestamps.
+Review answers count. Current vocabulary excludes soft-deleted words, while historical
+additions continue to use their original creation timestamps.
 
 ## Authentication
 

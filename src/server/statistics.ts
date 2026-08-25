@@ -5,12 +5,6 @@ import type { UserStatisticsDay, UserStatisticsResponse } from "../shared/contra
 const activityDayCount = 84;
 const activityLookbackMilliseconds = activityDayCount * 86_400_000;
 
-interface ReviewRow {
-  word_id: string;
-  created_at: string;
-  correct: number;
-}
-
 interface TimestampRow {
   created_at: string;
 }
@@ -53,26 +47,18 @@ export class StatisticsRepository {
     const days = daysEnding(today, activityDayCount);
     const activity = new Map(days.map((date) => [date, emptyStatisticsDay(date)]));
     const earliestTimestamp = new Date(now.getTime() - activityLookbackMilliseconds).toISOString();
-    const firstTries = new Set<string>();
 
     const reviewRows = this.database
       .prepare(`
-        SELECT word_id, created_at, correct
+        SELECT created_at
         FROM review_operations
         WHERE user_id = ? AND created_at >= ?
-        ORDER BY created_at, rowid
+        ORDER BY created_at
       `)
-      .all(userId, earliestTimestamp) as ReviewRow[];
+      .all(userId, earliestTimestamp) as TimestampRow[];
     for (const row of reviewRows) {
-      const date = formatLocalDay(new Date(row.created_at), formatter);
-      const day = activity.get(date);
-      if (day === undefined) continue;
-      day.answers += 1;
-      const firstTryKey = `${date}:${row.word_id}`;
-      if (firstTries.has(firstTryKey)) continue;
-      firstTries.add(firstTryKey);
-      day.firstTryAnswers += 1;
-      if (row.correct === 1) day.firstTryCorrect += 1;
+      const day = activity.get(formatLocalDay(new Date(row.created_at), formatter));
+      if (day !== undefined) day.answers += 1;
     }
 
     const wordRows = this.database
@@ -130,7 +116,7 @@ export class StatisticsRepository {
 }
 
 function emptyStatisticsDay(date: string): UserStatisticsDay {
-  return { date, answers: 0, firstTryAnswers: 0, firstTryCorrect: 0, wordsAdded: 0 };
+  return { date, answers: 0, wordsAdded: 0 };
 }
 
 function localDayFormatter(timeZone: string): Intl.DateTimeFormat {

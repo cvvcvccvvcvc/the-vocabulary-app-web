@@ -59,10 +59,9 @@ The screen answers three related questions and intentionally adds no general col
 dashboard:
 
 1. Am I maintaining the habit? — the exact current streak.
-2. How often and how well am I recalling words? — review active days, first-try recall,
-   and a 12-week calendar of answer volume.
-3. How consistently am I growing the material I study? — addition active days, total words
-   added in the same period, and the same calendar switched to addition volume.
+2. How often am I practicing words? — a 12-week calendar of answer volume.
+3. How consistently am I growing the material I study? — the same calendar switched to
+   addition volume.
 
 One calendar with two explicit modes makes the two behaviors comparable without asking a
 phone-width screen to support two simultaneous charts. The current local calendar week and
@@ -71,12 +70,9 @@ is an explicit range, not a vague calendar month. The grid uses the established 
 as a sequential count scale. Zero is neutral, intensity means more activity, and no color
 is described as inherently good or bad.
 
-Selecting or scrubbing a day reveals its exact count below the grid. Review detail also
-shows the day's first-try numerator and denominator. First try means the first accepted
-answer for a card on that local day; repeat attempts remain visible in volume but cannot
-improve the recall percentage. This is a useful recall signal, not mastery or overall
-accuracy. Word additions deliberately have no invented quality score because creation
-volume alone cannot establish whether an entry is useful or well written.
+Selecting or scrubbing a day reveals its exact count below the grid. The screen does not
+invent a quality score for reviews or additions: daily volume establishes frequency and
+consistency, but not recall quality, mastery, or whether a new entry is well written.
 
 Streak is a habit aid, not a learning score. Time spent, longest streak, level distribution,
 supposed mastered-word counts, and large lifetime totals stay out until a concrete user

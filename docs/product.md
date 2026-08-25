@@ -19,10 +19,9 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
 - A personal Progress screen with the exact current streak and one interactive 12-week
-  calendar for Reviews and Words added. Each view shows its active-day count and a useful
-  companion measure: first-try recall for reviews or the period's added-word total. Selecting
-  a calendar day reveals its exact values. A brand-new account sees one Add Word action
-  instead of empty analytics.
+  calendar for Reviews and Words added. Selecting a calendar day reveals its exact answer
+  or addition count. A brand-new account sees one Add Word action instead of empty
+  analytics.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
@@ -40,11 +39,6 @@ The current streak is the consecutive run of active days ending today or yesterd
 keeps an existing streak intact during the current day until the user has had a chance to
 study; it resets after a full local calendar day is missed. Duplicate answer submissions
 remain idempotent and cannot inflate activity.
-
-First-try recall uses only the first accepted answer for each card on each local calendar
-day. Later attempts on the same card still contribute to daily review volume but cannot
-improve or reduce that day's first-try result. It is a compact recall signal, not a claim
-that a word has been mastered.
 
 Words added are grouped by their original creation time. Deleting a word later removes it
 from the current collection but does not rewrite the historical addition count. An active

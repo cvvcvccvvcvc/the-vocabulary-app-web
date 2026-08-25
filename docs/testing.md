@@ -20,9 +20,8 @@ The minimum scheduling suite covers level clamping, every interval, Scheduled ve
 
 The progress suite additionally covers streak continuation through today or yesterday,
 reset after a fully missed day, duplicate activity days, both review modes and answer
-outcomes, authenticated user isolation, invalid time zones, first-try deduplication per
-card and local day, the 84-day activity window, soft-deleted
-vocabulary, and calendar grouping across a daylight-saving transition. Manual UI checks
-cover light and dark themes, 320- and 390-pixel phone widths, desktop width, both activity
-modes, tap and drag day selection, the pre-study call to action, and Settings returning to
-Progress while Progress remains the selected primary destination.
+outcomes, authenticated user isolation, invalid time zones, the 84-day activity window,
+soft-deleted vocabulary, and calendar grouping across a daylight-saving transition.
+Manual UI checks cover light and dark themes, 320- and 390-pixel phone widths, desktop
+width, both activity modes, tap and drag day selection, the pre-study call to action, and
+Settings returning to Progress while Progress remains the selected primary destination.

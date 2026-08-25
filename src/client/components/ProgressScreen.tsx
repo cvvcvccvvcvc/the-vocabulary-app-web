@@ -143,15 +143,7 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
   const today = activity.at(-1)?.date ?? "";
   const [selectedDate, setSelectedDate] = useState(today);
   const calendarDays = useMemo(() => buildCalendarDays(activity), [activity]);
-  const displayedActivity = calendarDays.flatMap((day) => day.activity === null ? [] : [day.activity]);
   const selectedDay = activity.find((day) => day.date === selectedDate) ?? activity.at(-1);
-  const activeDays = displayedActivity.filter((day) => valueForMode(day, mode) > 0).length;
-  const firstTryAnswers = displayedActivity.reduce((sum, day) => sum + day.firstTryAnswers, 0);
-  const firstTryCorrect = displayedActivity.reduce((sum, day) => sum + day.firstTryCorrect, 0);
-  const wordsAdded = displayedActivity.reduce((sum, day) => sum + day.wordsAdded, 0);
-  const firstTryRate = firstTryAnswers === 0
-    ? null
-    : Math.round((firstTryCorrect / firstTryAnswers) * 100);
 
   const selectPointerDay = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -228,17 +220,6 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
       </div>
 
       <div className="activity-mode-panel" id="activity-panel" role="tabpanel" aria-labelledby={mode === "reviews" ? "reviews-tab" : "words-added-tab"}>
-        <div className="activity-metrics">
-          <div>
-            <strong>{formatNumber(activeDays)}</strong>
-            <span>{activeDays === 1 ? "Active day" : "Active days"}</span>
-          </div>
-          <div>
-            <strong>{mode === "reviews" ? firstTryRate === null ? "—" : `${firstTryRate}%` : formatNumber(wordsAdded)}</strong>
-            <span>{mode === "reviews" ? "First try" : wordsAdded === 1 ? "Word added" : "Words added"}</span>
-          </div>
-        </div>
-
         <ActivityHeatmap
           calendarDays={calendarDays}
           today={today}
@@ -354,14 +335,7 @@ function SelectedDayDetails({ day, mode, isToday }: { day: UserStatisticsDay; mo
     <div className="selected-day-details" aria-live="polite">
       <p className="progress-eyebrow">{isToday ? "Today · " : ""}{formatDetailDate(day.date)}</p>
       {mode === "reviews" ? (
-        <>
-          <strong>{day.answers === 0 ? "No answers" : formatUnit(day.answers, "answer")}</strong>
-          <span>
-            {day.firstTryAnswers === 0
-              ? "No first attempts"
-              : `${formatNumber(day.firstTryCorrect)} of ${formatNumber(day.firstTryAnswers)} correct first try`}
-          </span>
-        </>
+        <strong>{day.answers === 0 ? "No answers" : formatUnit(day.answers, "answer")}</strong>
       ) : (
         <strong>{day.wordsAdded === 0 ? "No words added" : `${formatUnit(day.wordsAdded, "word")} added`}</strong>
       )}
@@ -409,7 +383,7 @@ function heatmapLevel(value: number, maximum: number): number {
 
 function describeDay(day: UserStatisticsDay, mode: ActivityMode): string {
   if (mode === "words") return `${formatLongDate(day.date)}: ${formatUnit(day.wordsAdded, "word")} added`;
-  return `${formatLongDate(day.date)}: ${formatUnit(day.answers, "answer")}; ${formatNumber(day.firstTryCorrect)} of ${formatNumber(day.firstTryAnswers)} correct first try`;
+  return `${formatLongDate(day.date)}: ${formatUnit(day.answers, "answer")}`;
 }
 
 function parseDay(day: string): Date {
