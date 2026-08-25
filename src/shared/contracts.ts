@@ -94,6 +94,8 @@ export interface AnalyticsResponse {
 export interface UserStatisticsDay {
   date: string;
   answers: number;
+  firstTryAnswers: number;
+  firstTryCorrect: number;
   wordsAdded: number;
 }
 
@@ -107,7 +109,5 @@ export interface UserStatisticsResponse {
   activity: UserStatisticsDay[];
   vocabulary: {
     totalWords: number;
-    dueWords: number;
-    wordsByLevel: number[];
   };
 }

@@ -424,10 +424,19 @@ export class VocabularyRepository {
       const persisted = this.word(userId, wordId);
       this.database
         .prepare(`
-          INSERT INTO review_operations (id, user_id, word_id, response_json, created_at)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO review_operations (
+            id, user_id, word_id, response_json, created_at, correct
+          )
+          VALUES (?, ?, ?, ?, ?, ?)
         `)
-        .run(operationId, userId, wordId, JSON.stringify(persisted), now.toISOString());
+        .run(
+          operationId,
+          userId,
+          wordId,
+          JSON.stringify(persisted),
+          now.toISOString(),
+          correct ? 1 : 0,
+        );
       return persisted;
     })();
   }

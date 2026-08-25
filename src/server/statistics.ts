@@ -2,17 +2,21 @@ import type Database from "better-sqlite3";
 import { calculateCurrentStreak, previousDay } from "../domain/index.js";
 import type { UserStatisticsDay, UserStatisticsResponse } from "../shared/contracts.js";
 
-const activityDayCount = 30;
-const activityLookbackMilliseconds = 30 * 86_400_000;
+const activityDayCount = 84;
+const activityLookbackMilliseconds = activityDayCount * 86_400_000;
+
+interface ReviewRow {
+  word_id: string;
+  created_at: string;
+  correct: number;
+}
 
 interface TimestampRow {
   created_at: string;
 }
 
-interface LevelRow {
-  level: number;
+interface WordCountRow {
   word_count: number;
-  due_count: number;
 }
 
 export class StatisticsRepository {
@@ -23,40 +27,20 @@ export class StatisticsRepository {
     const today = formatLocalDay(now, formatter);
     const activity = this.activity(userId, formatter, today, now);
     const activeDays = this.activeDays(userId, formatter, today);
-    const wordsByLevel = Array.from({ length: 10 }, () => 0);
-    let totalWords = 0;
-    let dueWords = 0;
-
-    const levelRows = this.database
+    const wordCount = this.database
       .prepare(`
-        SELECT
-          level,
-          COUNT(*) AS word_count,
-          SUM(
-            CASE
-              WHEN last_reviewed_at IS NULL OR next_review_at IS NULL OR next_review_at <= ?
-              THEN 1 ELSE 0
-            END
-          ) AS due_count
+        SELECT COUNT(*) AS word_count
         FROM words
         WHERE user_id = ? AND is_deleted = 0
-        GROUP BY level
-        ORDER BY level
       `)
-      .all(now.toISOString(), userId) as LevelRow[];
-
-    for (const row of levelRows) {
-      wordsByLevel[row.level] = row.word_count;
-      totalWords += row.word_count;
-      dueWords += row.due_count;
-    }
+      .get(userId) as WordCountRow;
 
     return {
       generatedAt: now.toISOString(),
       timeZone,
       streak: calculateCurrentStreak(activeDays, today),
       activity,
-      vocabulary: { totalWords, dueWords, wordsByLevel },
+      vocabulary: { totalWords: wordCount.word_count },
     };
   }
 
@@ -67,20 +51,28 @@ export class StatisticsRepository {
     now: Date,
   ): UserStatisticsDay[] {
     const days = daysEnding(today, activityDayCount);
-    const activity = new Map(days.map((date) => [date, { date, answers: 0, wordsAdded: 0 }]));
+    const activity = new Map(days.map((date) => [date, emptyStatisticsDay(date)]));
     const earliestTimestamp = new Date(now.getTime() - activityLookbackMilliseconds).toISOString();
+    const firstTries = new Set<string>();
 
     const reviewRows = this.database
       .prepare(`
-        SELECT created_at
+        SELECT word_id, created_at, correct
         FROM review_operations
         WHERE user_id = ? AND created_at >= ?
-        ORDER BY created_at
+        ORDER BY created_at, rowid
       `)
-      .all(userId, earliestTimestamp) as TimestampRow[];
+      .all(userId, earliestTimestamp) as ReviewRow[];
     for (const row of reviewRows) {
-      const day = activity.get(formatLocalDay(new Date(row.created_at), formatter));
-      if (day !== undefined) day.answers += 1;
+      const date = formatLocalDay(new Date(row.created_at), formatter);
+      const day = activity.get(date);
+      if (day === undefined) continue;
+      day.answers += 1;
+      const firstTryKey = `${date}:${row.word_id}`;
+      if (firstTries.has(firstTryKey)) continue;
+      firstTries.add(firstTryKey);
+      day.firstTryAnswers += 1;
+      if (row.correct === 1) day.firstTryCorrect += 1;
     }
 
     const wordRows = this.database
@@ -96,7 +88,7 @@ export class StatisticsRepository {
       if (day !== undefined) day.wordsAdded += 1;
     }
 
-    return days.map((date) => activity.get(date) ?? { date, answers: 0, wordsAdded: 0 });
+    return days.map((date) => activity.get(date) ?? emptyStatisticsDay(date));
   }
 
   private activeDays(
@@ -135,6 +127,10 @@ export class StatisticsRepository {
 
     return days;
   }
+}
+
+function emptyStatisticsDay(date: string): UserStatisticsDay {
+  return { date, answers: 0, firstTryAnswers: 0, firstTryCorrect: 0, wordsAdded: 0 };
 }
 
 function localDayFormatter(timeZone: string): Intl.DateTimeFormat {

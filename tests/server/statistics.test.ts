@@ -41,8 +41,20 @@ describe("user statistics", () => {
 
     expect(report.streak).toEqual({ current: 2, studiedToday: false });
     expect(report.activity.filter((day) => day.answers > 0)).toEqual([
-      { date: "2026-03-07", answers: 1, wordsAdded: 1 },
-      { date: "2026-03-08", answers: 1, wordsAdded: 0 },
+      {
+        date: "2026-03-07",
+        answers: 1,
+        firstTryAnswers: 1,
+        firstTryCorrect: 1,
+        wordsAdded: 1,
+      },
+      {
+        date: "2026-03-08",
+        answers: 1,
+        firstTryAnswers: 1,
+        firstTryCorrect: 0,
+        wordsAdded: 0,
+      },
     ]);
   });
 
@@ -82,12 +94,19 @@ describe("user statistics", () => {
     );
 
     expect(report.streak).toEqual({ current: 1, studiedToday: true });
-    expect(report.activity.at(-1)).toEqual({ date: "2026-08-25", answers: 2, wordsAdded: 1 });
-    expect(report.vocabulary).toEqual({
-      totalWords: 1,
-      dueWords: 0,
-      wordsByLevel: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    expect(report.activity.at(-1)).toEqual({
+      date: "2026-08-25",
+      answers: 2,
+      firstTryAnswers: 1,
+      firstTryCorrect: 1,
+      wordsAdded: 1,
     });
+    expect(report.vocabulary).toEqual({ totalWords: 1 });
+    expect(
+      database.sqlite
+        .prepare("SELECT correct FROM review_operations WHERE user_id = ? ORDER BY created_at")
+        .all(userId),
+    ).toEqual([{ correct: 1 }, { correct: 0 }]);
   });
 
   it("keeps historical additions after deletion but excludes deleted vocabulary", () => {
@@ -106,6 +125,46 @@ describe("user statistics", () => {
 
     expect(report.activity.at(-1)?.wordsAdded).toBe(1);
     expect(report.vocabulary.totalWords).toBe(0);
+  });
+
+  it("uses only the first answer for each card and local day as first-try recall", () => {
+    const first = vocabulary.createWord(
+      userId,
+      { learningText: "first", meanings: ["первый"], comment: "" },
+      new Date("2026-08-24T06:00:00.000Z"),
+    );
+    const second = vocabulary.createWord(
+      userId,
+      { learningText: "second", meanings: ["второй"], comment: "" },
+      new Date("2026-08-24T06:01:00.000Z"),
+    );
+    answer(first.id, false, "scheduled", "2026-08-25T07:00:00.000Z");
+    answer(first.id, true, "free", "2026-08-25T08:00:00.000Z");
+    answer(second.id, true, "scheduled", "2026-08-25T09:00:00.000Z");
+
+    const day = statistics.report(
+      userId,
+      "Asia/Yekaterinburg",
+      new Date("2026-08-25T12:00:00.000Z"),
+    ).activity.at(-1);
+
+    expect(day).toMatchObject({
+      answers: 3,
+      firstTryAnswers: 2,
+      firstTryCorrect: 1,
+    });
+  });
+
+  it("returns a rolling twelve-week activity window", () => {
+    const report = statistics.report(
+      userId,
+      "UTC",
+      new Date("2026-08-25T12:00:00.000Z"),
+    );
+
+    expect(report.activity).toHaveLength(84);
+    expect(report.activity[0]?.date).toBe("2026-06-03");
+    expect(report.activity.at(-1)?.date).toBe("2026-08-25");
   });
 
   function answer(

@@ -55,6 +55,19 @@
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 html,
 body,
 #root {
@@ -1452,29 +1465,10 @@ button.titlebar-icon.active {
   text-transform: uppercase;
 }
 
-.progress-card-heading {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.progress-card-heading h2 {
-  font-size: 20px;
-  letter-spacing: -0.02em;
-}
-
-.progress-card-heading > p {
-  padding-top: 19px;
-  color: var(--secondary);
-  font-size: 12px;
-  text-align: right;
-}
-
 .streak-card {
   display: grid;
   padding: 26px;
-  gap: 24px;
+  gap: 18px;
 }
 
 .streak-summary {
@@ -1530,194 +1524,245 @@ button.titlebar-icon.active {
   gap: 6px;
 }
 
-.streak-week {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-}
-
-.streak-week li {
-  display: grid;
-  justify-items: center;
-  color: var(--secondary);
-  font-size: 12px;
-  font-weight: 600;
-  gap: 7px;
-}
-
-.streak-week li.today {
-  color: var(--text);
-}
-
-.streak-day {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: transparent;
-  background: var(--hover);
-  font-size: 13px;
-  place-items: center;
-}
-
-.streak-day.active {
-  border-color: transparent;
-  color: #fff;
-  background: var(--accent);
-}
-
-.streak-week li.today .streak-day:not(.active) {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
 .streak-action {
   width: fit-content;
   min-height: 42px;
   padding-inline: 18px;
 }
 
-.activity-card,
-.collection-card {
+.heatmap-card {
+  display: grid;
+  gap: 16px;
+}
+
+.activity-mode-tabs {
+  display: grid;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--badge);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+}
+
+.activity-mode-tabs button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--secondary);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.activity-mode-tabs button.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 5%);
+}
+
+.activity-mode-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.activity-mode-panel {
   display: grid;
   gap: 18px;
 }
 
-.progress-activity-chart {
+.activity-metrics {
   display: grid;
-  width: 100%;
-  margin: 0;
-  grid-template-columns: 26px minmax(0, 1fr);
-  grid-template-rows: 160px 18px;
-  column-gap: 8px;
-  row-gap: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--hover);
+  grid-template-columns: repeat(2, 1fr);
 }
 
-.progress-activity-y-axis {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  color: var(--secondary);
-  flex-direction: column;
-  font-size: 11px;
+.activity-metrics > div {
+  display: grid;
+  min-width: 0;
+  padding: 13px 15px;
+  gap: 3px;
+}
+
+.activity-metrics > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.activity-metrics strong {
+  font-size: 24px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
   line-height: 1;
 }
 
-.progress-activity-plot {
-  position: relative;
-  min-width: 0;
+.activity-metrics span {
+  color: var(--secondary);
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.progress-grid-lines,
-.progress-activity-bars {
-  position: absolute;
-  inset: 0;
-}
-
-.progress-grid-lines {
-  display: flex;
-  justify-content: space-between;
-  flex-direction: column;
-}
-
-.progress-grid-lines span {
-  width: 100%;
-  border-top: 1px solid var(--separator);
-}
-
-.progress-activity-bars {
+.activity-heatmap {
   display: grid;
-  align-items: end;
+  width: min(100%, 420px);
+  margin: 0;
+  grid-template-columns: 16px minmax(0, 1fr);
+  grid-template-rows: 16px auto 16px;
+  column-gap: 8px;
+  row-gap: 7px;
 }
 
-.progress-activity-bar {
-  width: min(64%, 12px);
-  justify-self: center;
-  border-radius: 4px 4px 1px 1px;
-  background: var(--accent);
-}
-
-.progress-date-labels {
+.heatmap-months {
   display: grid;
   min-width: 0;
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   color: var(--secondary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  line-height: 18px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
 }
 
-.progress-date-label {
+.heatmap-months span {
   width: max-content;
-  justify-self: center;
   white-space: nowrap;
 }
 
-.progress-date-label.edge-start {
-  justify-self: start;
-}
-
-.progress-date-label.edge-end {
-  justify-self: end;
-}
-
-.level-progress-chart {
-  position: relative;
+.heatmap-weekdays {
   display: grid;
-  height: 140px;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 8px;
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  color: var(--secondary);
+  font-size: 10px;
+  font-weight: 600;
 }
 
-.level-progress-chart::before {
-  position: absolute;
-  right: 0;
-  bottom: 22px;
-  left: 0;
-  border-top: 1px solid var(--separator);
-  content: "";
+.heatmap-weekdays span {
+  align-self: center;
 }
 
-.level-progress-column {
+.heatmap-plot {
   display: grid;
   min-width: 0;
-  grid-template-rows: 16px minmax(0, 1fr) 16px;
-  justify-items: center;
-  gap: 6px;
+  border-radius: 7px;
+  grid-column: 2;
+  grid-row: 2;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  aspect-ratio: 12 / 7;
+  gap: 4px;
+  touch-action: pan-y;
+  user-select: none;
 }
 
-.level-progress-count {
-  color: var(--secondary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  line-height: 16px;
+.heatmap-plot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 5px;
 }
 
-.level-progress-bar-area {
-  display: flex;
+.heatmap-day,
+.heatmap-legend i {
+  display: block;
   width: 100%;
   height: 100%;
-  align-items: end;
-  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--hover);
 }
 
-.level-progress-bar {
-  width: min(64%, 22px);
-  border-radius: 5px 5px 1px 1px;
+.heatmap-day[data-level="1"],
+.heatmap-legend i[data-level="1"] {
+  background: color-mix(in srgb, var(--accent) 24%, var(--card));
+}
+
+.heatmap-day[data-level="2"],
+.heatmap-legend i[data-level="2"] {
+  background: color-mix(in srgb, var(--accent) 46%, var(--card));
+}
+
+.heatmap-day[data-level="3"],
+.heatmap-legend i[data-level="3"] {
+  background: color-mix(in srgb, var(--accent) 70%, var(--card));
+}
+
+.heatmap-day[data-level="4"],
+.heatmap-legend i[data-level="4"] {
   background: var(--accent);
+}
+
+.heatmap-day.future {
+  border-color: var(--separator);
+  background: transparent;
+  opacity: 0.45;
+}
+
+.heatmap-day.today:not(.selected) {
+  border-color: var(--accent);
+}
+
+.heatmap-day.selected {
+  position: relative;
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 4px var(--text);
   z-index: 1;
 }
 
-.level-progress-column small {
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  grid-column: 2;
+  grid-row: 3;
+  color: var(--secondary);
+  font-size: 10px;
+  line-height: 16px;
+  gap: 4px;
+}
+
+.heatmap-legend i {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+.heatmap-legend span:first-child {
+  margin-right: 2px;
+}
+
+.heatmap-legend span:last-child {
+  margin-left: 2px;
+}
+
+.selected-day-details {
+  display: grid;
+  min-height: 76px;
+  padding-top: 16px;
+  border-top: 1px solid var(--separator);
+  align-content: start;
+  gap: 3px;
+}
+
+.selected-day-details .progress-eyebrow {
+  margin-bottom: 2px;
+}
+
+.selected-day-details strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.selected-day-details span {
   color: var(--secondary);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 16px;
+  line-height: 1.4;
 }
 
 .progress-empty-state {
@@ -2551,23 +2596,8 @@ button.titlebar-icon.active {
     border-radius: 12px;
   }
 
-  .progress-card-heading {
-    display: grid;
-    gap: 5px;
-  }
-
-  .progress-card-heading > p {
-    padding-top: 0;
-    text-align: left;
-  }
-
-  .progress-activity-chart {
-    grid-template-rows: 140px 18px;
-  }
-
-  .level-progress-chart {
-    height: 128px;
-    gap: 5px;
+  .activity-heatmap {
+    width: 100%;
   }
 
   .progress-empty-state {
