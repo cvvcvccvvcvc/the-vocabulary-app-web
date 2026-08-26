@@ -39,4 +39,14 @@ describe("AnswerOperationTracker", () => {
     tracker.complete();
     expect(tracker.begin("word-1", false, "scheduled")).not.toBe(latest);
   });
+
+  it("does not let a stale completion clear a newer operation", () => {
+    let nextId = 0;
+    const tracker = new AnswerOperationTracker(() => `operation-${nextId += 1}`);
+    const stale = tracker.begin("word-1", true, "scheduled");
+    const current = tracker.begin("word-2", false, "free");
+
+    tracker.complete(stale);
+    expect(tracker.begin("word-2", false, "free")).toBe(current);
+  });
 });

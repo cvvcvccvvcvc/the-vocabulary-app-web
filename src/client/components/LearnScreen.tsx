@@ -8,32 +8,25 @@ import {
   type TransitionEvent as ReactTransitionEvent,
 } from "react";
 import {
-  FreeReviewPicker,
-  SystemRandomSource,
   isScheduledReviewCandidate,
-  resolveReviewDirection,
-  scheduledReviewQueue,
   type LanguageSettings,
-  type ReviewDirection,
   type ReviewMode,
+  type ReviewSession,
   type VocabularyWord,
 } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
-import { AnswerOperationTracker } from "../lib/identifier.js";
+import type { AnswerOperationTracker } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
 
-interface PresentedCard {
-  wordId: string;
-  direction: ReviewDirection;
-  mode: ReviewMode;
-}
-
 interface LearnScreenProps {
   words: VocabularyWord[];
   settings: LanguageSettings;
+  session: ReviewSession;
+  answerOperations: AnswerOperationTracker;
+  onSessionChanged(): void;
   onUpdated(word: VocabularyWord): void;
 }
 
@@ -91,15 +84,14 @@ function SpeakerButton({ className = "", onSpeak }: SpeakerButtonProps) {
   );
 }
 
-export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
-  const random = useRef(new SystemRandomSource());
-  const freePicker = useRef(new FreeReviewPicker());
-  const answerOperations = useRef(new AnswerOperationTracker());
-  const scheduledIds = useRef<string[]>([]);
-  const selecting = useRef(false);
-  const [card, setCard] = useState<PresentedCard | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [working, setWorking] = useState(false);
+export function LearnScreen({
+  words,
+  settings,
+  session,
+  answerOperations,
+  onSessionChanged,
+  onUpdated,
+}: LearnScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const swipeSession = useRef<SwipeSession | null>(null);
   const [dragX, setDragX] = useState(0);
@@ -108,6 +100,8 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   const [pendingAnswer, setPendingAnswer] = useState<boolean | null>(null);
   const [modeHelpOpen, setModeHelpOpen] = useState(false);
   const modeHelp = useDismissiblePopover<HTMLElement>(modeHelpOpen, setModeHelpOpen);
+  const { card, revealed, phase } = session.snapshot;
+  const working = phase === "answering";
   const currentWord = words.find((word) => word.id === card?.wordId) ?? null;
 
   useEffect(() => {
@@ -123,57 +117,45 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   }, []);
 
   const chooseNext = useCallback(async (latestWords: VocabularyWord[]) => {
-    if (selecting.current || latestWords.length === 0) return;
-    selecting.current = true;
+    const selected = session.beginPresentation(latestWords);
+    if (selected === null) return;
+
     setError(null);
+    onSessionChanged();
 
     try {
-      const now = new Date();
-      const dueIds = new Set(
-        latestWords.filter((word) => isScheduledReviewCandidate(word, now)).map((word) => word.id),
-      );
-      scheduledIds.current = scheduledIds.current.filter((id) => dueIds.has(id));
-
-      let selected: VocabularyWord | null;
-      let mode: ReviewMode;
-      if (dueIds.size > 0) {
-        mode = "scheduled";
-        if (scheduledIds.current.length === 0) {
-          scheduledIds.current = scheduledReviewQueue(latestWords, now, random.current).map((word) => word.id);
-        }
-        const selectedId = scheduledIds.current.shift();
-        selected = latestWords.find((word) => word.id === selectedId) ?? null;
-      } else {
-        mode = "free";
-        selected = freePicker.current.next(latestWords, now, random.current);
+      const shown = await api.markShown(selected.wordId, selected.direction);
+      if (session.presentationReady(selected.wordId)) {
+        onUpdated(shown);
+        resetSwipe();
       }
-
-      if (selected === null) return;
-      const direction = resolveReviewDirection(selected.lastDirection, random.current);
-      const shown = await api.markShown(selected.id, direction);
-      onUpdated(shown);
-      setCard({ wordId: shown.id, direction, mode });
-      setRevealed(false);
-      resetSwipe();
     } catch (caught) {
+      session.presentationFailed(selected.wordId);
       setError(caught instanceof ApiError ? caught.message : "Could not load the next card");
     } finally {
-      selecting.current = false;
+      onSessionChanged();
     }
-  }, [onUpdated, resetSwipe]);
+  }, [onSessionChanged, onUpdated, resetSwipe, session]);
 
   useEffect(() => {
-    if (card === null && words.length > 0) {
+    const changed = session.reconcile(words);
+    if (changed) {
+      onSessionChanged();
+    }
+
+    if (session.snapshot.phase === "idle" && words.length > 0) {
       void chooseNext(words);
     }
-  }, [card, chooseNext, words]);
+  }, [chooseNext, onSessionChanged, session, words]);
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent): void {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       if (event.code === "Space" && currentWord !== null) {
         event.preventDefault();
-        setRevealed(true);
+        if (session.reveal()) {
+          onSessionChanged();
+        }
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowLeft") {
         void answer(false);
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowRight") {
@@ -185,25 +167,27 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   });
 
   async function answer(correct: boolean): Promise<void> {
-    if (card === null || currentWord === null || working) return;
-    setWorking(true);
+    if (card === null || currentWord === null || !session.beginAnswer(currentWord.id)) return;
+
+    onSessionChanged();
     setError(null);
-    const operationId = answerOperations.current.begin(currentWord.id, correct, card.mode);
+    const operationId = answerOperations.begin(currentWord.id, correct, card.mode);
     try {
       const updated = await api.answerWord(currentWord.id, correct, card.mode, operationId);
       const latestWords = words.map((word) => (word.id === updated.id ? updated : word));
-      answerOperations.current.complete();
+      answerOperations.complete(operationId);
+      if (!session.completeAnswer(currentWord.id)) return;
+
       onUpdated(updated);
-      setCard(null);
-      setRevealed(false);
       resetSwipe();
+      onSessionChanged();
       telegramNotification(correct ? "success" : "warning");
       await chooseNext(latestWords);
     } catch (caught) {
+      session.answerFailed(currentWord.id);
       setError(caught instanceof ApiError ? caught.message : "Could not save the answer");
       resetSwipe();
-    } finally {
-      setWorking(false);
+      onSessionChanged();
     }
   }
 
@@ -323,15 +307,15 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
     );
   }
 
-  if (currentWord === null || card === null) {
+  if (currentWord === null || card === null || phase === "marking-shown" || phase === "show-failed") {
     return (
       <section className="screen learn-screen centered-screen">
         <div className="review-load-state">
-          {error === null ? (
+          {phase !== "show-failed" ? (
             <div className="loading-ring" aria-label="Loading next card" />
           ) : (
             <>
-              <p className="notice notice-error">{error}</p>
+              <p className="notice notice-error">{error ?? "Could not load the next card"}</p>
               <button
                 className="primary-button review-retry"
                 type="button"
@@ -443,8 +427,10 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
                     className="review-card-reveal"
                     type="button"
                     onClick={() => {
-                      setRevealed(true);
-                      telegramImpact();
+                      if (session.reveal()) {
+                        onSessionChanged();
+                        telegramImpact();
+                      }
                     }}
                   >
                     <span className={questionIsLearning ? "card-question" : "card-question known-question"}>

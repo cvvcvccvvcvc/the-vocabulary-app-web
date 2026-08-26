@@ -45,7 +45,9 @@ export class AnswerOperationTracker {
     return operationId;
   }
 
-  complete(): void {
-    this.pending = null;
+  complete(operationId?: string): void {
+    if (operationId === undefined || this.pending?.operationId === operationId) {
+      this.pending = null;
+    }
   }
 }

@@ -3,6 +3,7 @@ import {
   FreeReviewPicker,
   SeededRandomSource,
   freeReviewWeight,
+  type RandomSource,
 } from "../../src/domain/index.js";
 import { makeWord } from "./fixtures.js";
 
@@ -55,5 +56,28 @@ describe("Free Review", () => {
     expect(Array.from({ length: 100 }, () => picker.next([word], now, random)?.id)).toEqual(
       Array.from({ length: 100 }, () => "only-word"),
     );
+  });
+
+  it("refills its 20-card batch when five cards remain", () => {
+    class CountingRandomSource implements RandomSource {
+      calls = 0;
+
+      next(): number {
+        this.calls += 1;
+        return 0.5;
+      }
+    }
+
+    const picker = new FreeReviewPicker();
+    const random = new CountingRandomSource();
+    const word = makeWord({ id: "only-word" });
+
+    for (let index = 0; index < 14; index += 1) {
+      picker.next([word], now, random);
+    }
+    expect(random.calls).toBe(40);
+
+    picker.next([word], now, random);
+    expect(random.calls).toBe(70);
   });
 });

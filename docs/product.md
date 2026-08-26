@@ -45,6 +45,8 @@ Scheduled Review serves new and due words. Correct answers raise the level by on
 
 Free Review starts only when Scheduled Review is empty. It draws from all active words and never changes `level` or `nextReviewAt`.
 
+Moving to another tab and back keeps the current review card, its direction and reveal state, and the remaining in-memory queue. A full application reload deliberately starts a fresh queue from server data.
+
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
 
 ## Telegram reminders

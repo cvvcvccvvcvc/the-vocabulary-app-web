@@ -19,6 +19,8 @@ src/client  -> src/shared <- src/server
 
 The browser loads the user's active vocabulary into memory. This keeps review selection immediate and preserves the Free Review invariant that scoring does not query persistence.
 
+The in-memory `ReviewSession` is owned above the navigation tabs. It keeps ID-only Scheduled and Free queues together with the current card, direction, reveal state, and in-flight review phase, so visiting another tab does not restart review. Word additions and deletions reconcile only affected IDs, while newly due cards remain ahead of the next Free Review selection. The session is reset at bootstrap and logout and is deliberately not written to browser storage; a full reload starts again from canonical server data.
+
 The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. The server applies the domain rule in a transaction and returns the updated word. An ambiguous network retry keeps the same operation ID, and the server binds that ID to its original word. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
 
 ## Authentication

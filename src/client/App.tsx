@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LanguageSettings, VocabularyWord } from "../domain/index.js";
+import {
+  ReviewSession,
+  SystemRandomSource,
+  type LanguageSettings,
+  type VocabularyWord,
+} from "../domain/index.js";
 import type {
   AppConfiguration,
   TelegramReminderSettings,
@@ -12,6 +17,7 @@ import { SettingsScreen } from "./components/SettingsScreen.js";
 import { Shell, type Section } from "./components/Shell.js";
 import { WordsScreen } from "./components/WordsScreen.js";
 import { api, ApiError } from "./lib/api.js";
+import { AnswerOperationTracker } from "./lib/identifier.js";
 import { sectionFromSearch } from "./lib/section.js";
 import { initializeTelegram, setTelegramAppearance } from "./lib/telegram.js";
 
@@ -32,10 +38,18 @@ export function App() {
   const [wordToOpen, setWordToOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [reviewSession] = useState(
+    () => new ReviewSession(new SystemRandomSource(), () => new Date()),
+  );
+  const [answerOperations] = useState(() => new AnswerOperationTracker());
+  const [, setReviewSessionRevision] = useState(0);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
   );
   const [telegramLaunch] = useState(() => initializeTelegram()?.initData ?? "");
+  const notifyReviewSessionChanged = useCallback((): void => {
+    setReviewSessionRevision((revision) => revision + 1);
+  }, []);
 
   useEffect(() => {
     const preference = application?.settings.theme ?? "system";
@@ -54,9 +68,11 @@ export function App() {
 
   const loadApplication = useCallback(async (): Promise<void> => {
     const bootstrap = await api.bootstrap();
+    reviewSession.reset();
+    answerOperations.complete();
     setApplication(bootstrap);
     setAuthError(null);
-  }, []);
+  }, [answerOperations, reviewSession]);
 
   useEffect(() => {
     async function start(): Promise<void> {
@@ -98,6 +114,16 @@ export function App() {
           },
     );
   }, []);
+
+  const removeWord = useCallback((wordId: string): void => {
+    reviewSession.removeWord(wordId);
+    notifyReviewSessionChanged();
+    setApplication((current) =>
+      current === null
+        ? current
+        : { ...current, words: current.words.filter((word) => word.id !== wordId) },
+    );
+  }, [notifyReviewSessionChanged, reviewSession]);
 
   const changeSection = useCallback((nextSection: Section): void => {
     setWordToOpen(null);
@@ -146,13 +172,7 @@ export function App() {
           settings={application.settings}
           initialSelectedId={wordToOpen}
           onUpdated={storeWord}
-          onDeleted={(wordId) =>
-            setApplication((current) =>
-              current === null
-                ? current
-                : { ...current, words: current.words.filter((word) => word.id !== wordId) },
-            )
-          }
+          onDeleted={removeWord}
         />
       );
       break;
@@ -174,6 +194,8 @@ export function App() {
           }
           onLogout={async () => {
             await api.logout();
+            reviewSession.reset();
+            answerOperations.complete();
             setApplication(null);
           }}
         />
@@ -185,6 +207,9 @@ export function App() {
         <LearnScreen
           words={application.words}
           settings={application.settings}
+          session={reviewSession}
+          answerOperations={answerOperations}
+          onSessionChanged={notifyReviewSessionChanged}
           onUpdated={storeWord}
         />
       );

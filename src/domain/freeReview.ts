@@ -53,6 +53,29 @@ export class FreeReviewPicker {
   private queue: string[] = [];
   private recent: string[] = [];
 
+  remove(wordId: string): boolean {
+    const queue = this.queue.filter((id) => id !== wordId);
+    const recent = this.recent.filter((id) => id !== wordId);
+    const changed = queue.length !== this.queue.length || recent.length !== this.recent.length;
+
+    this.queue = queue;
+    this.recent = recent;
+    return changed;
+  }
+
+  reconcile(allWords: readonly VocabularyWord[]): boolean {
+    const liveIds = new Set(
+      allWords.filter((word) => !word.isDeleted).map((word) => word.id),
+    );
+    const queue = this.queue.filter((id) => liveIds.has(id));
+    const recent = this.recent.filter((id) => liveIds.has(id));
+    const changed = queue.length !== this.queue.length || recent.length !== this.recent.length;
+
+    this.queue = queue;
+    this.recent = recent;
+    return changed;
+  }
+
   next(
     allWords: readonly VocabularyWord[],
     now: Date,
@@ -65,9 +88,7 @@ export class FreeReviewPicker {
       return null;
     }
 
-    const liveIds = new Set(words.map((word) => word.id));
-    this.queue = this.queue.filter((id) => liveIds.has(id));
-    this.recent = this.recent.filter((id) => liveIds.has(id));
+    this.reconcile(words);
 
     if (this.queue.length === 0) {
       this.refill(words, now, random);
@@ -82,7 +103,7 @@ export class FreeReviewPicker {
     this.recent.push(selectedId);
     this.recent = cooldownSize === 0 ? [] : this.recent.slice(-cooldownSize);
 
-    if (this.queue.length < REFILL_THRESHOLD) {
+    if (this.queue.length <= REFILL_THRESHOLD) {
       this.refill(words, now, random);
     }
 

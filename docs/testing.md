@@ -19,7 +19,7 @@ pnpm typecheck
 pnpm build
 ```
 
-The minimum scheduling suite covers level clamping, every interval, Scheduled versus Free mutation rules, direction alternation, and Free Review cooldown behavior.
+The minimum scheduling suite covers level clamping, every interval, Scheduled versus Free mutation rules, direction alternation, Free Review cooldown and refill behavior, and review-session continuity across navigation and vocabulary changes.
 
 The reminder suite additionally proves that empty milestones are consumed, one completed
 answer starts a new cycle, claims are at-most-once, Telegram rejection disables opt-in, and
