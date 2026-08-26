@@ -20,6 +20,26 @@ export class ApiError extends Error {
   }
 }
 
+function parseErrorResponse(value: unknown): ErrorResponse | null {
+  if (typeof value !== "object" || value === null || !("error" in value)) {
+    return null;
+  }
+
+  const error = value.error;
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("code" in error) ||
+    !("message" in error) ||
+    typeof error.code !== "string" ||
+    typeof error.message !== "string"
+  ) {
+    return null;
+  }
+
+  return { error: { code: error.code, message: error.message } };
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -32,7 +52,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     let payload: ErrorResponse | null = null;
     try {
-      payload = (await response.json()) as ErrorResponse;
+      payload = parseErrorResponse(await response.json());
     } catch {
       // A proxy or upstream service may return a non-JSON failure.
     }
