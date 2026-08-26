@@ -153,13 +153,17 @@ export class VocabularyRepository {
 
   createSession(userId: string, now = new Date()): string {
     const token = randomBytes(32).toString("base64url");
+    const timestamp = now.toISOString();
     const expiresAt = new Date(now.getTime() + 30 * 86_400_000).toISOString();
-    this.database
-      .prepare(`
-        INSERT INTO sessions (token_hash, user_id, expires_at, created_at)
-        VALUES (?, ?, ?, ?)
-      `)
-      .run(tokenHash(token), userId, expiresAt, now.toISOString());
+    this.database.transaction(() => {
+      this.database.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(timestamp);
+      this.database
+        .prepare(`
+          INSERT INTO sessions (token_hash, user_id, expires_at, created_at)
+          VALUES (?, ?, ?, ?)
+        `)
+        .run(tokenHash(token), userId, expiresAt, timestamp);
+    })();
     return token;
   }
 

@@ -45,7 +45,8 @@ Cloudflare secrets. It keeps no user data or reminder state. Missing reminder co
 disables the internal endpoints and hides the client setting without affecting `/start`,
 `/help`, or authentication.
 
-Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in SQLite.
+Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in
+SQLite. Expired session rows are removed opportunistically when a new session is created.
 
 ## Owner analytics
 
