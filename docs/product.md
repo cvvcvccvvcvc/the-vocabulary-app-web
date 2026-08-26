@@ -19,7 +19,7 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
 - A personal Progress screen with the exact current streak and one interactive 12-week
-  calendar for Reviews and Words added. Selecting a calendar day reveals its exact answer
+  calendar for Answers and Words added. Selecting a calendar day reveals its exact answer
   or addition count. A brand-new account sees one Add Word action instead of empty
   analytics.
 - Server-side persistence and user isolation.

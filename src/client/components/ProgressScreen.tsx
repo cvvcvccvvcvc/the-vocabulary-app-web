@@ -110,9 +110,9 @@ function StreakCard({
   const { current, studiedToday } = report.streak;
   const hasWords = report.vocabulary.totalWords > 0;
   const status = current > 0
-    ? "Review one card today to keep it going."
+    ? "Answer one card today to keep your streak."
     : hasWords
-      ? "Review one card today to start a streak."
+      ? "Answer one card today to start a streak."
       : "Add your first word, then begin reviewing.";
 
   return (
@@ -131,7 +131,7 @@ function StreakCard({
 
       {!studiedToday && (
         <button className="primary-button streak-action" type="button" onClick={hasWords ? onLearn : onAddWord}>
-          {hasWords ? "Learn now" : "Add your first word"}
+          {hasWords ? "Learn" : "Add your first word"}
         </button>
       )}
     </section>
@@ -189,10 +189,7 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
 
   return (
     <section className="progress-card heatmap-card" aria-labelledby="activity-title">
-      <header>
-        <p className="progress-eyebrow" aria-hidden="true">Last 12 weeks</p>
-        <h2 className="visually-hidden" id="activity-title">Activity over the last 12 weeks</h2>
-      </header>
+      <h2 className="visually-hidden" id="activity-title">Activity over the last 12 weeks</h2>
 
       <div className="activity-mode-tabs" role="tablist" aria-label="Activity type">
         <button
@@ -204,7 +201,7 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
           aria-selected={mode === "reviews"}
           onClick={() => setMode("reviews")}
         >
-          Reviews
+          Answers
         </button>
         <button
           className={mode === "words" ? "active" : ""}
@@ -220,6 +217,8 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
       </div>
 
       <div className="activity-mode-panel" id="activity-panel" role="tabpanel" aria-labelledby={mode === "reviews" ? "reviews-tab" : "words-added-tab"}>
+        <p className="activity-period">Last 12 weeks</p>
+
         <ActivityHeatmap
           calendarDays={calendarDays}
           today={today}
@@ -270,15 +269,15 @@ function ActivityHeatmap({
         ))}
       </div>
       <div className="heatmap-weekdays" aria-hidden="true">
-        <span style={{ gridRow: 1 }}>M</span>
-        <span style={{ gridRow: 3 }}>W</span>
-        <span style={{ gridRow: 5 }}>F</span>
+        <span style={{ gridRow: 1 }}>Mon</span>
+        <span style={{ gridRow: 3 }}>Wed</span>
+        <span style={{ gridRow: 5 }}>Fri</span>
       </div>
       <div
         className="heatmap-plot"
         role="grid"
         tabIndex={0}
-        aria-label={`${mode === "reviews" ? "Review" : "Words added"} activity for the last 12 weeks`}
+        aria-label={`${mode === "reviews" ? "Answer" : "Words added"} activity for the last 12 weeks`}
         aria-rowcount={7}
         aria-colcount={12}
         aria-activedescendant={`activity-day-${selectedDate}`}
@@ -331,14 +330,14 @@ function ActivityHeatmap({
 }
 
 function SelectedDayDetails({ day, mode, isToday }: { day: UserStatisticsDay; mode: ActivityMode; isToday: boolean }) {
+  const value = mode === "reviews"
+    ? day.answers === 0 ? "No answers" : formatUnit(day.answers, "answer")
+    : day.wordsAdded === 0 ? "No words added" : `${formatUnit(day.wordsAdded, "word")} added`;
+
   return (
     <div className="selected-day-details" aria-live="polite">
-      <p className="progress-eyebrow">{isToday ? "Today · " : ""}{formatDetailDate(day.date)}</p>
-      {mode === "reviews" ? (
-        <strong>{day.answers === 0 ? "No answers" : formatUnit(day.answers, "answer")}</strong>
-      ) : (
-        <strong>{day.wordsAdded === 0 ? "No words added" : `${formatUnit(day.wordsAdded, "word")} added`}</strong>
-      )}
+      <span className="selected-day-date">{isToday ? "Today" : formatDetailDate(day.date)}</span>
+      <span className="selected-day-value">{value}</span>
     </div>
   );
 }

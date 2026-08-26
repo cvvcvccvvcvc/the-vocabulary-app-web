@@ -20,10 +20,10 @@ the same design questions again.
 
 ## Data visualization
 
-- A chart must communicate a specific message, not merely display available data. Pair it
-  with a short textual summary of the main result.
+- A chart must communicate a specific message, not merely display available data. Add a
+  textual summary only when it contributes meaning beyond the visible marks.
 - State the metric and time range precisely. Prefer `Last 12 weeks` to an ambiguous label
-  such as `Past months`, and `Review activity` to a generic `Activity`.
+  such as `Past months`, and `Answer activity` to a generic `Activity`.
 - Use bars for discrete daily counts and start their quantitative scale at zero. Keep tick
   intervals even and use simple rounded bounds when the observed maximum is awkward.
 - Encode values proportionally. Do not give small non-zero values an artificial minimum
@@ -70,13 +70,28 @@ is an explicit range, not a vague calendar month. The grid uses the established 
 as a sequential count scale. Zero is neutral, intensity means more activity, and no color
 is described as inherently good or bad.
 
-Selecting or scrubbing a day reveals its exact count below the grid. The screen does not
-invent a quality score for reviews or additions: daily volume establishes frequency and
+The visible modes are `Answers` and `Words added`. `Answers` names every accepted correct
+or wrong response in either review mode without relying on specialist review terminology.
+The equal-width segmented control establishes visual balance; its labels do not need the
+same number of words.
+
+The mode control comes first, followed by `Last 12 weeks` as a quiet chart scope rather
+than a card title. The calendar labels Monday, Wednesday, and Friday as `Mon`, `Wed`, and
+`Fri`: three familiar anchors preserve orientation without crowding all seven rows.
+
+Selecting or scrubbing a day reveals its exact count in one compact row below the grid.
+The date is secondary and the value uses regular body emphasis because this row annotates
+the selected cell rather than presenting another KPI. Today is labeled simply `Today`;
+combining a relative and absolute date would repeat the same context. The screen does not
+invent a quality score for answers or additions: daily volume establishes frequency and
 consistency, but not recall quality, mastery, or whether a new entry is well written.
 
 Streak is a habit aid, not a learning score. Time spent, longest streak, level distribution,
 supposed mastered-word counts, and large lifetime totals stay out until a concrete user
-decision and an honest interpretation justify them.
+decision and an honest interpretation justify them. Before today's first answer, the card
+asks the user to keep an existing streak or start a new one and offers a concise `Learn`
+action. After an answer, it collapses to the streak itself without adding a redundant
+completion message.
 
 ## Sources
 
