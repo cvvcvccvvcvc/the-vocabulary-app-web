@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer, type BuiltServer } from "../../src/server/app.js";
 import type { ServerConfig } from "../../src/server/config.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
@@ -43,6 +43,63 @@ describe("Vocabulary API", () => {
   it("requires a session for user data", async () => {
     const response = await server.app.inject({ method: "GET", url: "/api/bootstrap" });
     expect(response.statusCode).toBe(401);
+  });
+
+  it("accepts an OIDC callback only from the browser that started the login", async () => {
+    const authServer = await buildServer({
+      ...config,
+      telegramBotId: "123456",
+      telegramClientSecret: "telegram-client-secret",
+    });
+
+    try {
+      const start = await authServer.app.inject({
+        method: "GET",
+        url: "/api/auth/telegram/start",
+      });
+      const authorizationUrl = new URL(start.headers.location ?? "");
+      const state = authorizationUrl.searchParams.get("state");
+      const authFlowCookie = start.headers["set-cookie"]?.split(";")[0] ?? "";
+      const callbackUrl = `/api/auth/telegram/callback?code=test-code&state=${encodeURIComponent(state ?? "")}`;
+
+      expect(start.statusCode).toBe(302);
+      expect(state).not.toBeNull();
+      expect(authFlowCookie).toContain("vocabulary_auth_flow=");
+
+      const foreignBrowser = await authServer.app.inject({
+        method: "GET",
+        url: callbackUrl,
+      });
+      expect(foreignBrowser.statusCode).toBe(401);
+      expect(foreignBrowser.json()).toMatchObject({
+        error: { code: "invalid_telegram_data", message: "Login state is invalid or expired" },
+      });
+
+      const telegramFetch = vi.fn(async () => new Response(null, { status: 400 }));
+      vi.stubGlobal("fetch", telegramFetch);
+      const originalBrowser = await authServer.app.inject({
+        method: "GET",
+        url: callbackUrl,
+        headers: { cookie: authFlowCookie },
+      });
+
+      expect(originalBrowser.statusCode).toBe(401);
+      expect(originalBrowser.json()).toMatchObject({
+        error: { code: "invalid_telegram_data", message: "Telegram login failed" },
+      });
+      expect(telegramFetch).toHaveBeenCalledOnce();
+
+      const replay = await authServer.app.inject({
+        method: "GET",
+        url: callbackUrl,
+        headers: { cookie: authFlowCookie },
+      });
+      expect(replay.statusCode).toBe(401);
+      expect(telegramFetch).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+      await authServer.app.close();
+    }
   });
 
   it("returns analytics only to the configured owner", async () => {

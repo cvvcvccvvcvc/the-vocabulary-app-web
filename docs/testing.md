@@ -4,7 +4,8 @@ Validation is proportional to the affected layer:
 
 - Domain changes require deterministic unit tests with injected clocks and seeded randomness.
 - Persistence and API changes require isolated temporary SQLite tests.
-- Authentication helpers require signature, expiry, and malformed-input tests.
+- Authentication helpers require signature, expiry, malformed-input, and browser-bound
+  OIDC state tests.
 - UI changes require a production build and focused manual checks at phone and desktop widths.
 - Deployment changes require configuration validation before they reach the server.
 - Reminder changes require milestone-boundary, opt-in, deduplication, delivery-result, and

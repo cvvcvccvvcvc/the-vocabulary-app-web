@@ -7,7 +7,15 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z, ZodError } from "zod";
 import type { ServerConfig } from "./config.js";
 import { VocabularyDatabase } from "./database.js";
-import { clearSessionCookie, requireUser, SESSION_COOKIE, setSessionCookie } from "./http.js";
+import {
+  authFlowState,
+  clearAuthFlowCookie,
+  clearSessionCookie,
+  requireUser,
+  SESSION_COOKIE,
+  setAuthFlowCookie,
+  setSessionCookie,
+} from "./http.js";
 import {
   hasValidTelegramWebhookSecret,
   telegramMenuReply,
@@ -158,11 +166,17 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
 
     const authorization = createTelegramOidcAuthorization(config);
     repository.createAuthFlow(authorization.state, authorization.codeVerifier);
+    setAuthFlowCookie(reply, authorization.state, config);
     return reply.redirect(authorization.authorizationUrl);
   });
 
   app.get("/api/auth/telegram/callback", async (request, reply) => {
     const query = z.object({ code: z.string().min(1), state: z.string().min(1) }).parse(request.query);
+    if (authFlowState(request) !== query.state) {
+      throw new InvalidTelegramDataError("Login state is invalid or expired");
+    }
+
+    clearAuthFlowCookie(reply);
     const codeVerifier = repository.consumeAuthFlow(query.state);
     if (codeVerifier === null) {
       throw new InvalidTelegramDataError("Login state is invalid or expired");

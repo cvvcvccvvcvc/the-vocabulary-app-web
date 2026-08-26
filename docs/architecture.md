@@ -25,7 +25,10 @@ The server remains authoritative. The client submits semantic actions such as `c
 
 The Telegram Mini App sends raw `initData` to the server. The server validates its HMAC signature and freshness before accepting the Telegram user identity.
 
-The normal website uses Telegram's OIDC authorization-code flow with PKCE. Both paths normalize the verified Telegram user ID into one internal user record and one server-side session.
+The normal website uses Telegram's OIDC authorization-code flow with PKCE. Its short-lived
+state is also bound to the initiating browser with a signed HTTP-only cookie, so a callback
+cannot create a session in a different browser. Both paths normalize the verified Telegram
+user ID into one internal user record and one server-side session.
 
 Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to the fixed Vocabulary HTTPS endpoint, and returns the endpoint response without interpreting it.
 
