@@ -1530,8 +1530,9 @@ button.titlebar-icon.active {
   padding-inline: 18px;
 }
 
-.heatmap-card {
+.progress-card.heatmap-card {
   display: grid;
+  padding-bottom: 0;
   gap: 16px;
 }
 
@@ -1717,27 +1718,18 @@ button.titlebar-icon.active {
 
 .selected-day-details {
   display: flex;
-  min-height: 42px;
-  padding-top: 13px;
+  min-height: 64px;
   border-top: 1px solid var(--separator);
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  justify-content: center;
 }
 
-.selected-day-date {
-  color: var(--secondary);
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1.35;
-}
-
-.selected-day-value {
+.selected-day-summary {
   font-size: 15px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   line-height: 1.35;
-  text-align: right;
+  text-align: center;
 }
 
 .progress-empty-state {

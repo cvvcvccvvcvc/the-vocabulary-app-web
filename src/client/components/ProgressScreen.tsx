@@ -333,11 +333,11 @@ function SelectedDayDetails({ day, mode, isToday }: { day: UserStatisticsDay; mo
   const value = mode === "reviews"
     ? day.answers === 0 ? "No answers" : formatUnit(day.answers, "answer")
     : day.wordsAdded === 0 ? "No words added" : `${formatUnit(day.wordsAdded, "word")} added`;
+  const date = isToday ? "today" : `on ${formatDetailDate(day.date)}`;
 
   return (
     <div className="selected-day-details" aria-live="polite">
-      <span className="selected-day-date">{isToday ? "Today" : formatDetailDate(day.date)}</span>
-      <span className="selected-day-value">{value}</span>
+      <span className="selected-day-summary">{value} {date}</span>
     </div>
   );
 }

@@ -79,12 +79,13 @@ The mode control comes first, followed by `Last 12 weeks` as a quiet chart scope
 than a card title. The calendar labels Monday, Wednesday, and Friday as `Mon`, `Wed`, and
 `Fri`: three familiar anchors preserve orientation without crowding all seven rows.
 
-Selecting or scrubbing a day reveals its exact count in one compact row below the grid.
-The date is secondary and the value uses regular body emphasis because this row annotates
-the selected cell rather than presenting another KPI. Today is labeled simply `Today`;
-combining a relative and absolute date would repeat the same context. The screen does not
-invent a quality score for answers or additions: daily volume establishes frequency and
-consistency, but not recall quality, mastery, or whether a new entry is well written.
+Selecting or scrubbing a day reveals its exact count in one centered, plain-language
+annotation below the grid, such as `4 answers on 18 Aug` or `4 answers today`. Count and
+date use one typographic treatment because together they describe one data point, not two
+opposing metrics. The annotation area is centered between its top separator and the card's
+bottom edge. The screen does not invent a quality score for answers or additions: daily
+volume establishes frequency and consistency, but not recall quality, mastery, or whether
+a new entry is well written.
 
 Streak is a habit aid, not a learning score. Time spent, longest streak, level distribution,
 supposed mastered-word counts, and large lifetime totals stay out until a concrete user
