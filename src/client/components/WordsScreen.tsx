@@ -234,7 +234,6 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
         {editing && (
           <button className="toolbar-button cancel-button" type="button" onClick={cancelEditing}>Cancel</button>
         )}
-        <strong className="mobile-detail-title">{editing ? learningText || word.learningText : word.learningText}</strong>
         <div className="detail-toolbar-actions">
           {editing ? (
             <button className="toolbar-button primary" type="submit" form="word-edit-form" disabled={!canSave || saving}>

@@ -259,10 +259,6 @@ button.titlebar-icon.active {
   min-height: calc(100vh - var(--titlebar-height));
 }
 
-.mobile-detail-title {
-  display: none;
-}
-
 .primary-button,
 .secondary-button,
 .clear-button,
@@ -1687,6 +1683,7 @@ button.titlebar-icon.active {
 @media (max-width: 850px) {
   :root {
     --titlebar-height: 0px;
+    --mobile-content-top: max(18px, var(--app-safe-top));
   }
 
   .desktop-titlebar,
@@ -1925,7 +1922,7 @@ button.titlebar-icon.active {
     height: 100svh;
     min-height: 0;
     overflow: auto;
-    padding: max(18px, var(--app-safe-top)) 18px calc(98px + var(--app-safe-bottom));
+    padding: var(--mobile-content-top) 18px calc(98px + var(--app-safe-bottom));
   }
 
   .words-list-pane {
@@ -2037,7 +2034,7 @@ button.titlebar-icon.active {
   }
 
   .detail-open {
-    padding: 0 0 calc(96px + var(--app-safe-bottom));
+    padding: var(--mobile-content-top) 0 calc(96px + var(--app-safe-bottom));
   }
 
   .detail-open .words-list-pane {
@@ -2045,14 +2042,13 @@ button.titlebar-icon.active {
   }
 
   .word-detail {
-    min-height: calc(100svh - 96px - var(--app-safe-bottom));
+    min-height: 100%;
     border: 0;
   }
 
   .detail-toolbar {
-    position: relative;
-    height: 72px;
-    padding: max(10px, var(--app-safe-top)) 16px 8px;
+    height: 48px;
+    padding: 2px 16px;
     border: 0;
   }
 
@@ -2077,18 +2073,6 @@ button.titlebar-icon.active {
     height: 25px;
   }
 
-  .mobile-detail-title {
-    position: absolute;
-    display: block;
-    left: 50%;
-    max-width: 34%;
-    overflow: hidden;
-    font-size: 17px;
-    text-overflow: ellipsis;
-    transform: translateX(-50%);
-    white-space: nowrap;
-  }
-
   .detail-toolbar-actions {
     gap: 0;
   }
@@ -2100,10 +2084,6 @@ button.titlebar-icon.active {
   .detail-toolbar.editing .cancel-button {
     min-width: auto;
     padding-inline: 16px;
-  }
-
-  .detail-toolbar.editing .mobile-detail-title {
-    max-width: max(30px, calc(100% - 322px));
   }
 
   .detail-toolbar.editing .toolbar-button.primary {
@@ -2141,7 +2121,7 @@ button.titlebar-icon.active {
   }
 
   .app-shell:has(.word-detail.editing) .word-detail {
-    min-height: 100svh;
+    min-height: 100%;
   }
 
   .word-detail.editing .detail-comment-field textarea {
@@ -2171,7 +2151,7 @@ button.titlebar-icon.active {
   /* Settings mobile */
 
   .settings-screen {
-    padding: max(18px, var(--app-safe-top)) 20px calc(104px + var(--app-safe-bottom));
+    padding: var(--mobile-content-top) 20px calc(104px + var(--app-safe-bottom));
   }
 
   .settings-stack {
@@ -2198,13 +2178,12 @@ button.titlebar-icon.active {
 }
 
 @media (max-width: 850px) {
-  :root[data-telegram-platform="mobile"] .review-mode-header {
-    top: max(96px, calc(var(--app-safe-top) + 48px));
+  :root[data-telegram-platform="mobile"] {
+    --mobile-content-top: max(96px, calc(var(--app-safe-top) + 48px));
   }
 
-  :root[data-telegram-platform="mobile"] .words-screen,
-  :root[data-telegram-platform="mobile"] .settings-screen {
-    padding-top: max(96px, calc(var(--app-safe-top) + 48px));
+  :root[data-telegram-platform="mobile"] .review-mode-header {
+    top: max(96px, calc(var(--app-safe-top) + 48px));
   }
 }
 
@@ -2230,12 +2209,6 @@ button.titlebar-icon.active {
   .level-card {
     grid-template-columns: 1fr;
     gap: 14px;
-  }
-}
-
-@media (max-width: 350px) {
-  .detail-toolbar.editing .mobile-detail-title {
-    display: none;
   }
 }
 
