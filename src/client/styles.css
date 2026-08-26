@@ -805,6 +805,16 @@ button.titlebar-icon.active {
   place-items: center;
 }
 
+.review-load-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.review-retry {
+  padding: 0 18px;
+}
+
 .empty-state {
   max-width: 320px;
   color: var(--secondary);

@@ -390,6 +390,26 @@ describe("Vocabulary API", () => {
     expect(first.json<VocabularyWord>().level).toBe(1);
     expect(second.json<VocabularyWord>().level).toBe(1);
     expect(second.json<VocabularyWord>().correctCount).toBe(1);
+
+    const otherWord = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "other", meanings: ["другой"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const conflicting = await server.app.inject({
+      method: "POST",
+      url: `/api/words/${otherWord.id}/answer`,
+      headers: { cookie },
+      payload,
+    });
+
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.json()).toMatchObject({
+      error: { code: "operation_conflict" },
+    });
   });
 
   it("persists language and theme settings in the user profile", async () => {

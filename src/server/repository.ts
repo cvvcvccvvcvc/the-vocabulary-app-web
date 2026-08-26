@@ -53,6 +53,7 @@ interface UserRow {
 }
 
 export class DuplicateWordError extends Error {}
+export class ReviewOperationConflictError extends Error {}
 export class WordNotFoundError extends Error {}
 export class WordVersionConflictError extends Error {}
 
@@ -391,10 +392,13 @@ export class VocabularyRepository {
     return this.database.transaction(() => {
       const stored = this.database
         .prepare(`
-          SELECT response_json FROM review_operations WHERE id = ? AND user_id = ?
+          SELECT word_id, response_json FROM review_operations WHERE id = ? AND user_id = ?
         `)
-        .get(operationId, userId) as { response_json: string } | undefined;
+        .get(operationId, userId) as { word_id: string; response_json: string } | undefined;
       if (stored !== undefined) {
+        if (stored.word_id !== wordId) {
+          throw new ReviewOperationConflictError("The operation belongs to another word");
+        }
         return JSON.parse(stored.response_json) as VocabularyWord;
       }
 

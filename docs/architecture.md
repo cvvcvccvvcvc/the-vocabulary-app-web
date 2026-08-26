@@ -19,7 +19,7 @@ src/client  -> src/shared <- src/server
 
 The browser loads the user's active vocabulary into memory. This keeps review selection immediate and preserves the Free Review invariant that scoring does not query persistence.
 
-The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. The server applies the domain rule in a transaction and returns the updated word.
+The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. The server applies the domain rule in a transaction and returns the updated word. An ambiguous network retry keeps the same operation ID, and the server binds that ID to its original word.
 
 ## Authentication
 

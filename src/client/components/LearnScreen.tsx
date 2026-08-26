@@ -19,7 +19,7 @@ import {
   type VocabularyWord,
 } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
-import { createOperationId } from "../lib/identifier.js";
+import { AnswerOperationTracker } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
@@ -72,6 +72,7 @@ const REVIEW_HELP_ITEMS = {
 export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   const random = useRef(new SystemRandomSource());
   const freePicker = useRef(new FreeReviewPicker());
+  const answerOperations = useRef(new AnswerOperationTracker());
   const scheduledIds = useRef<string[]>([]);
   const selecting = useRef(false);
   const [card, setCard] = useState<PresentedCard | null>(null);
@@ -165,9 +166,11 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
     if (card === null || currentWord === null || working) return;
     setWorking(true);
     setError(null);
+    const operationId = answerOperations.current.begin(currentWord.id, correct, card.mode);
     try {
-      const updated = await api.answerWord(currentWord.id, correct, card.mode, createOperationId());
+      const updated = await api.answerWord(currentWord.id, correct, card.mode, operationId);
       const latestWords = words.map((word) => (word.id === updated.id ? updated : word));
+      answerOperations.current.complete();
       onUpdated(updated);
       setCard(null);
       setRevealed(false);
@@ -298,8 +301,22 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   if (currentWord === null || card === null) {
     return (
       <section className="screen learn-screen centered-screen">
-        <div className="loading-ring" aria-label="Loading next card" />
-        {error !== null && <p className="notice notice-error">{error}</p>}
+        <div className="review-load-state">
+          {error === null ? (
+            <div className="loading-ring" aria-label="Loading next card" />
+          ) : (
+            <>
+              <p className="notice notice-error">{error}</p>
+              <button
+                className="primary-button review-retry"
+                type="button"
+                onClick={() => void chooseNext(words)}
+              >
+                Try again
+              </button>
+            </>
+          )}
+        </div>
       </section>
     );
   }

@@ -1,3 +1,5 @@
+import type { ReviewMode } from "../../domain/index.js";
+
 export function createOperationId(cryptoProvider: Crypto = globalThis.crypto): string {
   if (typeof cryptoProvider.randomUUID === "function") {
     return cryptoProvider.randomUUID();
@@ -15,4 +17,35 @@ export function createOperationId(cryptoProvider: Crypto = globalThis.crypto): s
     hex.slice(8, 10).join(""),
     hex.slice(10, 16).join(""),
   ].join("-");
+}
+
+interface PendingAnswerOperation {
+  wordId: string;
+  correct: boolean;
+  mode: ReviewMode;
+  operationId: string;
+}
+
+export class AnswerOperationTracker {
+  private pending: PendingAnswerOperation | null = null;
+
+  constructor(private readonly createId: () => string = createOperationId) {}
+
+  begin(wordId: string, correct: boolean, mode: ReviewMode): string {
+    if (
+      this.pending?.wordId === wordId
+      && this.pending.correct === correct
+      && this.pending.mode === mode
+    ) {
+      return this.pending.operationId;
+    }
+
+    const operationId = this.createId();
+    this.pending = { wordId, correct, mode, operationId };
+    return operationId;
+  }
+
+  complete(): void {
+    this.pending = null;
+  }
 }

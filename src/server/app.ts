@@ -30,6 +30,7 @@ import {
 } from "./auth/telegram.js";
 import {
   DuplicateWordError,
+  ReviewOperationConflictError,
   VocabularyRepository,
   WordNotFoundError,
   WordVersionConflictError,
@@ -305,6 +306,11 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     if (error instanceof WordVersionConflictError) {
       return reply.status(409).send({
         error: { code: "version_conflict", message: error.message },
+      });
+    }
+    if (error instanceof ReviewOperationConflictError) {
+      return reply.status(409).send({
+        error: { code: "operation_conflict", message: error.message },
       });
     }
     if (error instanceof WordNotFoundError) {
