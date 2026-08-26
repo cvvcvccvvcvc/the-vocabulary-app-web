@@ -370,8 +370,7 @@ export class VocabularyRepository {
     this.database
       .prepare(`
         UPDATE words SET
-          last_direction = ?, last_seen_at = ?, progress_updated_at = ?, updated_at = ?,
-          version = version + 1
+          last_direction = ?, last_seen_at = ?, progress_updated_at = ?, updated_at = ?
         WHERE id = ? AND user_id = ? AND is_deleted = 0
       `)
       .run(
@@ -413,7 +412,7 @@ export class VocabularyRepository {
           UPDATE words SET
             level = ?, next_review_at = ?, correct_count = ?, wrong_count = ?,
             last_answer_was_wrong = ?, last_reviewed_at = ?, progress_updated_at = ?,
-            updated_at = ?, version = version + 1
+            updated_at = ?
           WHERE id = ? AND user_id = ? AND is_deleted = 0
         `)
         .run(

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { VocabularyDatabase } from "../../src/server/database.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
@@ -28,5 +29,40 @@ describe("Vocabulary repository", () => {
       count: number;
     };
     expect(row.count).toBe(1);
+  });
+
+  it("changes the edit version only when word content changes", () => {
+    const word = repository.createWord(userId, {
+      learningText: "memory",
+      meanings: ["память"],
+      comment: "",
+    });
+
+    const shown = repository.markShown(
+      userId,
+      word.id,
+      "learning-to-known",
+      new Date("2026-08-26T10:00:00.000Z"),
+    );
+    const answered = repository.answerWord(
+      userId,
+      word.id,
+      randomUUID(),
+      true,
+      "scheduled",
+      new Date("2026-08-26T10:01:00.000Z"),
+    );
+    const edited = repository.updateWord(
+      userId,
+      word.id,
+      word.version,
+      { learningText: "memory", meanings: ["память"], comment: "updated" },
+      new Date("2026-08-26T10:02:00.000Z"),
+    );
+
+    expect(shown.version).toBe(word.version);
+    expect(answered.version).toBe(word.version);
+    expect(edited.version).toBe(word.version + 1);
+    expect(edited.level).toBe(1);
   });
 });
