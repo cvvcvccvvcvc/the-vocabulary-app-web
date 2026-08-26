@@ -69,6 +69,28 @@ const REVIEW_HELP_ITEMS = {
   ],
 } as const satisfies Record<ReviewMode, readonly HelpPopoverItem[]>;
 
+interface SpeakerButtonProps {
+  className?: string;
+  onSpeak(): void;
+}
+
+function SpeakerButton({ className = "", onSpeak }: SpeakerButtonProps) {
+  return (
+    <button
+      className={`speaker-button ${className}`.trim()}
+      type="button"
+      aria-label="Pronounce learning word"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSpeak();
+      }}
+    >
+      <Icon name="speaker" />
+    </button>
+  );
+}
+
 export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   const random = useRef(new SystemRandomSource());
   const freePicker = useRef(new FreeReviewPicker());
@@ -194,7 +216,7 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
     telegramImpact();
   }
 
-  function handleSwipeStart(event: ReactPointerEvent<HTMLButtonElement>): void {
+  function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>): void {
     if (!event.isPrimary || event.button !== 0 || !revealed || working || swipePhase !== "idle") return;
     const now = performance.now();
     swipeSession.current = {
@@ -211,7 +233,7 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
     setSwipePhase("dragging");
   }
 
-  function handleSwipeMove(event: ReactPointerEvent<HTMLButtonElement>): void {
+  function handleSwipeMove(event: ReactPointerEvent<HTMLDivElement>): void {
     const session = swipeSession.current;
     if (session === null || session.pointerId !== event.pointerId) return;
 
@@ -219,7 +241,10 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
     const deltaY = event.clientY - session.startY;
     if (session.axis === null) {
       if (Math.hypot(deltaX, deltaY) < SWIPE_AXIS_LOCK_DISTANCE) return;
-      session.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
+      const canScrollVertically = event.currentTarget.scrollHeight > event.currentTarget.clientHeight + 1;
+      session.axis = !canScrollVertically || Math.abs(deltaX) > Math.abs(deltaY)
+        ? "horizontal"
+        : "vertical";
       if (session.axis === "vertical") {
         swipeSession.current = null;
         setSwipePhase("idle");
@@ -246,7 +271,7 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
     }
   }
 
-  function finishSwipe(event: ReactPointerEvent<HTMLButtonElement>, cancelled = false): void {
+  function finishSwipe(event: ReactPointerEvent<HTMLDivElement>, cancelled = false): void {
     const session = swipeSession.current;
     if (session === null || session.pointerId !== event.pointerId) return;
     swipeSession.current = null;
@@ -322,7 +347,6 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
   }
 
   const question = card.direction === "learning-to-known" ? currentWord.learningText : currentWord.meanings.join(" · ");
-  const answerText = card.direction === "learning-to-known" ? currentWord.meanings : [currentWord.learningText];
   const questionIsLearning = card.direction === "learning-to-known";
   const questionLanguage = languageName(questionIsLearning ? settings.learningLanguage : settings.knownLanguage);
   const answerLanguage = languageName(questionIsLearning ? settings.knownLanguage : settings.learningLanguage);
@@ -370,15 +394,9 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
             style={swipeStyle}
             onTransitionEnd={handleSwipeTransitionEnd}
           >
-            <button
+            <div
               className={revealed ? "review-card revealed" : "review-card"}
-              type="button"
               draggable={false}
-              onClick={() => {
-                if (revealed) return;
-                setRevealed(true);
-                telegramImpact();
-              }}
               onPointerDown={handleSwipeStart}
               onPointerMove={handleSwipeMove}
               onPointerUp={(event) => finishSwipe(event)}
@@ -388,50 +406,57 @@ export function LearnScreen({ words, settings, onUpdated }: LearnScreenProps) {
                 <span className="card-reveal">
                   <span className="card-reveal-side">
                     <span className="card-side-label">{questionLanguage}</span>
-                    <span className={questionIsLearning ? "card-side-value learning" : "card-side-value known"}>
-                      {question}
-                    </span>
+                    {questionIsLearning ? (
+                      <span className="card-learning-row">
+                        <span className="card-side-value learning">{question}</span>
+                        <SpeakerButton onSpeak={speak} />
+                      </span>
+                    ) : (
+                      <span className="card-side-value known">{question}</span>
+                    )}
                   </span>
                   <span className="card-reveal-divider" aria-hidden="true" />
                   <span className="card-reveal-side">
                     <span className="card-side-label">{answerLanguage}</span>
-                    <span className="card-side-values">
-                      {answerText.map((meaning, index) => (
-                        <strong
-                          className={questionIsLearning ? "card-side-value known" : "card-side-value learning"}
-                          key={`${meaning}-${index}`}
-                        >
-                          {meaning}
+                    {questionIsLearning ? (
+                      <span className="card-side-values">
+                        {currentWord.meanings.map((meaning, index) => (
+                          <strong className="card-side-value known" key={`${meaning}-${index}`}>
+                            {meaning}
+                          </strong>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="card-learning-row">
+                        <strong className="card-side-value learning">
+                          {currentWord.learningText}
                         </strong>
-                      ))}
-                    </span>
+                        <SpeakerButton onSpeak={speak} />
+                      </span>
+                    )}
                     {currentWord.comment !== "" && <small className="card-reveal-comment">“{currentWord.comment}”</small>}
                   </span>
                 </span>
               ) : (
-                <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
-                  {question}
-                </span>
+                <>
+                  <button
+                    className="review-card-reveal"
+                    type="button"
+                    onClick={() => {
+                      setRevealed(true);
+                      telegramImpact();
+                    }}
+                  >
+                    <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
+                      {question}
+                    </span>
+                  </button>
+                  {questionIsLearning && (
+                    <SpeakerButton className="review-card-speaker" onSpeak={speak} />
+                  )}
+                </>
               )}
-            </button>
-            {revealed && (
-              <>
-                <span className="swipe-feedback wrong" aria-hidden="true">Wrong</span>
-                <span className="swipe-feedback correct" aria-hidden="true">Correct</span>
-              </>
-            )}
-            {((!revealed && questionIsLearning) || revealed) && (
-              <button
-                className={revealed
-                  ? `speaker-button review-card-speaker revealed ${questionIsLearning ? "learning-first" : "learning-second"}`
-                  : "speaker-button review-card-speaker"}
-                type="button"
-                aria-label="Pronounce learning word"
-                onClick={speak}
-              >
-                <Icon name="speaker" />
-              </button>
-            )}
+            </div>
           </div>
           {!revealed ? (
             <p className="reveal-hint">

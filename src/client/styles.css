@@ -574,6 +574,7 @@ button.titlebar-icon.active {
 
 .review-card {
   position: relative;
+  isolation: isolate;
   display: flex;
   width: 100%;
   min-height: 245px;
@@ -589,6 +590,27 @@ button.titlebar-icon.active {
   transition: box-shadow 160ms ease, transform 160ms ease;
 }
 
+.review-card::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms linear;
+}
+
+.review-card-drag-layer.swiping-left .review-card::before {
+  background: var(--danger-soft);
+  opacity: var(--swipe-progress);
+}
+
+.review-card-drag-layer.swiping-right .review-card::before {
+  background: var(--success-soft);
+  opacity: var(--swipe-progress);
+}
+
 .review-card:hover {
   box-shadow: 0 8px 32px rgb(0 0 0 / 6%);
 }
@@ -599,6 +621,8 @@ button.titlebar-icon.active {
 
 .review-card.revealed {
   cursor: grab;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   touch-action: pan-y;
   user-select: none;
 }
@@ -609,6 +633,20 @@ button.titlebar-icon.active {
 
 .review-card-drag-layer.dragging .review-card:active {
   transform: none;
+}
+
+.review-card-reveal {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  padding: 42px;
+  border: 0;
+  border-radius: inherit;
+  color: inherit;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-question {
@@ -629,8 +667,8 @@ button.titlebar-icon.active {
 
 .speaker-button {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 50%;
@@ -656,22 +694,9 @@ button.titlebar-icon.active {
   transform: translateX(-50%);
 }
 
-.review-card-speaker.revealed {
-  right: 52px;
-  bottom: auto;
-  left: auto;
-  transform: none;
-}
-
-.review-card-speaker.learning-first {
-  top: 28%;
-}
-
-.review-card-speaker.learning-second {
-  top: 63%;
-}
-
 .card-reveal {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: min(100%, 460px);
   justify-items: center;
@@ -692,6 +717,19 @@ button.titlebar-icon.active {
 
 .card-side-values {
   gap: 4px;
+}
+
+.card-learning-row {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card-learning-row .speaker-button {
+  flex: 0 0 auto;
 }
 
 .card-side-label {
@@ -754,39 +792,6 @@ button.titlebar-icon.active {
   background: var(--hover);
   font: inherit;
   font-weight: 600;
-}
-
-.swipe-feedback {
-  position: absolute;
-  z-index: 2;
-  top: 22px;
-  padding: 5px 9px;
-  border: 2px solid currentColor;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  opacity: 0;
-  pointer-events: none;
-  text-transform: uppercase;
-  transition: opacity 80ms linear;
-}
-
-.swipe-feedback.wrong {
-  left: 24px;
-  color: var(--danger);
-  transform: rotate(-7deg);
-}
-
-.swipe-feedback.correct {
-  right: 24px;
-  color: var(--success);
-  transform: rotate(7deg);
-}
-
-.review-card-drag-layer.swiping-left .swipe-feedback.wrong,
-.review-card-drag-layer.swiping-right .swipe-feedback.correct {
-  opacity: var(--swipe-progress);
 }
 
 .mobile-reveal-hint,
@@ -1830,13 +1835,28 @@ button.titlebar-icon.active {
 
   /* Learn mobile */
 
+  .learn-screen {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   .review-mode-header {
     top: max(22px, calc(var(--app-safe-top) + 8px));
   }
 
   .review-stage {
     width: min(calc(100% - 44px), 320px);
+    height: 100%;
+    min-height: 0;
     padding: 104px 0 calc(64px + var(--app-safe-bottom));
+  }
+
+  .review-card-shell,
+  .review-card-drag-layer {
+    max-height: 100%;
+    min-height: 0;
   }
 
   .review-card {
@@ -1846,7 +1866,12 @@ button.titlebar-icon.active {
   }
 
   .review-card.revealed {
+    max-height: 100%;
     min-height: 250px;
+  }
+
+  .review-card-reveal {
+    padding: 26px 24px;
   }
 
   .card-question {
@@ -1885,19 +1910,8 @@ button.titlebar-icon.active {
     bottom: 22px;
   }
 
-  .review-card-speaker.revealed {
-    right: 34px;
-    bottom: auto;
-    left: auto;
-    transform: none;
-  }
-
-  .review-card-speaker.learning-first {
-    top: 27%;
-  }
-
-  .review-card-speaker.learning-second {
-    top: 62%;
+  .card-learning-row {
+    gap: 8px;
   }
 
   .reveal-hint,
