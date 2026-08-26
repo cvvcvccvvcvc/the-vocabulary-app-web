@@ -73,11 +73,15 @@ export function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
 }
 
 export function telegramImpact(style: "light" | "medium" | "heavy" = "light"): void {
-  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred(style);
+  const webApp = window.Telegram?.WebApp;
+  if (webApp?.isVersionAtLeast?.("6.1") === false) return;
+  webApp?.HapticFeedback?.impactOccurred(style);
 }
 
 export function telegramNotification(type: "error" | "success" | "warning"): void {
-  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred(type);
+  const webApp = window.Telegram?.WebApp;
+  if (webApp?.isVersionAtLeast?.("6.1") === false) return;
+  webApp?.HapticFeedback?.notificationOccurred(type);
 }
 
 export function requestTelegramWriteAccess(): Promise<boolean> {

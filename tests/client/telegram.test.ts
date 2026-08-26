@@ -3,6 +3,8 @@ import {
   initializeTelegram,
   requestTelegramWriteAccess,
   setTelegramVerticalSwipesEnabled,
+  telegramImpact,
+  telegramNotification,
 } from "../../src/client/lib/telegram.js";
 
 const originalWindow = globalThis.window;
@@ -24,6 +26,8 @@ afterEach(() => {
 function installTelegram(platform: string, supportsVersion = true) {
   const enableVerticalSwipes = vi.fn();
   const disableVerticalSwipes = vi.fn();
+  const impactOccurred = vi.fn();
+  const notificationOccurred = vi.fn();
   const requestWriteAccess = vi.fn((callback: (granted: boolean) => void) => callback(true));
   Object.defineProperty(globalThis, "window", {
     configurable: true,
@@ -39,11 +43,18 @@ function installTelegram(platform: string, supportsVersion = true) {
           enableVerticalSwipes,
           disableVerticalSwipes,
           requestWriteAccess,
+          HapticFeedback: { impactOccurred, notificationOccurred },
         },
       },
     },
   });
-  return { enableVerticalSwipes, disableVerticalSwipes, requestWriteAccess };
+  return {
+    enableVerticalSwipes,
+    disableVerticalSwipes,
+    impactOccurred,
+    notificationOccurred,
+    requestWriteAccess,
+  };
 }
 
 describe("setTelegramVerticalSwipesEnabled", () => {
@@ -86,6 +97,28 @@ describe("requestTelegramWriteAccess", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
 
     await expect(requestTelegramWriteAccess()).resolves.toBe(false);
+  });
+});
+
+describe("Telegram haptic feedback", () => {
+  it("uses haptic feedback when the Telegram client supports it", () => {
+    const telegram = installTelegram("ios");
+
+    telegramImpact("medium");
+    telegramNotification("success");
+
+    expect(telegram.impactOccurred).toHaveBeenCalledWith("medium");
+    expect(telegram.notificationOccurred).toHaveBeenCalledWith("success");
+  });
+
+  it("does not call haptic feedback before Bot API 6.1", () => {
+    const telegram = installTelegram("ios", false);
+
+    telegramImpact();
+    telegramNotification("warning");
+
+    expect(telegram.impactOccurred).not.toHaveBeenCalled();
+    expect(telegram.notificationOccurred).not.toHaveBeenCalled();
   });
 });
 
