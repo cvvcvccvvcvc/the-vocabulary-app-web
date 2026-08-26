@@ -463,6 +463,11 @@ button.titlebar-icon.active {
   color: var(--danger);
 }
 
+.add-toast.existing .toast-status {
+  color: var(--secondary);
+  background: var(--badge);
+}
+
 .toast-status {
   display: grid;
   width: 24px;

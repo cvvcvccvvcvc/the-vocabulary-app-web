@@ -45,3 +45,21 @@ describe("API errors", () => {
     );
   });
 });
+
+describe("word creation", () => {
+  it.each([
+    { status: 201, outcome: "created" as const },
+    { status: 200, outcome: "existing" as const },
+  ])("maps a $status response to the $outcome outcome", async ({ status, outcome }) => {
+    stubResponse(JSON.stringify({ id: "word-id", learningText: "apple" }), status);
+
+    const result = await api.createWord({
+      learningText: "apple",
+      meanings: ["яблоко"],
+      comment: "",
+    });
+
+    expect(result.outcome).toBe(outcome);
+    expect(result.word.id).toBe("word-id");
+  });
+});

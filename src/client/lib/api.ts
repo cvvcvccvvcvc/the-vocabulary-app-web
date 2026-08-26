@@ -20,6 +20,11 @@ export class ApiError extends Error {
   }
 }
 
+export interface CreateWordResult {
+  outcome: "created" | "existing";
+  word: VocabularyWord;
+}
+
 function parseErrorResponse(value: unknown): ErrorResponse | null {
   if (typeof value !== "object" || value === null || !("error" in value)) {
     return null;
@@ -40,7 +45,7 @@ function parseErrorResponse(value: unknown): ErrorResponse | null {
   return { error: { code: error.code, message: error.message } };
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function checkedResponse(path: string, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -63,6 +68,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     );
   }
 
+  return response;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await checkedResponse(path, init);
+
   if (response.status === 204) {
     return undefined as T;
   }
@@ -83,11 +94,16 @@ export const api = {
     }),
   logout: () => request<void>("/api/logout", { method: "POST" }),
   bootstrap: () => request<BootstrapResponse>("/api/bootstrap"),
-  createWord: (input: CreateWordRequest) =>
-    request<VocabularyWord>("/api/words", {
+  createWord: async (input: CreateWordRequest): Promise<CreateWordResult> => {
+    const response = await checkedResponse("/api/words", {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    });
+    return {
+      outcome: response.status === 201 ? "created" : "existing",
+      word: (await response.json()) as VocabularyWord,
+    };
+  },
   updateWord: (wordId: string, input: UpdateWordRequest) =>
     request<VocabularyWord>(`/api/words/${wordId}`, {
       method: "PUT",

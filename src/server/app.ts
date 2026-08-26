@@ -232,8 +232,15 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     const user = requireUser(request, reply, repository);
     if (user === null) return;
     const input = wordContentSchema.parse(request.body);
-    const word = repository.createWord(user.id, input);
-    return reply.status(201).send(word);
+    try {
+      const word = repository.createWord(user.id, input);
+      return reply.status(201).send(word);
+    } catch (error) {
+      if (!(error instanceof DuplicateWordError)) throw error;
+      const existing = repository.findWordByLearningText(user.id, input.learningText);
+      if (existing === null) throw error;
+      return reply.status(200).send(existing);
+    }
   });
 
   app.put("/api/words/:wordId", async (request, reply) => {

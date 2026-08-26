@@ -22,15 +22,22 @@ const sortOptions = [
 interface WordsScreenProps {
   words: VocabularyWord[];
   settings: LanguageSettings;
+  initialSelectedId?: string | null;
   onUpdated(word: VocabularyWord): void;
   onDeleted(wordId: string): void;
 }
 
-export function WordsScreen({ words, settings, onUpdated, onDeleted }: WordsScreenProps) {
+export function WordsScreen({
+  words,
+  settings,
+  initialSelectedId = null,
+  onUpdated,
+  onDeleted,
+}: WordsScreenProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<WordsSort>("recent");
   const [sortOpen, setSortOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
   const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];

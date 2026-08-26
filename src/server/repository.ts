@@ -266,6 +266,16 @@ export class VocabularyRepository {
     return rows.map(mapWord);
   }
 
+  findWordByLearningText(userId: string, learningText: string): VocabularyWord | null {
+    const row = this.database
+      .prepare(`
+        SELECT * FROM words
+        WHERE user_id = ? AND normalized_learning_text = ? AND is_deleted = 0
+      `)
+      .get(userId, normalizeLearningText(learningText)) as WordRow | undefined;
+    return row === undefined ? null : mapWord(row);
+  }
+
   createWord(userId: string, input: WordContentInput, now = new Date()): VocabularyWord {
     const id = randomUUID();
     const timestamp = now.toISOString();

@@ -15,6 +15,7 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - The active review-mode badge opens a short contextual explanation. The whole Level card opens an explanation of level progress; neither control relies on a tiny question-mark target.
 - Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; desktop keyboard arrows remain available. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
 - Words can be searched and sorted by date added, A–Z, or learning level from a compact custom menu.
+- Adding an already saved word is a neutral result with a direct link to the existing card; View after a successful add opens the new card directly.
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.

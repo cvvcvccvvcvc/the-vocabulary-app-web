@@ -29,6 +29,7 @@ export function App() {
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
   const [section, setSection] = useState<Section>(() => sectionFromSearch(window.location.search));
+  const [wordToOpen, setWordToOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
@@ -85,15 +86,27 @@ export function App() {
     void start();
   }, [loadApplication, telegramLaunch]);
 
-  const updateWord = useCallback((updated: VocabularyWord): void => {
+  const storeWord = useCallback((updated: VocabularyWord): void => {
     setApplication((current) =>
       current === null
         ? current
         : {
             ...current,
-            words: current.words.map((word) => (word.id === updated.id ? updated : word)),
+            words: current.words.some((word) => word.id === updated.id)
+              ? current.words.map((word) => (word.id === updated.id ? updated : word))
+              : [...current.words, updated],
           },
     );
+  }, []);
+
+  const changeSection = useCallback((nextSection: Section): void => {
+    setWordToOpen(null);
+    setSection(nextSection);
+  }, []);
+
+  const viewWord = useCallback((wordId: string): void => {
+    setWordToOpen(wordId);
+    setSection("words");
   }, []);
 
   if (loading) {
@@ -121,12 +134,8 @@ export function App() {
       content = (
         <AddWordScreen
           settings={application.settings}
-          onCreated={(word) =>
-            setApplication((current) =>
-              current === null ? current : { ...current, words: [...current.words, word] },
-            )
-          }
-          onViewWords={() => setSection("words")}
+          onAvailable={storeWord}
+          onViewWord={viewWord}
         />
       );
       break;
@@ -135,7 +144,8 @@ export function App() {
         <WordsScreen
           words={application.words}
           settings={application.settings}
-          onUpdated={updateWord}
+          initialSelectedId={wordToOpen}
+          onUpdated={storeWord}
           onDeleted={(wordId) =>
             setApplication((current) =>
               current === null
@@ -175,7 +185,7 @@ export function App() {
         <LearnScreen
           words={application.words}
           settings={application.settings}
-          onUpdated={updateWord}
+          onUpdated={storeWord}
         />
       );
   }
@@ -184,7 +194,7 @@ export function App() {
     <Shell
       activeSection={section}
       theme={resolvedTheme}
-      onSectionChange={setSection}
+      onSectionChange={changeSection}
       onThemeToggle={() => {
         const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
         void api.updateSettings({ ...application.settings, theme: nextTheme }).then((settings) => {

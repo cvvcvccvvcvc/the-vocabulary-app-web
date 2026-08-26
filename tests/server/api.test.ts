@@ -326,14 +326,6 @@ describe("Vocabulary API", () => {
     const created = createdResponse.json<VocabularyWord>();
     expect(created.level).toBe(0);
 
-    const duplicate = await server.app.inject({
-      method: "POST",
-      url: "/api/words",
-      headers: { cookie },
-      payload: { learningText: " APPLE ", meanings: ["другое"], comment: "" },
-    });
-    expect(duplicate.statusCode).toBe(409);
-
     const updatedResponse = await server.app.inject({
       method: "PUT",
       url: `/api/words/${created.id}`,
@@ -360,6 +352,49 @@ describe("Vocabulary API", () => {
       headers: { cookie },
     });
     expect(deleted.statusCode).toBe(204);
+  });
+
+  it("returns the current user's existing word as a neutral create outcome", async () => {
+    const createdResponse = await server.app.inject({
+      method: "POST",
+      url: "/api/words",
+      headers: { cookie },
+      payload: { learningText: "apple", meanings: ["яблоко"], comment: "fruit" },
+    });
+    const created = createdResponse.json<VocabularyWord>();
+
+    const duplicate = await server.app.inject({
+      method: "POST",
+      url: "/api/words",
+      headers: { cookie },
+      payload: { learningText: " APPLE ", meanings: ["другое"], comment: "" },
+    });
+
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json<VocabularyWord>()).toMatchObject({
+      id: created.id,
+      learningText: "apple",
+      meanings: ["яблоко"],
+      comment: "fruit",
+    });
+
+    const repository = new VocabularyRepository(server.database.sqlite);
+    const other = repository.ensureUser({
+      telegramUserId: "2002",
+      displayName: "Other",
+      username: null,
+      photoUrl: null,
+    });
+    const otherCookie = `vocabulary_session=${repository.createSession(other.id)}`;
+    const otherUserCreate = await server.app.inject({
+      method: "POST",
+      url: "/api/words",
+      headers: { cookie: otherCookie },
+      payload: { learningText: "APPLE", meanings: ["другое"], comment: "" },
+    });
+
+    expect(otherUserCreate.statusCode).toBe(201);
+    expect(otherUserCreate.json<VocabularyWord>().id).not.toBe(created.id);
   });
 
   it("applies review answers exactly once", async () => {
