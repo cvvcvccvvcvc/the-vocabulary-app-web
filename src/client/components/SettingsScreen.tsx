@@ -121,7 +121,7 @@ export function SettingsScreen({
         <section className="settings-card appearance-card">
           <header>
             <h2>Appearance</h2>
-            <p>Choose how Vocabulary looks on every device.</p>
+            <p>Choose how The Vocabulary App looks on every device.</p>
           </header>
           <div className="theme-picker" aria-label="Appearance">
             {([

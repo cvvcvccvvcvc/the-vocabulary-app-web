@@ -1,6 +1,6 @@
 # Product
 
-Vocabulary is a vocabulary trainer that follows the user across iPhone, Mac, browsers, and Telegram. The server stores the canonical profile and vocabulary; the native Swift application is not part of the new product.
+The Vocabulary App is a vocabulary trainer that follows the user across iPhone, Mac, browsers, and Telegram. The server stores the canonical profile and vocabulary; the native Swift application is not part of the new product.
 
 ## First release
 
@@ -64,7 +64,7 @@ Learn, where Scheduled Review remains ahead of Free Review.
 
 ## Data ownership
 
-Each Telegram identity maps to one internal Vocabulary account. A new user receives an empty account. All words, language and appearance settings, and sessions are scoped to that internal account. There is no separate device-sync control: authenticated devices read and write the same server profile.
+Each Telegram identity maps to one internal account in The Vocabulary App. A new user receives an empty account. All words, language and appearance settings, and sessions are scoped to that internal account. There is no separate device-sync control: authenticated devices read and write the same server profile.
 
 The administrative analytics page is the only cross-user read surface. It is absent from
 normal navigation and the server authorizes it against the configured owner Telegram ID.

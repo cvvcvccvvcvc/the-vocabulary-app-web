@@ -1661,7 +1661,8 @@ button.titlebar-icon.active {
 
 .auth-card h1 {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 38px;
+  font-size: clamp(28px, 7vw, 34px);
+  line-height: 1.1;
 }
 
 .auth-copy {

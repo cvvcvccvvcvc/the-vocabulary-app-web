@@ -75,8 +75,8 @@ export function AnalyticsApp() {
     return (
       <AnalyticsMessage>
         <h1>Sign in first</h1>
-        <p>Open Vocabulary and sign in with the owner Telegram account, then return to this page.</p>
-        <a className="primary-button analytics-message-action" href="/">Open Vocabulary</a>
+        <p>Open The Vocabulary App and sign in with the owner Telegram account, then return to this page.</p>
+        <a className="primary-button analytics-message-action" href="/">Open The Vocabulary App</a>
       </AnalyticsMessage>
     );
   }
@@ -85,8 +85,8 @@ export function AnalyticsApp() {
     return (
       <AnalyticsMessage>
         <h1>Page not found</h1>
-        <p>This page is available only to the Vocabulary owner.</p>
-        <a className="secondary-button analytics-message-action" href="/">Open Vocabulary</a>
+        <p>This page is available only to the owner of The Vocabulary App.</p>
+        <a className="secondary-button analytics-message-action" href="/">Open The Vocabulary App</a>
       </AnalyticsMessage>
     );
   }
@@ -133,7 +133,7 @@ function AnalyticsDashboard({ report }: { report: AnalyticsResponse }) {
     <main className="analytics-page">
       <header className="analytics-header">
         <div>
-          <p className="analytics-eyebrow">Vocabulary</p>
+          <p className="analytics-eyebrow">The Vocabulary App</p>
           <h1>Analytics</h1>
           <p>Learning activity, registrations, and saved cards.</p>
         </div>

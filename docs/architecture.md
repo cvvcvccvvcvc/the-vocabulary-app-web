@@ -1,6 +1,6 @@
 # Architecture
 
-Vocabulary is a single TypeScript project with four explicit layers:
+The Vocabulary App is a single TypeScript project with four explicit layers:
 
 ```text
 src/client  -> src/shared <- src/server
@@ -30,7 +30,7 @@ state is also bound to the initiating browser with a signed HTTP-only cookie, so
 cannot create a session in a different browser. Both paths normalize the verified Telegram
 user ID into one internal user record and one server-side session.
 
-Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to the fixed Vocabulary HTTPS endpoint, and returns the endpoint response without interpreting it.
+Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to The Vocabulary App's fixed HTTPS endpoint, and returns the endpoint response without interpreting it.
 
 The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendPhoto` method, a caption, and Mini App navigation buttons. The photo is referenced by its Telegram `file_id`; when it is not configured, the application falls back to `sendMessage`. Telegram executes the method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
 
@@ -50,8 +50,8 @@ SQLite. Expired session rows are removed opportunistically when a new session is
 
 ## Owner analytics
 
-The website serves a standalone `/analytics` route outside the normal Vocabulary
-navigation. Its API requires an authenticated session and independently matches the
+The website serves a standalone `/analytics` route outside the normal navigation in
+The Vocabulary App. Its API requires an authenticated session and independently matches the
 session's internal user to `ANALYTICS_OWNER_TELEGRAM_USER_ID`. A missing configuration or
 a different authenticated user receives the same not-found response.
 
@@ -79,10 +79,10 @@ The schema stores generic language-neutral names. It does not preserve native ap
 The first production topology is one RuVDS instance plus a stateless webhook relay:
 
 ```text
-Telegram -------> Cloudflare Worker ------> Vocabulary webhook
+Telegram -------> Cloudflare Worker ------> The Vocabulary App webhook
 Worker Cron ----> reminder dispatch API --> SQLite
 Worker Cron ------------------------------> Telegram Bot API
-Internet ---------------------------------> Vocabulary API
+Internet ---------------------------------> The Vocabulary App API
                                              |-- static client build
                                              +-- SQLite volume
 ```

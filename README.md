@@ -1,6 +1,6 @@
-# Vocabulary
+# The Vocabulary App
 
-Vocabulary is a server-backed vocabulary trainer available in a browser and as a Telegram Mini App. A single Telegram identity maps to one server-side profile across devices.
+The Vocabulary App is a server-backed vocabulary trainer available in a browser and as a Telegram Mini App. A single Telegram identity maps to one server-side profile across devices.
 
 The project is under initial development. See:
 

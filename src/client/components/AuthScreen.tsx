@@ -31,7 +31,7 @@ export function AuthScreen({
       <section className="auth-card">
         <div className="brand-mark" aria-hidden="true">V</div>
         <p className="eyebrow">Your words, wherever you are</p>
-        <h1>Vocabulary</h1>
+        <h1>The Vocabulary App</h1>
         <p className="auth-copy">
           Save a word once, then review it on your phone, Mac, or inside Telegram.
         </p>

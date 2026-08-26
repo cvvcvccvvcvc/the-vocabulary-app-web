@@ -77,7 +77,7 @@ export function App() {
 
         await loadApplication();
       } catch (error) {
-        setAuthError(error instanceof ApiError ? error.message : "Could not open Vocabulary");
+        setAuthError(error instanceof ApiError ? error.message : "Could not open The Vocabulary App");
       } finally {
         setLoading(false);
       }
@@ -99,7 +99,7 @@ export function App() {
   if (loading) {
     return (
       <main className="auth-screen">
-        <div className="loading-ring" aria-label="Loading Vocabulary" />
+        <div className="loading-ring" aria-label="Loading The Vocabulary App" />
       </main>
     );
   }

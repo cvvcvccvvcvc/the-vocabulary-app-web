@@ -19,7 +19,7 @@ interface ShellProps {
 }
 
 export function Shell({ activeSection, theme, children, onSectionChange, onThemeToggle }: ShellProps) {
-  const title = sections.find((section) => section.id === activeSection)?.label ?? "Vocabulary";
+  const title = sections.find((section) => section.id === activeSection)?.label ?? "The Vocabulary App";
 
   return (
     <div className="app-shell">
