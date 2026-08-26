@@ -5,6 +5,8 @@ import type {
   BootstrapResponse,
   CreateWordRequest,
   ErrorResponse,
+  ReviewTransitionRequest,
+  ReviewTransitionResponse,
   SessionResponse,
   TelegramReminderSettings,
   UpdateWordRequest,
@@ -125,6 +127,11 @@ export const api = {
     request<VocabularyWord>(`/api/words/${wordId}/answer`, {
       method: "POST",
       body: JSON.stringify({ correct, mode, operationId }),
+    }),
+  reviewTransition: (input: ReviewTransitionRequest) =>
+    request<ReviewTransitionResponse>("/api/review-transitions", {
+      method: "POST",
+      body: JSON.stringify(input),
     }),
   updateSettings: (settings: LanguageSettings) =>
     request<LanguageSettings>("/api/settings", {

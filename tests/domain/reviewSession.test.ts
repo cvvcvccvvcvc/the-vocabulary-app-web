@@ -9,11 +9,9 @@ function makeSession(seed = 1): ReviewSession {
   return new ReviewSession(new SeededRandomSource(seed), () => now);
 }
 
-function completeCurrent(session: ReviewSession, wordId: string): void {
+function readyCurrent(session: ReviewSession, wordId: string): void {
   expect(session.presentationReady(wordId)).toBe(true);
   expect(session.reveal()).toBe(true);
-  expect(session.beginAnswer(wordId)).toBe(true);
-  expect(session.completeAnswer(wordId)).toBe(true);
 }
 
 describe("ReviewSession", () => {
@@ -43,6 +41,28 @@ describe("ReviewSession", () => {
     expect(session.beginPresentation(words)).toEqual(current);
   });
 
+  it("shows the next card while the previous answer is still saving", () => {
+    const words = [makeWord({ id: "one" }), makeWord({ id: "two" })];
+    const session = makeSession(25);
+    const current = session.beginPresentation(words)!;
+    readyCurrent(session, current.wordId);
+
+    const transition = session.beginTransition(words, current.wordId, true)!;
+
+    expect(session.snapshot).toMatchObject({
+      card: transition.shown,
+      revealed: false,
+      phase: "saving-transition",
+    });
+    expect(session.reveal()).toBe(true);
+    expect(session.beginTransition(words, transition.shown.wordId, true)).toBeNull();
+    expect(session.transitionFailed(transition.shown.wordId)).toBe(true);
+    expect(session.snapshot).toMatchObject({ card: transition.shown, revealed: true });
+    expect(session.retryTransition(transition.shown.wordId)).toBe(true);
+    expect(session.transitionReady(transition.shown.wordId)).toBe(true);
+    expect(session.snapshot.phase).toBe("ready");
+  });
+
   it("appends newly due cards without rebuilding the remaining scheduled queue", () => {
     const words = [
       makeWord({ id: "one" }),
@@ -55,22 +75,17 @@ describe("ReviewSession", () => {
     const first = session.beginPresentation(words)!;
 
     expect(first).toEqual(controlFirst);
-    completeCurrent(control, controlFirst.wordId);
-    completeCurrent(session, first.wordId);
+    readyCurrent(control, controlFirst.wordId);
+    readyCurrent(session, first.wordId);
 
-    const reviewedWords = words.map((word) =>
-      word.id === first.wordId
-        ? { ...word, lastReviewedAt: now.toISOString(), nextReviewAt: later }
-        : word,
-    );
-    const expectedNext = control.beginPresentation(reviewedWords);
-    const actualNext = session.beginPresentation([
-      ...reviewedWords,
+    const expectedNext = control.beginTransition(words, controlFirst.wordId, true);
+    const actualNext = session.beginTransition([
+      ...words,
       makeWord({ id: "newly-added" }),
-    ]);
+    ], first.wordId, true);
 
-    expect(actualNext?.wordId).toBe(expectedNext?.wordId);
-    expect(actualNext?.mode).toBe("scheduled");
+    expect(actualNext?.shown.wordId).toBe(expectedNext?.shown.wordId);
+    expect(session.snapshot.card?.mode).toBe("scheduled");
   });
 
   it("serves a newly due card before returning to Free Review", () => {
@@ -85,16 +100,32 @@ describe("ReviewSession", () => {
     const freeCard = session.beginPresentation(futureWords)!;
 
     expect(freeCard.mode).toBe("free");
+    readyCurrent(session, freeCard.wordId);
     const wordsWithNewDueCard = [
       ...futureWords,
       makeWord({ id: "newly-due" }),
     ];
     expect(session.reconcile(wordsWithNewDueCard)).toBe(true);
     expect(session.snapshot.card).toEqual(freeCard);
-    completeCurrent(session, freeCard.wordId);
+    const transition = session.beginTransition(wordsWithNewDueCard, freeCard.wordId, true);
+    expect(transition?.shown.wordId).toBe("newly-due");
+    expect(session.snapshot.card?.mode).toBe("scheduled");
+  });
 
-    const next = session.beginPresentation(wordsWithNewDueCard);
-    expect(next).toMatchObject({ wordId: "newly-due", mode: "scheduled" });
+  it("cycles a one-word deck with the next direction already selected", () => {
+    const words = [makeWord({ id: "only" })];
+    const session = makeSession(45);
+    const current = session.beginPresentation(words)!;
+    readyCurrent(session, current.wordId);
+
+    const transition = session.beginTransition(words, current.wordId, true)!;
+
+    expect(transition.shown.wordId).toBe(current.wordId);
+    expect(transition.shown.direction).not.toBe(current.direction);
+    expect(session.snapshot).toMatchObject({
+      card: { wordId: current.wordId, mode: "free" },
+      phase: "saving-transition",
+    });
   });
 
   it("drops a deleted current card and selects only from active IDs", () => {

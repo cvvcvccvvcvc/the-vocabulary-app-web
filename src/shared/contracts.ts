@@ -1,5 +1,7 @@
 import type {
   LanguageSettings,
+  ReviewDirection,
+  ReviewMode,
   VocabularyWord,
 } from "../domain/models.js";
 
@@ -38,6 +40,24 @@ export interface CreateWordRequest {
 
 export interface UpdateWordRequest extends CreateWordRequest {
   version: number;
+}
+
+export interface ReviewTransitionRequest {
+  operationId: string;
+  answer: {
+    wordId: string;
+    correct: boolean;
+    mode: ReviewMode;
+  };
+  shown: {
+    wordId: string;
+    direction: ReviewDirection;
+  };
+}
+
+export interface ReviewTransitionResponse {
+  answeredWord: VocabularyWord;
+  shownWord: VocabularyWord;
 }
 
 export interface ErrorResponse {

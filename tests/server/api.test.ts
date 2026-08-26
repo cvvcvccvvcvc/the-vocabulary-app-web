@@ -9,6 +9,7 @@ import {
   telegramWebhookSecret,
 } from "../../src/server/telegramBot.js";
 import type { VocabularyWord } from "../../src/domain/index.js";
+import type { ReviewTransitionResponse } from "../../src/shared/contracts.js";
 
 const config: ServerConfig = {
   environment: "test",
@@ -444,6 +445,117 @@ describe("Vocabulary API", () => {
     expect(conflicting.statusCode).toBe(409);
     expect(conflicting.json()).toMatchObject({
       error: { code: "operation_conflict" },
+    });
+  });
+
+  it("atomically answers one card and marks the next card shown", async () => {
+    const answered = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "memory", meanings: ["память"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const shown = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "future", meanings: ["будущее"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const payload = {
+      operationId: randomUUID(),
+      answer: { wordId: answered.id, correct: true, mode: "scheduled" },
+      shown: { wordId: shown.id, direction: "known-to-learning" },
+    };
+
+    const first = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload,
+    });
+    const retry = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(first.json<ReviewTransitionResponse>()).toMatchObject({
+      answeredWord: { id: answered.id, level: 1, correctCount: 1 },
+      shownWord: {
+        id: shown.id,
+        lastDirection: "known-to-learning",
+        lastSeenAt: expect.any(String),
+      },
+    });
+    expect(retry.json()).toEqual(first.json());
+
+    const operationCount = server.database.sqlite
+      .prepare("SELECT COUNT(*) AS count FROM review_operations WHERE id = ?")
+      .get(payload.operationId) as { count: number };
+    expect(operationCount.count).toBe(1);
+
+    const conflicting = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload: {
+        ...payload,
+        shown: { ...payload.shown, direction: "learning-to-known" },
+      },
+    });
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.json()).toMatchObject({ error: { code: "operation_conflict" } });
+  });
+
+  it("rolls back an answer when the next card is not owned by the user", async () => {
+    const answered = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "private", meanings: ["личный"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const repository = new VocabularyRepository(server.database.sqlite);
+    const other = repository.ensureUser({
+      telegramUserId: "2002",
+      displayName: "Other",
+      username: null,
+      photoUrl: null,
+    });
+    const foreignWord = repository.createWord(other.id, {
+      learningText: "foreign",
+      meanings: ["чужой"],
+      comment: "",
+    });
+
+    const response = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload: {
+        operationId: randomUUID(),
+        answer: { wordId: answered.id, correct: true, mode: "scheduled" },
+        shown: { wordId: foreignWord.id, direction: "learning-to-known" },
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const bootstrap = await server.app.inject({
+      method: "GET",
+      url: "/api/bootstrap",
+      headers: { cookie },
+    });
+    expect(bootstrap.json<{ words: VocabularyWord[] }>().words[0]).toMatchObject({
+      id: answered.id,
+      level: 0,
+      correctCount: 0,
     });
   });
 

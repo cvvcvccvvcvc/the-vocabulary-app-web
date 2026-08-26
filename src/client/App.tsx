@@ -17,7 +17,7 @@ import { SettingsScreen } from "./components/SettingsScreen.js";
 import { Shell, type Section } from "./components/Shell.js";
 import { WordsScreen } from "./components/WordsScreen.js";
 import { api, ApiError } from "./lib/api.js";
-import { AnswerOperationTracker } from "./lib/identifier.js";
+import { ReviewTransitionTracker } from "./lib/identifier.js";
 import { sectionFromSearch } from "./lib/section.js";
 import { initializeTelegram, setTelegramAppearance } from "./lib/telegram.js";
 
@@ -41,7 +41,7 @@ export function App() {
   const [reviewSession] = useState(
     () => new ReviewSession(new SystemRandomSource(), () => new Date()),
   );
-  const [answerOperations] = useState(() => new AnswerOperationTracker());
+  const [reviewTransitions] = useState(() => new ReviewTransitionTracker());
   const [, setReviewSessionRevision] = useState(0);
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
@@ -69,10 +69,10 @@ export function App() {
   const loadApplication = useCallback(async (): Promise<void> => {
     const bootstrap = await api.bootstrap();
     reviewSession.reset();
-    answerOperations.complete();
+    reviewTransitions.reset();
     setApplication(bootstrap);
     setAuthError(null);
-  }, [answerOperations, reviewSession]);
+  }, [reviewSession, reviewTransitions]);
 
   useEffect(() => {
     async function start(): Promise<void> {
@@ -195,7 +195,7 @@ export function App() {
           onLogout={async () => {
             await api.logout();
             reviewSession.reset();
-            answerOperations.complete();
+            reviewTransitions.reset();
             setApplication(null);
           }}
         />
@@ -208,7 +208,7 @@ export function App() {
           words={application.words}
           settings={application.settings}
           session={reviewSession}
-          answerOperations={answerOperations}
+          reviewTransitions={reviewTransitions}
           onSessionChanged={notifyReviewSessionChanged}
           onUpdated={storeWord}
         />

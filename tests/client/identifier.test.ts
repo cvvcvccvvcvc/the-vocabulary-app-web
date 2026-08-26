@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  AnswerOperationTracker,
+  ReviewTransitionTracker,
   createOperationId,
 } from "../../src/client/lib/identifier.js";
+import type { ReviewSessionTransition } from "../../src/domain/index.js";
+
+const transition: ReviewSessionTransition = {
+  answer: { wordId: "word-1", correct: true, mode: "scheduled" },
+  shown: { wordId: "word-2", direction: "known-to-learning" },
+};
 
 describe("createOperationId", () => {
   it("uses randomUUID when the browser provides it", () => {
@@ -26,27 +32,27 @@ describe("createOperationId", () => {
   });
 });
 
-describe("AnswerOperationTracker", () => {
-  it("reuses an unanswered operation and clears it after success", () => {
+describe("ReviewTransitionTracker", () => {
+  it("keeps one immutable transition available for retry", () => {
     let nextId = 0;
-    const tracker = new AnswerOperationTracker(() => `operation-${nextId += 1}`);
+    const tracker = new ReviewTransitionTracker(() => `operation-${nextId += 1}`);
 
-    const first = tracker.begin("word-1", true, "scheduled");
-    expect(tracker.begin("word-1", true, "scheduled")).toBe(first);
-    expect(tracker.begin("word-1", false, "scheduled")).not.toBe(first);
+    const first = tracker.begin(transition);
 
-    const latest = tracker.begin("word-1", false, "scheduled");
-    tracker.complete();
-    expect(tracker.begin("word-1", false, "scheduled")).not.toBe(latest);
+    expect(first).toEqual({ operationId: "operation-1", ...transition });
+    expect(tracker.pending).toBe(first);
+    expect(tracker.begin({ ...transition, answer: { ...transition.answer, correct: false } }))
+      .toBeNull();
+    expect(tracker.pending).toBe(first);
   });
 
-  it("does not let a stale completion clear a newer operation", () => {
-    let nextId = 0;
-    const tracker = new AnswerOperationTracker(() => `operation-${nextId += 1}`);
-    const stale = tracker.begin("word-1", true, "scheduled");
-    const current = tracker.begin("word-2", false, "free");
+  it("does not let a stale completion clear the current operation", () => {
+    const tracker = new ReviewTransitionTracker(() => "operation-1");
+    const current = tracker.begin(transition);
 
-    tracker.complete(stale);
-    expect(tracker.begin("word-2", false, "free")).toBe(current);
+    expect(tracker.complete("stale-operation")).toBe(false);
+    expect(tracker.pending).toBe(current);
+    expect(tracker.complete("operation-1")).toBe(true);
+    expect(tracker.pending).toBeNull();
   });
 });

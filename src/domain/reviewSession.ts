@@ -3,7 +3,7 @@ import { FreeReviewPicker } from "./freeReview.js";
 import type { ReviewDirection, ReviewMode, VocabularyWord } from "./models.js";
 import type { RandomSource } from "./random.js";
 import { shuffled } from "./random.js";
-import { isScheduledReviewCandidate } from "./scheduledReview.js";
+import { applyReviewAnswer, isScheduledReviewCandidate } from "./scheduledReview.js";
 
 export interface ReviewSessionCard {
   wordId: string;
@@ -11,12 +11,25 @@ export interface ReviewSessionCard {
   mode: ReviewMode;
 }
 
+export interface ReviewSessionTransition {
+  answer: {
+    wordId: string;
+    correct: boolean;
+    mode: ReviewMode;
+  };
+  shown: {
+    wordId: string;
+    direction: ReviewDirection;
+  };
+}
+
 export type ReviewSessionPhase =
   | "idle"
   | "marking-shown"
   | "show-failed"
   | "ready"
-  | "answering";
+  | "saving-transition"
+  | "transition-failed";
 
 export interface ReviewSessionSnapshot {
   card: ReviewSessionCard | null;
@@ -104,6 +117,68 @@ export class ReviewSession {
       return { ...this.card };
     }
 
+    const selected = this.takeNext(words);
+    if (selected === null) {
+      return null;
+    }
+
+    this.card = selected;
+    this.revealed = false;
+    this.phase = "marking-shown";
+    return { ...this.card };
+  }
+
+  beginTransition(
+    words: readonly VocabularyWord[],
+    wordId: string,
+    correct: boolean,
+  ): ReviewSessionTransition | null {
+    if (this.card?.wordId !== wordId || this.phase !== "ready" || !this.revealed) {
+      return null;
+    }
+
+    const answeredCard = { ...this.card };
+    const current = words.find((word) => word.id === wordId && !word.isDeleted);
+    if (current === undefined) {
+      return null;
+    }
+
+    const projected = applyReviewAnswer(
+      { ...current, lastDirection: answeredCard.direction },
+      correct,
+      answeredCard.mode,
+      this.now(),
+    );
+    const projectedWords = words.map((word) => (word.id === wordId ? projected : word));
+    this.card = null;
+    this.revealed = false;
+    this.phase = "idle";
+    this.reconcile(projectedWords);
+
+    const shownCard = this.takeNext(projectedWords);
+    if (shownCard === null) {
+      this.card = answeredCard;
+      this.revealed = true;
+      this.phase = "ready";
+      return null;
+    }
+
+    this.card = shownCard;
+    this.phase = "saving-transition";
+    return {
+      answer: {
+        wordId,
+        correct,
+        mode: answeredCard.mode,
+      },
+      shown: {
+        wordId: shownCard.wordId,
+        direction: shownCard.direction,
+      },
+    };
+  }
+
+  private takeNext(words: readonly VocabularyWord[]): ReviewSessionCard | null {
     const activeWords = words.filter((word) => !word.isDeleted);
     let selected: VocabularyWord | null = null;
     let mode: ReviewMode = "free";
@@ -120,14 +195,11 @@ export class ReviewSession {
       return null;
     }
 
-    this.card = {
+    return {
       wordId: selected.id,
       direction: resolveReviewDirection(selected.lastDirection, this.random),
       mode,
     };
-    this.revealed = false;
-    this.phase = "marking-shown";
-    return { ...this.card };
   }
 
   presentationReady(wordId: string): boolean {
@@ -149,7 +221,11 @@ export class ReviewSession {
   }
 
   reveal(): boolean {
-    if (this.card === null || this.phase !== "ready" || this.revealed) {
+    if (
+      this.card === null
+      || !["ready", "saving-transition", "transition-failed"].includes(this.phase)
+      || this.revealed
+    ) {
       return false;
     }
 
@@ -157,17 +233,8 @@ export class ReviewSession {
     return true;
   }
 
-  beginAnswer(wordId: string): boolean {
-    if (this.card?.wordId !== wordId || this.phase !== "ready" || !this.revealed) {
-      return false;
-    }
-
-    this.phase = "answering";
-    return true;
-  }
-
-  answerFailed(wordId: string): boolean {
-    if (this.card?.wordId !== wordId || this.phase !== "answering") {
+  transitionReady(wordId: string): boolean {
+    if (this.card?.wordId !== wordId || this.phase !== "saving-transition") {
       return false;
     }
 
@@ -175,14 +242,21 @@ export class ReviewSession {
     return true;
   }
 
-  completeAnswer(wordId: string): boolean {
-    if (this.card?.wordId !== wordId || this.phase !== "answering") {
+  transitionFailed(wordId: string): boolean {
+    if (this.card?.wordId !== wordId || this.phase !== "saving-transition") {
       return false;
     }
 
-    this.card = null;
-    this.revealed = false;
-    this.phase = "idle";
+    this.phase = "transition-failed";
+    return true;
+  }
+
+  retryTransition(wordId: string): boolean {
+    if (this.card?.wordId !== wordId || this.phase !== "transition-failed") {
+      return false;
+    }
+
+    this.phase = "saving-transition";
     return true;
   }
 

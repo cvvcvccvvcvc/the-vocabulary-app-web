@@ -35,6 +35,19 @@ export const answerWordSchema = z.object({
   operationId: z.uuid(),
 });
 
+export const reviewTransitionSchema = z.object({
+  operationId: z.uuid(),
+  answer: z.object({
+    wordId: z.uuid(),
+    correct: z.boolean(),
+    mode: z.enum(["scheduled", "free"]),
+  }),
+  shown: z.object({
+    wordId: z.uuid(),
+    direction: z.enum(["learning-to-known", "known-to-learning"]),
+  }),
+});
+
 export const telegramReminderSettingsSchema = z.object({
   enabled: z.boolean(),
 });

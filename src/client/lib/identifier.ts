@@ -1,4 +1,5 @@
-import type { ReviewMode } from "../../domain/index.js";
+import type { ReviewSessionTransition } from "../../domain/index.js";
+import type { ReviewTransitionRequest } from "../../shared/contracts.js";
 
 export function createOperationId(cryptoProvider: Crypto = globalThis.crypto): string {
   if (typeof cryptoProvider.randomUUID === "function") {
@@ -19,35 +20,42 @@ export function createOperationId(cryptoProvider: Crypto = globalThis.crypto): s
   ].join("-");
 }
 
-interface PendingAnswerOperation {
-  wordId: string;
-  correct: boolean;
-  mode: ReviewMode;
-  operationId: string;
-}
-
-export class AnswerOperationTracker {
-  private pending: PendingAnswerOperation | null = null;
+export class ReviewTransitionTracker {
+  private operation: ReviewTransitionRequest | null = null;
 
   constructor(private readonly createId: () => string = createOperationId) {}
 
-  begin(wordId: string, correct: boolean, mode: ReviewMode): string {
-    if (
-      this.pending?.wordId === wordId
-      && this.pending.correct === correct
-      && this.pending.mode === mode
-    ) {
-      return this.pending.operationId;
-    }
-
-    const operationId = this.createId();
-    this.pending = { wordId, correct, mode, operationId };
-    return operationId;
+  get pending(): ReviewTransitionRequest | null {
+    return this.operation;
   }
 
-  complete(operationId?: string): void {
-    if (operationId === undefined || this.pending?.operationId === operationId) {
-      this.pending = null;
+  begin(transition: ReviewSessionTransition): ReviewTransitionRequest | null {
+    if (this.operation !== null) {
+      return null;
     }
+
+    this.operation = {
+      operationId: this.createId(),
+      answer: { ...transition.answer },
+      shown: { ...transition.shown },
+    };
+    return this.operation;
+  }
+
+  isCurrent(operationId: string): boolean {
+    return this.operation?.operationId === operationId;
+  }
+
+  complete(operationId: string): boolean {
+    if (!this.isCurrent(operationId)) {
+      return false;
+    }
+
+    this.operation = null;
+    return true;
+  }
+
+  reset(): void {
+    this.operation = null;
   }
 }

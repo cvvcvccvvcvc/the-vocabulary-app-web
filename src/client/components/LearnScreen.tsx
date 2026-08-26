@@ -14,8 +14,9 @@ import {
   type ReviewSession,
   type VocabularyWord,
 } from "../../domain/index.js";
+import type { ReviewTransitionRequest } from "../../shared/contracts.js";
 import { api, ApiError } from "../lib/api.js";
-import type { AnswerOperationTracker } from "../lib/identifier.js";
+import type { ReviewTransitionTracker } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
@@ -25,7 +26,7 @@ interface LearnScreenProps {
   words: VocabularyWord[];
   settings: LanguageSettings;
   session: ReviewSession;
-  answerOperations: AnswerOperationTracker;
+  reviewTransitions: ReviewTransitionTracker;
   onSessionChanged(): void;
   onUpdated(word: VocabularyWord): void;
 }
@@ -88,7 +89,7 @@ export function LearnScreen({
   words,
   settings,
   session,
-  answerOperations,
+  reviewTransitions,
   onSessionChanged,
   onUpdated,
 }: LearnScreenProps) {
@@ -101,7 +102,7 @@ export function LearnScreen({
   const [modeHelpOpen, setModeHelpOpen] = useState(false);
   const modeHelp = useDismissiblePopover<HTMLElement>(modeHelpOpen, setModeHelpOpen);
   const { card, revealed, phase } = session.snapshot;
-  const working = phase === "answering";
+  const canAnswer = phase === "ready";
   const currentWord = words.find((word) => word.id === card?.wordId) ?? null;
 
   useEffect(() => {
@@ -166,29 +167,52 @@ export function LearnScreen({
     return () => window.removeEventListener("keydown", handleKey);
   });
 
-  async function answer(correct: boolean): Promise<void> {
-    if (card === null || currentWord === null || !session.beginAnswer(currentWord.id)) return;
-
-    onSessionChanged();
-    setError(null);
-    const operationId = answerOperations.begin(currentWord.id, correct, card.mode);
+  async function saveTransition(input: ReviewTransitionRequest): Promise<void> {
     try {
-      const updated = await api.answerWord(currentWord.id, correct, card.mode, operationId);
-      const latestWords = words.map((word) => (word.id === updated.id ? updated : word));
-      answerOperations.complete(operationId);
-      if (!session.completeAnswer(currentWord.id)) return;
+      const response = await api.reviewTransition(input);
+      if (!reviewTransitions.complete(input.operationId)) return;
+      if (!session.transitionReady(input.shown.wordId)) return;
 
-      onUpdated(updated);
-      resetSwipe();
+      if (response.answeredWord.id !== response.shownWord.id) {
+        onUpdated(response.answeredWord);
+      }
+      onUpdated(response.shownWord);
       onSessionChanged();
-      telegramNotification(correct ? "success" : "warning");
-      await chooseNext(latestWords);
+      telegramNotification(input.answer.correct ? "success" : "warning");
     } catch (caught) {
-      session.answerFailed(currentWord.id);
+      if (!reviewTransitions.isCurrent(input.operationId)) return;
+      session.transitionFailed(input.shown.wordId);
       setError(caught instanceof ApiError ? caught.message : "Could not save the answer");
-      resetSwipe();
       onSessionChanged();
     }
+  }
+
+  async function answer(correct: boolean): Promise<void> {
+    if (
+      card === null
+      || currentWord === null
+      || reviewTransitions.pending !== null
+    ) return;
+
+    const transition = session.beginTransition(words, currentWord.id, correct);
+    if (transition === null) return;
+
+    const operation = reviewTransitions.begin(transition);
+    if (operation === null) return;
+
+    resetSwipe();
+    onSessionChanged();
+    setError(null);
+    await saveTransition(operation);
+  }
+
+  async function retryTransition(): Promise<void> {
+    const operation = reviewTransitions.pending;
+    if (operation === null || !session.retryTransition(operation.shown.wordId)) return;
+
+    setError(null);
+    onSessionChanged();
+    await saveTransition(operation);
   }
 
   function speak(): void {
@@ -201,7 +225,7 @@ export function LearnScreen({
   }
 
   function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>): void {
-    if (!event.isPrimary || event.button !== 0 || !revealed || working || swipePhase !== "idle") return;
+    if (!event.isPrimary || event.button !== 0 || !revealed || !canAnswer || swipePhase !== "idle") return;
     const now = performance.now();
     swipeSession.current = {
       pointerId: event.pointerId,
@@ -444,20 +468,36 @@ export function LearnScreen({
               )}
             </div>
           </div>
-          {!revealed ? (
+          {phase === "transition-failed" ? (
+            <div className="review-transition-failure">
+              <p className="notice notice-error">{error ?? "Could not save the answer"}</p>
+              <button
+                className="primary-button review-retry"
+                type="button"
+                onClick={() => void retryTransition()}
+              >
+                Try again
+              </button>
+            </div>
+          ) : !revealed ? (
             <p className="reveal-hint">
               <kbd>Space</kbd>
               <span className="desktop-hint"> or tap card to reveal</span>
               <span className="mobile-reveal-hint">Tap card to reveal</span>
             </p>
-          ) : (
+          ) : canAnswer ? (
             <p className="swipe-hint">
               <span className="desktop-swipe-hint">Drag card or use ← →</span>
               <span className="mobile-swipe-hint">Swipe left or right</span>
             </p>
+          ) : (
+            <p className="swipe-hint">
+              {phase === "saving-transition"
+                ? "Saving the previous answer…"
+                : "Retry the previous answer to continue"}
+            </p>
           )}
         </div>
-        {error !== null && <p className="notice notice-error">{error}</p>}
       </div>
     </section>
   );

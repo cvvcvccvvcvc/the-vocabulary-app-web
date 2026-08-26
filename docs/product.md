@@ -47,6 +47,8 @@ Free Review starts only when Scheduled Review is empty. It draws from all active
 
 Moving to another tab and back keeps the current review card, its direction and reveal state, and the remaining in-memory queue. A full application reload deliberately starts a fresh queue from server data.
 
+After an answered card leaves the screen, the next card appears immediately from the in-memory queue. It can be read and revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
+
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
 
 ## Telegram reminders

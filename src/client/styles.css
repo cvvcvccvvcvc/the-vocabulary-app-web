@@ -805,6 +805,18 @@ button.titlebar-icon.active {
   width: 100%;
 }
 
+.review-transition-failure {
+  position: absolute;
+  display: grid;
+  top: 100%;
+  left: 50%;
+  width: 100%;
+  margin-top: 18px;
+  transform: translateX(-50%);
+  justify-items: center;
+  gap: 10px;
+}
+
 .centered-screen {
   display: grid;
   padding: 30px;

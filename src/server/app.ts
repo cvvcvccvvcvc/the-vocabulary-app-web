@@ -41,6 +41,7 @@ import {
 } from "./reminders.js";
 import {
   answerWordSchema,
+  reviewTransitionSchema,
   settingsSchema,
   showWordSchema,
   telegramReminderResultsSchema,
@@ -278,6 +279,15 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
       input.operationId,
       input.correct,
       input.mode,
+    );
+  });
+
+  app.post("/api/review-transitions", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    return repository.reviewTransition(
+      user.id,
+      reviewTransitionSchema.parse(request.body),
     );
   });
 

@@ -65,4 +65,43 @@ describe("Vocabulary repository", () => {
     expect(edited.version).toBe(word.version + 1);
     expect(edited.level).toBe(1);
   });
+
+  it("answers and presents the next side of a one-word deck exactly once", () => {
+    const word = repository.createWord(userId, {
+      learningText: "memory",
+      meanings: ["память"],
+      comment: "",
+    });
+    repository.markShown(
+      userId,
+      word.id,
+      "learning-to-known",
+      new Date("2026-08-26T10:00:00.000Z"),
+    );
+    const input = {
+      operationId: randomUUID(),
+      answer: { wordId: word.id, correct: true, mode: "scheduled" as const },
+      shown: { wordId: word.id, direction: "known-to-learning" as const },
+    };
+
+    const first = repository.reviewTransition(
+      userId,
+      input,
+      new Date("2026-08-26T10:01:00.000Z"),
+    );
+    const retry = repository.reviewTransition(
+      userId,
+      input,
+      new Date("2026-08-26T10:02:00.000Z"),
+    );
+
+    expect(first.answeredWord).toEqual(first.shownWord);
+    expect(first.shownWord).toMatchObject({
+      level: 1,
+      correctCount: 1,
+      lastDirection: "known-to-learning",
+      lastSeenAt: "2026-08-26T10:01:00.000Z",
+    });
+    expect(retry).toEqual(first);
+  });
 });
