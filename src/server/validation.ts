@@ -51,6 +51,31 @@ export const statisticsQuerySchema = z.object({
     }, "Time zone must be a valid IANA identifier"),
 });
 
+export const reviewTransitionSchema = z.object({
+  operationId: z.uuid(),
+  answer: z.object({
+    wordId: z.uuid(),
+    correct: z.boolean(),
+    mode: z.enum(["scheduled", "free"]),
+  }),
+  shown: z.object({
+    wordId: z.uuid(),
+    direction: z.enum(["learning-to-known", "known-to-learning"]),
+  }),
+});
+
+export const telegramReminderSettingsSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const telegramReminderResultsSchema = z.object({
+  results: z.array(z.object({
+    eventId: z.uuid(),
+    ok: z.boolean(),
+    errorCode: z.number().int().positive().nullable(),
+  })).max(20),
+});
+
 export const settingsSchema = z
   .object({
     learningLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),

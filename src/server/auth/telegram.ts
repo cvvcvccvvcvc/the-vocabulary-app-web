@@ -142,6 +142,7 @@ export async function exchangeTelegramOidcCode(
   const verified = await jwtVerify(tokenResponse.id_token, telegramJwks, {
     issuer: "https://oauth.telegram.org",
     audience: config.telegramBotId,
+    requiredClaims: ["exp"],
   });
   const claims = verified.payload;
   const telegramUserIdCandidate =

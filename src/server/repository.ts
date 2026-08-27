@@ -8,7 +8,11 @@ import {
   type ReviewMode,
   type VocabularyWord,
 } from "../domain/index.js";
-import type { UserProfile } from "../shared/contracts.js";
+import type {
+  ReviewTransitionRequest,
+  ReviewTransitionResponse,
+  UserProfile,
+} from "../shared/contracts.js";
 
 export interface TelegramIdentity {
   telegramUserId: string;
@@ -52,7 +56,14 @@ interface UserRow {
   photo_url: string | null;
 }
 
+interface ReviewOperationRow {
+  word_id: string;
+  request_json: string | null;
+  response_json: string;
+}
+
 export class DuplicateWordError extends Error {}
+export class ReviewOperationConflictError extends Error {}
 export class WordNotFoundError extends Error {}
 export class WordVersionConflictError extends Error {}
 
@@ -152,13 +163,17 @@ export class VocabularyRepository {
 
   createSession(userId: string, now = new Date()): string {
     const token = randomBytes(32).toString("base64url");
+    const timestamp = now.toISOString();
     const expiresAt = new Date(now.getTime() + 30 * 86_400_000).toISOString();
-    this.database
-      .prepare(`
-        INSERT INTO sessions (token_hash, user_id, expires_at, created_at)
-        VALUES (?, ?, ?, ?)
-      `)
-      .run(tokenHash(token), userId, expiresAt, now.toISOString());
+    this.database.transaction(() => {
+      this.database.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(timestamp);
+      this.database
+        .prepare(`
+          INSERT INTO sessions (token_hash, user_id, expires_at, created_at)
+          VALUES (?, ?, ?, ?)
+        `)
+        .run(tokenHash(token), userId, expiresAt, timestamp);
+    })();
     return token;
   }
 
@@ -261,6 +276,16 @@ export class VocabularyRepository {
     return rows.map(mapWord);
   }
 
+  findWordByLearningText(userId: string, learningText: string): VocabularyWord | null {
+    const row = this.database
+      .prepare(`
+        SELECT * FROM words
+        WHERE user_id = ? AND normalized_learning_text = ? AND is_deleted = 0
+      `)
+      .get(userId, normalizeLearningText(learningText)) as WordRow | undefined;
+    return row === undefined ? null : mapWord(row);
+  }
+
   createWord(userId: string, input: WordContentInput, now = new Date()): VocabularyWord {
     const id = randomUUID();
     const timestamp = now.toISOString();
@@ -360,23 +385,7 @@ export class VocabularyRepository {
     direction: ReviewDirection,
     now = new Date(),
   ): VocabularyWord {
-    const current = this.word(userId, wordId);
-    const shown = markWordShown(current, direction, now);
-    this.database
-      .prepare(`
-        UPDATE words SET
-          last_direction = ?, last_seen_at = ?, progress_updated_at = ?, updated_at = ?,
-          version = version + 1
-        WHERE id = ? AND user_id = ? AND is_deleted = 0
-      `)
-      .run(
-        shown.lastDirection,
-        shown.lastSeenAt,
-        shown.progressUpdatedAt,
-        shown.updatedAt,
-        wordId,
-        userId,
-      );
+    this.persistShown(userId, wordId, direction, now);
     return this.word(userId, wordId);
   }
 
@@ -388,48 +397,159 @@ export class VocabularyRepository {
     mode: ReviewMode,
     now = new Date(),
   ): VocabularyWord {
+    const requestJson = JSON.stringify({
+      operationId,
+      answer: { wordId, correct, mode },
+    });
+
     return this.database.transaction(() => {
       const stored = this.database
         .prepare(`
-          SELECT response_json FROM review_operations WHERE id = ? AND user_id = ?
+          SELECT word_id, request_json, response_json
+          FROM review_operations WHERE id = ? AND user_id = ?
         `)
-        .get(operationId, userId) as { response_json: string } | undefined;
+        .get(operationId, userId) as ReviewOperationRow | undefined;
       if (stored !== undefined) {
+        if (
+          stored.word_id !== wordId
+          || (stored.request_json !== null && stored.request_json !== requestJson)
+        ) {
+          throw new ReviewOperationConflictError("The operation payload does not match");
+        }
         return JSON.parse(stored.response_json) as VocabularyWord;
       }
 
-      const current = this.word(userId, wordId);
-      const answered = applyReviewAnswer(current, correct, mode, now);
-      this.database
-        .prepare(`
-          UPDATE words SET
-            level = ?, next_review_at = ?, correct_count = ?, wrong_count = ?,
-            last_answer_was_wrong = ?, last_reviewed_at = ?, progress_updated_at = ?,
-            updated_at = ?, version = version + 1
-          WHERE id = ? AND user_id = ? AND is_deleted = 0
-        `)
-        .run(
-          answered.level,
-          answered.nextReviewAt,
-          answered.correctCount,
-          answered.wrongCount,
-          answered.lastAnswerWasWrong ? 1 : 0,
-          answered.lastReviewedAt,
-          answered.progressUpdatedAt,
-          answered.updatedAt,
-          wordId,
-          userId,
-        );
-
+      this.persistAnswer(userId, wordId, correct, mode, now);
       const persisted = this.word(userId, wordId);
       this.database
         .prepare(`
-          INSERT INTO review_operations (id, user_id, word_id, response_json, created_at)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO review_operations (
+            id, user_id, word_id, request_json, response_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?)
         `)
-        .run(operationId, userId, wordId, JSON.stringify(persisted), now.toISOString());
+        .run(
+          operationId,
+          userId,
+          wordId,
+          requestJson,
+          JSON.stringify(persisted),
+          now.toISOString(),
+        );
       return persisted;
     })();
+  }
+
+  reviewTransition(
+    userId: string,
+    input: ReviewTransitionRequest,
+    now = new Date(),
+  ): ReviewTransitionResponse {
+    const requestJson = JSON.stringify(input);
+
+    return this.database.transaction(() => {
+      const stored = this.database
+        .prepare(`
+          SELECT word_id, request_json, response_json
+          FROM review_operations WHERE id = ? AND user_id = ?
+        `)
+        .get(input.operationId, userId) as ReviewOperationRow | undefined;
+      if (stored !== undefined) {
+        if (
+          stored.word_id !== input.answer.wordId
+          || stored.request_json !== requestJson
+        ) {
+          throw new ReviewOperationConflictError("The operation payload does not match");
+        }
+        return JSON.parse(stored.response_json) as ReviewTransitionResponse;
+      }
+
+      this.persistAnswer(
+        userId,
+        input.answer.wordId,
+        input.answer.correct,
+        input.answer.mode,
+        now,
+      );
+      this.persistShown(
+        userId,
+        input.shown.wordId,
+        input.shown.direction,
+        now,
+      );
+
+      const response: ReviewTransitionResponse = {
+        answeredWord: this.word(userId, input.answer.wordId),
+        shownWord: this.word(userId, input.shown.wordId),
+      };
+      this.database
+        .prepare(`
+          INSERT INTO review_operations (
+            id, user_id, word_id, request_json, response_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        `)
+        .run(
+          input.operationId,
+          userId,
+          input.answer.wordId,
+          requestJson,
+          JSON.stringify(response),
+          now.toISOString(),
+        );
+      return response;
+    })();
+  }
+
+  private persistShown(
+    userId: string,
+    wordId: string,
+    direction: ReviewDirection,
+    now: Date,
+  ): void {
+    const shown = markWordShown(this.word(userId, wordId), direction, now);
+    this.database
+      .prepare(`
+        UPDATE words SET
+          last_direction = ?, last_seen_at = ?, progress_updated_at = ?, updated_at = ?
+        WHERE id = ? AND user_id = ? AND is_deleted = 0
+      `)
+      .run(
+        shown.lastDirection,
+        shown.lastSeenAt,
+        shown.progressUpdatedAt,
+        shown.updatedAt,
+        wordId,
+        userId,
+      );
+  }
+
+  private persistAnswer(
+    userId: string,
+    wordId: string,
+    correct: boolean,
+    mode: ReviewMode,
+    now: Date,
+  ): void {
+    const answered = applyReviewAnswer(this.word(userId, wordId), correct, mode, now);
+    this.database
+      .prepare(`
+        UPDATE words SET
+          level = ?, next_review_at = ?, correct_count = ?, wrong_count = ?,
+          last_answer_was_wrong = ?, last_reviewed_at = ?, progress_updated_at = ?,
+          updated_at = ?
+        WHERE id = ? AND user_id = ? AND is_deleted = 0
+      `)
+      .run(
+        answered.level,
+        answered.nextReviewAt,
+        answered.correctCount,
+        answered.wrongCount,
+        answered.lastAnswerWasWrong ? 1 : 0,
+        answered.lastReviewedAt,
+        answered.progressUpdatedAt,
+        answered.updatedAt,
+        wordId,
+        userId,
+      );
   }
 
   private word(userId: string, wordId: string): VocabularyWord {

@@ -13,8 +13,9 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
 - The active review-mode badge opens a short contextual explanation. The whole Level card opens an explanation of level progress; neither control relies on a tiny question-mark target.
-- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; desktop keyboard arrows remain available. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
+- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; the card fills softly with the corresponding color as the gesture progresses, and desktop keyboard arrows remain available. Learn does not scroll as a page; only oversized card content scrolls vertically. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
 - Words can be searched and sorted by date added, A–Z, or learning level from a compact custom menu.
+- Adding an already saved word is a neutral result with a direct link to the existing card; View after a successful add opens the new card directly.
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
@@ -22,12 +23,13 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
   calendar for Answers and Words added. Selecting a calendar day reveals its exact answer
   or addition count. A brand-new account sees one Add Word action instead of empty
   analytics.
+- Opt-in Telegram reminders when Scheduled Review cards are ready.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
 
-Automatic translation, external dictionary lookup, offline mutation replay, reminders,
-tags, and decks are deferred until the core online experience is proven.
+Automatic translation, external dictionary lookup, offline mutation replay, tags, and
+decks are deferred until the core online experience is proven.
 
 ## Progress rules
 
@@ -66,11 +68,31 @@ Scheduled Review serves new and due words. Correct answers raise the level by on
 
 Free Review starts only when Scheduled Review is empty. It draws from all active words and never changes `level` or `nextReviewAt`.
 
+Moving to another tab and back keeps the current review card, its direction and reveal state, and the remaining in-memory queue. A full application reload deliberately starts a fresh queue from server data.
+
+After an answered card leaves the screen, the next card appears immediately from the in-memory queue. It can be read and revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
+
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
+
+## Telegram reminders
+
+Telegram reminders are disabled by default. The setting can be enabled only from the
+Telegram Mini App after Telegram grants the bot write access, and it can be disabled from
+any authenticated client.
+
+Each completed review answer starts a new reminder cycle, regardless of answer correctness
+or review mode. The server checks the cycle after 1, 2, 4, 7, 14, and 30 elapsed days. At
+each milestone it sends one reminder only when at least one active card is ready for
+Scheduled Review. A milestone with no due cards is consumed without sending. No more
+reminders are sent after day 30 until another answer starts a new cycle.
+
+The message uses the current due-card count and the neutral Russian copy “К повторению
+готовы N карточек.” with correct singular and plural forms. Its “Повторить” button opens
+Learn, where Scheduled Review remains ahead of Free Review.
 
 ## Data ownership
 
-Each Telegram identity maps to one internal Vocabulary account. A new user receives an empty account. All words, language and appearance settings, and sessions are scoped to that internal account. There is no separate device-sync control: authenticated devices read and write the same server profile.
+Each Telegram identity maps to one internal account in The Vocabulary App. A new user receives an empty account. All words, language and appearance settings, and sessions are scoped to that internal account. There is no separate device-sync control: authenticated devices read and write the same server profile.
 
 The administrative analytics page is the only cross-user read surface. It is absent from
 normal navigation and the server authorizes it against the configured owner Telegram ID.

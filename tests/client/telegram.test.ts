@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { initializeTelegram, setTelegramVerticalSwipesEnabled } from "../../src/client/lib/telegram.js";
+import {
+  initializeTelegram,
+  requestTelegramWriteAccess,
+  setTelegramVerticalSwipesEnabled,
+  telegramImpact,
+  telegramNotification,
+} from "../../src/client/lib/telegram.js";
 
 const originalWindow = globalThis.window;
 const originalDocument = globalThis.document;
@@ -20,6 +26,9 @@ afterEach(() => {
 function installTelegram(platform: string, supportsVersion = true) {
   const enableVerticalSwipes = vi.fn();
   const disableVerticalSwipes = vi.fn();
+  const impactOccurred = vi.fn();
+  const notificationOccurred = vi.fn();
+  const requestWriteAccess = vi.fn((callback: (granted: boolean) => void) => callback(true));
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
@@ -33,11 +42,19 @@ function installTelegram(platform: string, supportsVersion = true) {
           isVersionAtLeast: vi.fn(() => supportsVersion),
           enableVerticalSwipes,
           disableVerticalSwipes,
+          requestWriteAccess,
+          HapticFeedback: { impactOccurred, notificationOccurred },
         },
       },
     },
   });
-  return { enableVerticalSwipes, disableVerticalSwipes };
+  return {
+    enableVerticalSwipes,
+    disableVerticalSwipes,
+    impactOccurred,
+    notificationOccurred,
+    requestWriteAccess,
+  };
 }
 
 describe("setTelegramVerticalSwipesEnabled", () => {
@@ -65,6 +82,43 @@ describe("setTelegramVerticalSwipesEnabled", () => {
     setTelegramVerticalSwipesEnabled(false);
 
     expect(telegram.disableVerticalSwipes).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestTelegramWriteAccess", () => {
+  it("resolves the native Telegram permission result", async () => {
+    const telegram = installTelegram("ios");
+
+    await expect(requestTelegramWriteAccess()).resolves.toBe(true);
+    expect(telegram.requestWriteAccess).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed outside a supported Telegram client", async () => {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+
+    await expect(requestTelegramWriteAccess()).resolves.toBe(false);
+  });
+});
+
+describe("Telegram haptic feedback", () => {
+  it("uses haptic feedback when the Telegram client supports it", () => {
+    const telegram = installTelegram("ios");
+
+    telegramImpact("medium");
+    telegramNotification("success");
+
+    expect(telegram.impactOccurred).toHaveBeenCalledWith("medium");
+    expect(telegram.notificationOccurred).toHaveBeenCalledWith("success");
+  });
+
+  it("does not call haptic feedback before Bot API 6.1", () => {
+    const telegram = installTelegram("ios", false);
+
+    telegramImpact();
+    telegramNotification("warning");
+
+    expect(telegram.impactOccurred).not.toHaveBeenCalled();
+    expect(telegram.notificationOccurred).not.toHaveBeenCalled();
   });
 });
 

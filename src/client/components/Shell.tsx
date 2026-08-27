@@ -32,7 +32,7 @@ export function Shell({
 }: ShellProps) {
   const title = activeSection === "settings"
     ? "Settings"
-    : sections.find((section) => section.id === activeSection)?.label ?? "Vocabulary";
+    : sections.find((section) => section.id === activeSection)?.label ?? "The Vocabulary App";
 
   return (
     <div className="app-shell">

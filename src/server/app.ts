@@ -7,10 +7,19 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z, ZodError } from "zod";
 import type { ServerConfig } from "./config.js";
 import { VocabularyDatabase } from "./database.js";
-import { clearSessionCookie, requireUser, SESSION_COOKIE, setSessionCookie } from "./http.js";
+import {
+  authFlowState,
+  clearAuthFlowCookie,
+  clearSessionCookie,
+  requireUser,
+  SESSION_COOKIE,
+  setAuthFlowCookie,
+  setSessionCookie,
+} from "./http.js";
 import {
   hasValidTelegramWebhookSecret,
   telegramMenuReply,
+  telegramReminderMessage,
   telegramWebhookSecret,
 } from "./telegramBot.js";
 import {
@@ -21,15 +30,23 @@ import {
 } from "./auth/telegram.js";
 import {
   DuplicateWordError,
+  ReviewOperationConflictError,
   VocabularyRepository,
   WordNotFoundError,
   WordVersionConflictError,
 } from "./repository.js";
 import {
+  hasValidReminderAuthorization,
+  TelegramReminderRepository,
+} from "./reminders.js";
+import {
   answerWordSchema,
+  reviewTransitionSchema,
   settingsSchema,
   showWordSchema,
   statisticsQuerySchema,
+  telegramReminderResultsSchema,
+  telegramReminderSettingsSchema,
   updateWordSchema,
   wordContentSchema,
 } from "./validation.js";
@@ -50,6 +67,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   const repository = new VocabularyRepository(database.sqlite);
   const analyticsRepository = new AnalyticsRepository(database.sqlite);
   const statisticsRepository = new StatisticsRepository(database.sqlite);
+  const reminderRepository = new TelegramReminderRepository(database.sqlite);
 
   await app.register(cookie, { secret: config.sessionSecret });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
@@ -61,7 +79,41 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   app.get("/api/health", async () => ({ status: "ok" }));
   app.get("/api/config", async () => ({
     developmentLoginEnabled: config.developmentTelegramUserId !== null,
+    telegramRemindersAvailable: config.telegramReminderDispatchSecret !== null,
   }));
+
+  app.post("/api/internal/telegram-reminders/claim", async (request, reply) => {
+    if (!hasValidReminderAuthorization(
+      request.headers.authorization,
+      config.telegramReminderDispatchSecret,
+    )) {
+      return reply.status(config.telegramReminderDispatchSecret === null ? 404 : 401).send();
+    }
+
+    return {
+      reminders: reminderRepository.claimDue().map((reminder) => ({
+        eventId: reminder.eventId,
+        request: telegramReminderMessage(
+          reminder.chatId,
+          reminder.dueCardCount,
+          config.appOrigin,
+        ),
+      })),
+    };
+  });
+
+  app.post("/api/internal/telegram-reminders/complete", async (request, reply) => {
+    if (!hasValidReminderAuthorization(
+      request.headers.authorization,
+      config.telegramReminderDispatchSecret,
+    )) {
+      return reply.status(config.telegramReminderDispatchSecret === null ? 404 : 401).send();
+    }
+
+    const input = telegramReminderResultsSchema.parse(request.body);
+    reminderRepository.complete(input.results);
+    return reply.status(204).send();
+  });
 
   app.post("/api/telegram/webhook", async (request, reply) => {
     if (config.telegramBotToken === null) {
@@ -119,11 +171,17 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
 
     const authorization = createTelegramOidcAuthorization(config);
     repository.createAuthFlow(authorization.state, authorization.codeVerifier);
+    setAuthFlowCookie(reply, authorization.state, config);
     return reply.redirect(authorization.authorizationUrl);
   });
 
   app.get("/api/auth/telegram/callback", async (request, reply) => {
     const query = z.object({ code: z.string().min(1), state: z.string().min(1) }).parse(request.query);
+    if (authFlowState(request) !== query.state) {
+      throw new InvalidTelegramDataError("Login state is invalid or expired");
+    }
+
+    clearAuthFlowCookie(reply);
     const codeVerifier = repository.consumeAuthFlow(query.state);
     if (codeVerifier === null) {
       throw new InvalidTelegramDataError("Login state is invalid or expired");
@@ -155,6 +213,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     return {
       user,
       settings: repository.settings(user.id),
+      telegramReminders: reminderRepository.settings(user.id),
       words: repository.listWords(user.id),
     };
   });
@@ -184,8 +243,15 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     const user = requireUser(request, reply, repository);
     if (user === null) return;
     const input = wordContentSchema.parse(request.body);
-    const word = repository.createWord(user.id, input);
-    return reply.status(201).send(word);
+    try {
+      const word = repository.createWord(user.id, input);
+      return reply.status(201).send(word);
+    } catch (error) {
+      if (!(error instanceof DuplicateWordError)) throw error;
+      const existing = repository.findWordByLearningText(user.id, input.learningText);
+      if (existing === null) throw error;
+      return reply.status(200).send(existing);
+    }
   });
 
   app.put("/api/words/:wordId", async (request, reply) => {
@@ -226,10 +292,31 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     );
   });
 
+  app.post("/api/review-transitions", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    return repository.reviewTransition(
+      user.id,
+      reviewTransitionSchema.parse(request.body),
+    );
+  });
+
   app.put("/api/settings", async (request, reply) => {
     const user = requireUser(request, reply, repository);
     if (user === null) return;
     return repository.updateSettings(user.id, settingsSchema.parse(request.body));
+  });
+
+  app.put("/api/settings/telegram-reminders", async (request, reply) => {
+    if (config.telegramReminderDispatchSecret === null) {
+      return reply.status(404).send({
+        error: { code: "not_found", message: "Route not found" },
+      });
+    }
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    const input = telegramReminderSettingsSchema.parse(request.body);
+    return reminderRepository.updateSettings(user.id, input.enabled);
   });
 
   app.setErrorHandler((error, _request, reply) => {
@@ -246,6 +333,11 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     if (error instanceof WordVersionConflictError) {
       return reply.status(409).send({
         error: { code: "version_conflict", message: error.message },
+      });
+    }
+    if (error instanceof ReviewOperationConflictError) {
+      return reply.status(409).send({
+        error: { code: "operation_conflict", message: error.message },
       });
     }
     if (error instanceof WordNotFoundError) {

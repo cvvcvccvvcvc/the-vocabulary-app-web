@@ -25,6 +25,7 @@ The Vocabulary App is a server-backed vocabulary trainer that runs as a responsi
 ## Workflow
 
 - Use `dev` for normal work. Merge `dev` into `main` only for an explicit release request; every push to `main` is automatically verified and deployed to production.
+- Follow `docs/versioning.md` when preparing a production release.
 - Keep `docs/` current when behavior or architecture changes.
 - Add focused tests for domain and API behavior.
 - Never edit a real `.env` file. Document required environment variables instead.

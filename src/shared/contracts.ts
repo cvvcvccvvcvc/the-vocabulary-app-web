@@ -1,5 +1,7 @@
 import type {
   LanguageSettings,
+  ReviewDirection,
+  ReviewMode,
   VocabularyWord,
 } from "../domain/models.js";
 
@@ -12,6 +14,7 @@ export interface UserProfile {
 
 export interface AppConfiguration {
   developmentLoginEnabled: boolean;
+  telegramRemindersAvailable: boolean;
 }
 
 export interface SessionResponse {
@@ -21,7 +24,12 @@ export interface SessionResponse {
 export interface BootstrapResponse {
   user: UserProfile;
   settings: LanguageSettings;
+  telegramReminders: TelegramReminderSettings;
   words: VocabularyWord[];
+}
+
+export interface TelegramReminderSettings {
+  enabled: boolean;
 }
 
 export interface CreateWordRequest {
@@ -32,6 +40,24 @@ export interface CreateWordRequest {
 
 export interface UpdateWordRequest extends CreateWordRequest {
   version: number;
+}
+
+export interface ReviewTransitionRequest {
+  operationId: string;
+  answer: {
+    wordId: string;
+    correct: boolean;
+    mode: ReviewMode;
+  };
+  shown: {
+    wordId: string;
+    direction: ReviewDirection;
+  };
+}
+
+export interface ReviewTransitionResponse {
+  answeredWord: VocabularyWord;
+  shownWord: VocabularyWord;
 }
 
 export interface ErrorResponse {

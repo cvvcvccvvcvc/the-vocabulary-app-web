@@ -1,3 +1,6 @@
+import type { ReviewSessionTransition } from "../../domain/index.js";
+import type { ReviewTransitionRequest } from "../../shared/contracts.js";
+
 export function createOperationId(cryptoProvider: Crypto = globalThis.crypto): string {
   if (typeof cryptoProvider.randomUUID === "function") {
     return cryptoProvider.randomUUID();
@@ -15,4 +18,44 @@ export function createOperationId(cryptoProvider: Crypto = globalThis.crypto): s
     hex.slice(8, 10).join(""),
     hex.slice(10, 16).join(""),
   ].join("-");
+}
+
+export class ReviewTransitionTracker {
+  private operation: ReviewTransitionRequest | null = null;
+
+  constructor(private readonly createId: () => string = createOperationId) {}
+
+  get pending(): ReviewTransitionRequest | null {
+    return this.operation;
+  }
+
+  begin(transition: ReviewSessionTransition): ReviewTransitionRequest | null {
+    if (this.operation !== null) {
+      return null;
+    }
+
+    this.operation = {
+      operationId: this.createId(),
+      answer: { ...transition.answer },
+      shown: { ...transition.shown },
+    };
+    return this.operation;
+  }
+
+  isCurrent(operationId: string): boolean {
+    return this.operation?.operationId === operationId;
+  }
+
+  complete(operationId: string): boolean {
+    if (!this.isCurrent(operationId)) {
+      return false;
+    }
+
+    this.operation = null;
+    return true;
+  }
+
+  reset(): void {
+    this.operation = null;
+  }
 }

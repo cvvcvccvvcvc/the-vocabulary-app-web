@@ -22,15 +22,22 @@ const sortOptions = [
 interface WordsScreenProps {
   words: VocabularyWord[];
   settings: LanguageSettings;
+  initialSelectedId?: string | null;
   onUpdated(word: VocabularyWord): void;
   onDeleted(wordId: string): void;
 }
 
-export function WordsScreen({ words, settings, onUpdated, onDeleted }: WordsScreenProps) {
+export function WordsScreen({
+  words,
+  settings,
+  initialSelectedId = null,
+  onUpdated,
+  onDeleted,
+}: WordsScreenProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<WordsSort>("recent");
   const [sortOpen, setSortOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
   const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
@@ -234,7 +241,6 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
         {editing && (
           <button className="toolbar-button cancel-button" type="button" onClick={cancelEditing}>Cancel</button>
         )}
-        <strong className="mobile-detail-title">{editing ? learningText || word.learningText : word.learningText}</strong>
         <div className="detail-toolbar-actions">
           {editing ? (
             <button className="toolbar-button primary" type="submit" form="word-edit-form" disabled={!canSave || saving}>
