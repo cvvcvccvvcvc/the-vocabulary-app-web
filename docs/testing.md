@@ -26,8 +26,10 @@ reset after a fully missed day, duplicate activity days, both review modes and a
 outcomes, authenticated user isolation, invalid time zones, the 84-day activity window,
 soft-deleted vocabulary, and calendar grouping across a daylight-saving transition.
 Manual UI checks cover light and dark themes, 320- and 390-pixel phone widths, desktop
-width, both activity modes, tap and drag day selection, the pre-study call to action, and
-Settings returning to Progress while Progress remains the selected primary destination.
+width, both activity modes, tap and drag day selection, page scrolling outside the
+calendar without Telegram minimizing during calendar drags, the pre-study call to action,
+and Settings returning to Progress while Progress remains the selected primary
+destination.
 
 The reminder suite additionally proves that empty milestones are consumed, one completed
 answer starts a new cycle, claims are at-most-once, Telegram rejection disables opt-in, and
