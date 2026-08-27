@@ -236,6 +236,26 @@ describe("Vocabulary API", () => {
     }
   });
 
+  it("reports whether browser Telegram login is configured", async () => {
+    const unavailable = await server.app.inject({ method: "GET", url: "/api/config" });
+    expect(unavailable.json()).toMatchObject({ telegramBrowserLoginAvailable: false });
+
+    const availableServer = await buildServer({
+      ...config,
+      telegramBotId: "123456",
+      telegramClientSecret: "telegram-client-secret",
+    });
+    try {
+      const available = await availableServer.app.inject({
+        method: "GET",
+        url: "/api/config",
+      });
+      expect(available.json()).toMatchObject({ telegramBrowserLoginAvailable: true });
+    } finally {
+      await availableServer.app.close();
+    }
+  });
+
   it("dispatches opted-in Telegram reminders through the protected internal API", async () => {
     const repository = new VocabularyRepository(server.database.sqlite);
     const user = repository.ensureUser({

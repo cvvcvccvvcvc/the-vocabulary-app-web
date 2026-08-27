@@ -79,6 +79,8 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   app.get("/api/health", async () => ({ status: "ok" }));
   app.get("/api/config", async () => ({
     developmentLoginEnabled: config.developmentTelegramUserId !== null,
+    telegramBrowserLoginAvailable:
+      config.telegramBotId !== null && config.telegramClientSecret !== null,
     telegramRemindersAvailable: config.telegramReminderDispatchSecret !== null,
   }));
 

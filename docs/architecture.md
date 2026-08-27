@@ -50,6 +50,10 @@ state is also bound to the initiating browser with a signed HTTP-only cookie, so
 cannot create a session in a different browser. Both paths normalize the verified Telegram
 user ID into one internal user record and one server-side session.
 
+The public configuration response tells the client whether browser Telegram login is
+available. Development previews without OIDC credentials show only the local development
+profile instead of offering an authentication action that the server cannot complete.
+
 Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to The Vocabulary App's fixed HTTPS endpoint, and returns the endpoint response without interpreting it.
 
 The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendPhoto` method, a caption, and Mini App navigation buttons. The photo is referenced by its Telegram `file_id`; when it is not configured, the application falls back to `sendMessage`. Telegram executes the method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.

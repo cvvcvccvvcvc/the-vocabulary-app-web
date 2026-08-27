@@ -14,6 +14,7 @@ export interface UserProfile {
 
 export interface AppConfiguration {
   developmentLoginEnabled: boolean;
+  telegramBrowserLoginAvailable: boolean;
   telegramRemindersAvailable: boolean;
 }
 

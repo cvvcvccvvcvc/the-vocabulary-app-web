@@ -42,7 +42,6 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
   async function save(): Promise<void> {
     if (!valid || saving) return;
     setSaving(true);
-    setNotice(null);
     telegramImpact();
 
     try {
@@ -52,8 +51,8 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
         comment,
       });
       onAvailable(result.word);
-      clear();
       if (result.outcome === "created") {
+        clear();
         setNotice({
           kind: "success",
           text: `Added ${result.word.learningText}`,

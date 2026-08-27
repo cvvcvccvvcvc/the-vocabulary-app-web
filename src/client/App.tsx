@@ -32,6 +32,7 @@ interface ApplicationData {
 export function App() {
   const [configuration, setConfiguration] = useState<AppConfiguration>({
     developmentLoginEnabled: false,
+    telegramBrowserLoginAvailable: false,
     telegramRemindersAvailable: false,
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
@@ -155,6 +156,7 @@ export function App() {
     return (
       <AuthScreen
         developmentLoginEnabled={configuration.developmentLoginEnabled}
+        telegramBrowserLoginAvailable={configuration.telegramBrowserLoginAvailable}
         telegramLaunch={telegramLaunch !== ""}
         error={authError}
         onAuthenticated={loadApplication}

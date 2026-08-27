@@ -679,24 +679,36 @@ button.titlebar-icon.active {
 }
 
 .speaker-button {
+  position: relative;
   display: grid;
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 50%;
   color: var(--secondary);
   background: transparent;
   place-items: center;
 }
 
-.speaker-button:hover {
+.speaker-button::before {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  content: "";
+}
+
+.speaker-button:hover::before {
   background: var(--hover);
 }
 
 .speaker-button svg {
-  width: 18px;
-  height: 18px;
+  position: relative;
+  width: 20px;
+  height: 20px;
 }
 
 .review-card-speaker {
@@ -733,16 +745,23 @@ button.titlebar-icon.active {
 }
 
 .card-learning-row {
-  display: flex;
+  display: grid;
+  width: 100%;
   max-width: 100%;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  grid-template-columns: minmax(44px, 1fr) minmax(0, auto) minmax(44px, 1fr);
+  column-gap: 8px;
+}
+
+.card-learning-row > .card-side-value {
+  min-width: 0;
+  grid-column: 2;
+  justify-self: center;
 }
 
 .card-learning-row .speaker-button {
-  flex: 0 0 auto;
+  grid-column: 3;
+  justify-self: start;
 }
 
 .card-side-label {
@@ -2054,6 +2073,27 @@ button.titlebar-icon.active {
   line-height: 1.5;
 }
 
+.auth-availability {
+  margin-bottom: 14px;
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.auth-development-button {
+  margin-top: 14px;
+  padding: 6px;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-development-button:hover {
+  text-decoration: underline;
+}
+
 .auth-button {
   display: flex;
   width: 100%;
@@ -2216,6 +2256,7 @@ button.titlebar-icon.active {
     height: 100svh;
     min-height: 0;
     overflow: hidden;
+    padding-bottom: 0;
     overscroll-behavior: none;
   }
 
@@ -2227,7 +2268,11 @@ button.titlebar-icon.active {
     width: min(calc(100% - 44px), 320px);
     height: 100%;
     min-height: 0;
-    padding: 104px 0 calc(64px + var(--app-safe-bottom));
+    padding:
+      max(104px, calc(var(--app-safe-top) + 76px))
+      0
+      calc(104px + var(--app-safe-bottom));
+    justify-content: center;
   }
 
   .review-card-shell,
@@ -2285,10 +2330,6 @@ button.titlebar-icon.active {
 
   .review-card-speaker {
     bottom: 22px;
-  }
-
-  .card-learning-row {
-    gap: 8px;
   }
 
   .reveal-hint,
