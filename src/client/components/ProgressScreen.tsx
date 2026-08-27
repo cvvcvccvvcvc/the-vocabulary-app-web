@@ -331,8 +331,8 @@ function ActivityHeatmap({
 
 function SelectedDayDetails({ day, mode, isToday }: { day: UserStatisticsDay; mode: ActivityMode; isToday: boolean }) {
   const value = mode === "reviews"
-    ? day.answers === 0 ? "No answers" : formatUnit(day.answers, "answer")
-    : day.wordsAdded === 0 ? "No words added" : `${formatUnit(day.wordsAdded, "word")} added`;
+    ? day.answers === 0 ? "0 answers" : formatUnit(day.answers, "answer")
+    : day.wordsAdded === 0 ? "0 words added" : `${formatUnit(day.wordsAdded, "word")} added`;
   const date = isToday ? "today" : `on ${formatDetailDate(day.date)}`;
 
   return (
