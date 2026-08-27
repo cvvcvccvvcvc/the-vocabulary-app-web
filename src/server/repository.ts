@@ -56,16 +56,23 @@ interface UserRow {
   photo_url: string | null;
 }
 
-interface ReviewOperationRow {
+interface ReviewOperationReceiptRow {
   word_id: string;
   request_json: string | null;
   response_json: string;
+}
+
+interface PersistedAnswer {
+  before: VocabularyWord;
+  after: VocabularyWord;
 }
 
 export class DuplicateWordError extends Error {}
 export class ReviewOperationConflictError extends Error {}
 export class WordNotFoundError extends Error {}
 export class WordVersionConflictError extends Error {}
+
+const reviewOperationReceiptTtlMs = 7 * 86_400_000;
 
 function mapWord(row: WordRow): VocabularyWord {
   return {
@@ -403,12 +410,7 @@ export class VocabularyRepository {
     });
 
     return this.database.transaction(() => {
-      const stored = this.database
-        .prepare(`
-          SELECT word_id, request_json, response_json
-          FROM review_operations WHERE id = ? AND user_id = ?
-        `)
-        .get(operationId, userId) as ReviewOperationRow | undefined;
+      const stored = this.reviewOperationReceipt(userId, operationId, now);
       if (stored !== undefined) {
         if (
           stored.word_id !== wordId
@@ -418,23 +420,19 @@ export class VocabularyRepository {
         }
         return JSON.parse(stored.response_json) as VocabularyWord;
       }
+      this.assertReviewEventNotCompleted(userId, operationId);
 
-      this.persistAnswer(userId, wordId, correct, mode, now);
+      const answer = this.persistAnswer(userId, wordId, correct, mode, now);
       const persisted = this.word(userId, wordId);
-      this.database
-        .prepare(`
-          INSERT INTO review_operations (
-            id, user_id, word_id, request_json, response_json, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        `)
-        .run(
-          operationId,
-          userId,
-          wordId,
-          requestJson,
-          JSON.stringify(persisted),
-          now.toISOString(),
-        );
+      this.persistReviewEvent(userId, operationId, wordId, correct, mode, answer, now);
+      this.persistReviewOperationReceipt(
+        userId,
+        operationId,
+        wordId,
+        requestJson,
+        persisted,
+        now,
+      );
       return persisted;
     })();
   }
@@ -447,12 +445,7 @@ export class VocabularyRepository {
     const requestJson = JSON.stringify(input);
 
     return this.database.transaction(() => {
-      const stored = this.database
-        .prepare(`
-          SELECT word_id, request_json, response_json
-          FROM review_operations WHERE id = ? AND user_id = ?
-        `)
-        .get(input.operationId, userId) as ReviewOperationRow | undefined;
+      const stored = this.reviewOperationReceipt(userId, input.operationId, now);
       if (stored !== undefined) {
         if (
           stored.word_id !== input.answer.wordId
@@ -462,8 +455,9 @@ export class VocabularyRepository {
         }
         return JSON.parse(stored.response_json) as ReviewTransitionResponse;
       }
+      this.assertReviewEventNotCompleted(userId, input.operationId);
 
-      this.persistAnswer(
+      const answer = this.persistAnswer(
         userId,
         input.answer.wordId,
         input.answer.correct,
@@ -481,22 +475,115 @@ export class VocabularyRepository {
         answeredWord: this.word(userId, input.answer.wordId),
         shownWord: this.word(userId, input.shown.wordId),
       };
-      this.database
-        .prepare(`
-          INSERT INTO review_operations (
-            id, user_id, word_id, request_json, response_json, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        `)
-        .run(
-          input.operationId,
-          userId,
-          input.answer.wordId,
-          requestJson,
-          JSON.stringify(response),
-          now.toISOString(),
-        );
+      this.persistReviewEvent(
+        userId,
+        input.operationId,
+        input.answer.wordId,
+        input.answer.correct,
+        input.answer.mode,
+        answer,
+        now,
+      );
+      this.persistReviewOperationReceipt(
+        userId,
+        input.operationId,
+        input.answer.wordId,
+        requestJson,
+        response,
+        now,
+      );
       return response;
     })();
+  }
+
+  private reviewOperationReceipt(
+    userId: string,
+    operationId: string,
+    now: Date,
+  ): ReviewOperationReceiptRow | undefined {
+    this.database
+      .prepare("DELETE FROM review_operation_receipts WHERE expires_at <= ?")
+      .run(now.toISOString());
+    return this.database
+      .prepare(`
+        SELECT word_id, request_json, response_json
+        FROM review_operation_receipts
+        WHERE id = ? AND user_id = ?
+      `)
+      .get(operationId, userId) as ReviewOperationReceiptRow | undefined;
+  }
+
+  private assertReviewEventNotCompleted(userId: string, operationId: string): void {
+    const completed = this.database
+      .prepare("SELECT 1 FROM review_events WHERE id = ? AND user_id = ?")
+      .get(operationId, userId);
+    if (completed !== undefined) {
+      throw new ReviewOperationConflictError(
+        "The operation was already completed and its cached response expired",
+      );
+    }
+  }
+
+  private persistReviewEvent(
+    userId: string,
+    operationId: string,
+    wordId: string,
+    correct: boolean,
+    mode: ReviewMode,
+    answer: PersistedAnswer,
+    now: Date,
+  ): void {
+    try {
+      this.database
+        .prepare(`
+          INSERT INTO review_events (
+            id, user_id, word_id, correct, mode, direction, level_before,
+            level_after, next_review_at, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .run(
+          operationId,
+          userId,
+          wordId,
+          correct ? 1 : 0,
+          mode,
+          answer.before.lastDirection,
+          answer.before.level,
+          answer.after.level,
+          answer.after.nextReviewAt,
+          now.toISOString(),
+        );
+    } catch (error) {
+      if (isPrimaryKeyConstraintError(error)) {
+        throw new ReviewOperationConflictError("The operation ID is already in use");
+      }
+      throw error;
+    }
+  }
+
+  private persistReviewOperationReceipt(
+    userId: string,
+    operationId: string,
+    wordId: string,
+    requestJson: string,
+    response: VocabularyWord | ReviewTransitionResponse,
+    now: Date,
+  ): void {
+    this.database
+      .prepare(`
+        INSERT INTO review_operation_receipts (
+          id, user_id, word_id, request_json, response_json, created_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        operationId,
+        userId,
+        wordId,
+        requestJson,
+        JSON.stringify(response),
+        now.toISOString(),
+        new Date(now.getTime() + reviewOperationReceiptTtlMs).toISOString(),
+      );
   }
 
   private persistShown(
@@ -528,8 +615,9 @@ export class VocabularyRepository {
     correct: boolean,
     mode: ReviewMode,
     now: Date,
-  ): void {
-    const answered = applyReviewAnswer(this.word(userId, wordId), correct, mode, now);
+  ): PersistedAnswer {
+    const before = this.word(userId, wordId);
+    const after = applyReviewAnswer(before, correct, mode, now);
     this.database
       .prepare(`
         UPDATE words SET
@@ -539,17 +627,18 @@ export class VocabularyRepository {
         WHERE id = ? AND user_id = ? AND is_deleted = 0
       `)
       .run(
-        answered.level,
-        answered.nextReviewAt,
-        answered.correctCount,
-        answered.wrongCount,
-        answered.lastAnswerWasWrong ? 1 : 0,
-        answered.lastReviewedAt,
-        answered.progressUpdatedAt,
-        answered.updatedAt,
+        after.level,
+        after.nextReviewAt,
+        after.correctCount,
+        after.wrongCount,
+        after.lastAnswerWasWrong ? 1 : 0,
+        after.lastReviewedAt,
+        after.progressUpdatedAt,
+        after.updatedAt,
         wordId,
         userId,
       );
+    return { before, after };
   }
 
   private word(userId: string, wordId: string): VocabularyWord {
@@ -587,5 +676,13 @@ function isUniqueConstraintError(error: unknown): boolean {
     "code" in error &&
     typeof error.code === "string" &&
     error.code.startsWith("SQLITE_CONSTRAINT_UNIQUE")
+  );
+}
+
+function isPrimaryKeyConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "SQLITE_CONSTRAINT_PRIMARYKEY"
   );
 }

@@ -21,14 +21,13 @@ The browser loads the user's active vocabulary into memory. This keeps review se
 
 The in-memory `ReviewSession` is owned above the navigation tabs. It keeps ID-only Scheduled and Free queues together with the current card, direction, reveal state, and in-flight review phase, so visiting another tab does not restart review. After a swipe it projects the answer only far enough to choose and display the next local card; it does not publish projected progress as canonical application data. Word additions and deletions reconcile only affected IDs, while newly due cards remain ahead of the next Free Review selection. The session is reset at bootstrap and logout and is deliberately not written to browser storage; a full reload starts again from canonical server data.
 
-The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. After the initial presentation, one review-transition request atomically applies the answer and records the next card's direction. The next card remains readable while that request is in flight, but it cannot be answered until the server confirms the transition. An ambiguous retry reuses the same operation ID and exact payload, so the server returns the stored response without applying either mutation twice. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
+The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. After the initial presentation, one review-transition request atomically applies the answer and records the next card's direction. The next card remains readable while that request is in flight, but it cannot be answered until the server confirms the transition. An ambiguous retry reuses the same operation ID and exact payload, so the server returns the stored response without applying either mutation twice. Exact retry responses are retained for seven days; the permanent event ID still rejects a later replay after that response expires. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
 
 ## User progress
 
 The authenticated `GET /api/statistics` endpoint calculates one user's progress on demand
-from canonical `words` and `review_operations` rows. Every query is scoped by the session's
-internal user ID. No separate event store, cached rollup, background worker, or new service
-is introduced.
+from canonical `words` and `review_events` rows. Every query is scoped by the session's
+internal user ID. No cached rollup, background worker, or new service is introduced.
 
 The client supplies the device's current IANA time-zone identifier. The server validates it,
 keeps timestamps in UTC, and performs calendar-day grouping in that requested zone. The
@@ -37,10 +36,10 @@ streak and current active-word total. Each day contains review and addition volu
 calculation is a pure domain operation; the server supplies already-normalized local day
 identifiers.
 
-`review_operations` is the source for accepted answers, so its operation ID preserves
-idempotency for statistics as well as review mutations. Both Scheduled Review and Free
-Review answers count. Current vocabulary excludes soft-deleted words, while historical
-additions continue to use their original creation timestamps.
+`review_events` is the permanent source for accepted answers. It stores compact semantic
+facts and authoritative outcomes rather than copies of complete cards. Both Scheduled
+Review and Free Review answers count. Current vocabulary excludes soft-deleted words, while
+historical additions continue to use their original creation timestamps.
 
 ## Authentication
 
@@ -76,12 +75,12 @@ The Vocabulary App. Its API requires an authenticated session and independently 
 session's internal user to `ANALYTICS_OWNER_TELEGRAM_USER_ID`. A missing configuration or
 a different authenticated user receives the same not-found response.
 
-Analytics are calculated on demand from existing canonical records; no tracking-event
-store is maintained:
+Analytics are calculated on demand from existing canonical records; no analytics-specific
+tracking store is maintained:
 
 - registrations use `users.created_at`;
-- active DAU, WAU, and MAU count distinct users in `review_operations`;
-- answer volume uses `review_operations.created_at`;
+- active DAU, WAU, and MAU count distinct users in `review_events`;
+- answer volume uses `review_events.created_at`;
 - added-word volume uses `words.created_at`, including words deleted later;
 - current card counts exclude soft-deleted words.
 
@@ -94,6 +93,14 @@ returns word text or meanings.
 SQLite is intentionally used for the first single-server deployment. The database is private to the API process and runs in WAL mode. SQL migrations are ordered files in `migrations/`.
 
 The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names. Language and appearance preferences live in `user_settings` so they follow the authenticated profile across devices. Telegram reminder opt-in and milestone events use separate tables because delivery state is operational rather than a language setting.
+
+Accepted answers are split by retention purpose. `review_events` permanently stores the
+user, card, answer, mode, direction, level transition, resulting review date, and timestamp.
+`review_operation_receipts` temporarily stores the original transport request and response
+needed for exact retry handling. Receipts expire after seven days and are pruned
+opportunistically when another answer is accepted; permanent event IDs prevent an expired
+operation from being applied again. Analytics and reminder cycles depend only on
+`review_events`, so pruning receipts cannot remove learning history.
 
 ## Deployment
 

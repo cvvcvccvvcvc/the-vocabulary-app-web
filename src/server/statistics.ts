@@ -51,7 +51,7 @@ export class StatisticsRepository {
     const reviewRows = this.database
       .prepare(`
         SELECT created_at
-        FROM review_operations
+        FROM review_events
         WHERE user_id = ? AND created_at >= ?
         ORDER BY created_at
       `)
@@ -85,7 +85,7 @@ export class StatisticsRepository {
     const rows = this.database
       .prepare(`
         SELECT created_at
-        FROM review_operations
+        FROM review_events
         WHERE user_id = ?
         ORDER BY created_at DESC
       `)

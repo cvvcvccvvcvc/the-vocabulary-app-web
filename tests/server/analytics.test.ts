@@ -87,6 +87,7 @@ describe("analytics", () => {
       learnerWord.id,
       new Date("2026-08-24T07:00:00.000Z"),
     );
+    database.sqlite.prepare("DELETE FROM review_operation_receipts").run();
 
     const report = analytics.report(new Date("2026-08-24T12:00:00.000Z"));
 

@@ -499,7 +499,7 @@ describe("Vocabulary API", () => {
     expect(retry.json()).toEqual(first.json());
 
     const operationCount = server.database.sqlite
-      .prepare("SELECT COUNT(*) AS count FROM review_operations WHERE id = ?")
+      .prepare("SELECT COUNT(*) AS count FROM review_events WHERE id = ?")
       .get(payload.operationId) as { count: number };
     expect(operationCount.count).toBe(1);
 
