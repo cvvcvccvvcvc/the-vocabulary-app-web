@@ -9,6 +9,7 @@ import type {
   ReviewTransitionResponse,
   SessionResponse,
   TelegramReminderSettings,
+  UserStatisticsResponse,
   UpdateWordRequest,
 } from "../../shared/contracts.js";
 
@@ -96,6 +97,8 @@ export const api = {
     }),
   logout: () => request<void>("/api/logout", { method: "POST" }),
   bootstrap: () => request<BootstrapResponse>("/api/bootstrap"),
+  statistics: (timeZone: string) =>
+    request<UserStatisticsResponse>(`/api/statistics?timeZone=${encodeURIComponent(timeZone)}`),
   createWord: async (input: CreateWordRequest): Promise<CreateWordResult> => {
     const response = await checkedResponse("/api/words", {
       method: "POST",

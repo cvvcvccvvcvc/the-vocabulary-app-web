@@ -23,6 +23,25 @@ The in-memory `ReviewSession` is owned above the navigation tabs. It keeps ID-on
 
 The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. After the initial presentation, one review-transition request atomically applies the answer and records the next card's direction. The next card remains readable while that request is in flight, but it cannot be answered until the server confirms the transition. An ambiguous retry reuses the same operation ID and exact payload, so the server returns the stored response without applying either mutation twice. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
 
+## User progress
+
+The authenticated `GET /api/statistics` endpoint calculates one user's progress on demand
+from canonical `words` and `review_operations` rows. Every query is scoped by the session's
+internal user ID. No separate event store, cached rollup, background worker, or new service
+is introduced.
+
+The client supplies the device's current IANA time-zone identifier. The server validates it,
+keeps timestamps in UTC, and performs calendar-day grouping in that requested zone. The
+response contains 84 contiguous days, including zero-activity days, along with the current
+streak and current active-word total. Each day contains review and addition volume. Streak
+calculation is a pure domain operation; the server supplies already-normalized local day
+identifiers.
+
+`review_operations` is the source for accepted answers, so its operation ID preserves
+idempotency for statistics as well as review mutations. Both Scheduled Review and Free
+Review answers count. Current vocabulary excludes soft-deleted words, while historical
+additions continue to use their original creation timestamps.
+
 ## Authentication
 
 The Telegram Mini App sends raw `initData` to the server. The server validates its HMAC signature and freshness before accepting the Telegram user identity.

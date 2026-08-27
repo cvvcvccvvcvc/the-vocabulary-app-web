@@ -6,7 +6,7 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 
 - Telegram identity shared by the website and Telegram Mini App.
 - The bot's `/start` and `/help` commands return a compact launch menu for Learn, Add Word, and Words. Each button opens the Mini App directly on that section.
-- Responsive Learn, Add Word, Words, and Settings sections. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
+- Responsive Learn, Add Word, Words, and Progress sections. They form the four primary destinations on mobile and desktop. Settings is a secondary destination opened from a gear button and returns to the section that opened it. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
 - Centered review cards with compact labeled question and answer sides.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only.
@@ -19,14 +19,37 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
+- A personal Progress screen with the exact current streak and one interactive 12-week
+  calendar for Answers and Words added. Selecting a calendar day reveals its exact answer
+  or addition count. A brand-new account sees one Add Word action instead of empty
+  analytics.
 - Opt-in Telegram reminders when Scheduled Review cards are ready.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
 
-Automatic translation, external dictionary lookup, offline mutation replay,
-user-facing learning statistics, tags, and decks are deferred until the core online
-experience is proven.
+Automatic translation, external dictionary lookup, offline mutation replay, tags, and
+decks are deferred until the core online experience is proven.
+
+## Progress rules
+
+An active day is a local calendar day with at least one accepted review answer. Correct
+and wrong answers count in both Scheduled Review and Free Review. Showing a card or adding
+a word does not count toward the streak.
+
+The current streak is the consecutive run of active days ending today or yesterday. This
+keeps an existing streak intact during the current day until the user has had a chance to
+study; it resets after a full local calendar day is missed. Duplicate answer submissions
+remain idempotent and cannot inflate activity.
+
+Words added are grouped by their original creation time. Deleting a word later removes it
+from the current collection but does not rewrite the historical addition count. An active
+addition day contains at least one created word and is independent of the review streak.
+
+The client sends its current IANA time-zone identifier when it requests progress. The
+server keeps canonical timestamps in UTC and groups them into calendar days in that time
+zone. The time zone is resolved per request rather than stored as another user setting, so
+travel follows the device currently in use.
 
 ## Review rules
 

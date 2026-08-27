@@ -6,6 +6,7 @@ describe("Mini App launch section", () => {
     ["?tab=learn", "learn"],
     ["?tab=add", "add"],
     ["?tab=words", "words"],
+    ["?tab=progress", "progress"],
     ["?tab=settings", "learn"],
     ["", "learn"],
   ])("maps %s to %s", (search, expected) => {

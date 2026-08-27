@@ -13,8 +13,9 @@ import type {
 import { AddWordScreen } from "./components/AddWordScreen.js";
 import { AuthScreen } from "./components/AuthScreen.js";
 import { LearnScreen } from "./components/LearnScreen.js";
+import { ProgressScreen } from "./components/ProgressScreen.js";
 import { SettingsScreen } from "./components/SettingsScreen.js";
-import { Shell, type Section } from "./components/Shell.js";
+import { Shell, type PrimarySection, type Section } from "./components/Shell.js";
 import { WordsScreen } from "./components/WordsScreen.js";
 import { api, ApiError } from "./lib/api.js";
 import { ReviewTransitionTracker } from "./lib/identifier.js";
@@ -35,6 +36,7 @@ export function App() {
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
   const [section, setSection] = useState<Section>(() => sectionFromSearch(window.location.search));
+  const [returnSection, setReturnSection] = useState<PrimarySection>(() => sectionFromSearch(window.location.search));
   const [wordToOpen, setWordToOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -125,10 +127,16 @@ export function App() {
     );
   }, [notifyReviewSessionChanged, reviewSession]);
 
-  const changeSection = useCallback((nextSection: Section): void => {
+  const selectSection = useCallback((nextSection: PrimarySection): void => {
     setWordToOpen(null);
+    setReturnSection(nextSection);
     setSection(nextSection);
   }, []);
+
+  const openSettings = useCallback((): void => {
+    if (section !== "settings") setReturnSection(section);
+    setSection("settings");
+  }, [section]);
 
   const viewWord = useCallback((wordId: string): void => {
     setWordToOpen(wordId);
@@ -184,6 +192,7 @@ export function App() {
           telegramRemindersAvailable={configuration.telegramRemindersAvailable}
           telegramLaunch={telegramLaunch !== ""}
           user={application.user}
+          onBack={() => setSection(returnSection)}
           onUpdated={(settings) =>
             setApplication((current) => (current === null ? current : { ...current, settings }))
           }
@@ -198,6 +207,15 @@ export function App() {
             reviewTransitions.reset();
             setApplication(null);
           }}
+        />
+      );
+      break;
+    case "progress":
+      content = (
+        <ProgressScreen
+          onAddWord={() => selectSection("add")}
+          onLearn={() => selectSection("learn")}
+          onOpenSettings={openSettings}
         />
       );
       break;
@@ -218,8 +236,10 @@ export function App() {
   return (
     <Shell
       activeSection={section}
+      activeNavigationSection={section === "settings" ? returnSection : section}
       theme={resolvedTheme}
-      onSectionChange={changeSection}
+      onSectionChange={selectSection}
+      onSettingsOpen={openSettings}
       onThemeToggle={() => {
         const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
         void api.updateSettings({ ...application.settings, theme: nextTheme }).then((settings) => {
