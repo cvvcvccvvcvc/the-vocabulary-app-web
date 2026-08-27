@@ -195,7 +195,10 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
 
   return (
     <section className="progress-card heatmap-card" aria-labelledby="activity-title">
-      <h2 className="visually-hidden" id="activity-title">Activity over the last 12 weeks</h2>
+      <div className="activity-heading">
+        <h2 id="activity-title">Activity</h2>
+        <p className="activity-period">Last 12 weeks</p>
+      </div>
 
       <div className="activity-mode-tabs" role="tablist" aria-label="Activity type">
         <button
@@ -223,8 +226,6 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
       </div>
 
       <div className="activity-mode-panel" id="activity-panel" role="tabpanel" aria-labelledby={mode === "reviews" ? "reviews-tab" : "words-added-tab"}>
-        <p className="activity-period">Last 12 weeks</p>
-
         <ActivityHeatmap
           calendarDays={calendarDays}
           today={today}
@@ -339,11 +340,11 @@ function SelectedDayDetails({ day, mode, isToday }: { day: UserStatisticsDay; mo
   const value = mode === "reviews"
     ? day.answers === 0 ? "0 answers" : formatUnit(day.answers, "answer")
     : day.wordsAdded === 0 ? "0 words added" : `${formatUnit(day.wordsAdded, "word")} added`;
-  const date = isToday ? "today" : `on ${formatDetailDate(day.date)}`;
+  const date = isToday ? "Today" : formatDetailDate(day.date);
 
   return (
     <div className="selected-day-details" aria-live="polite">
-      <span className="selected-day-summary">{value} {date}</span>
+      <span className="selected-day-summary">{date} · {value}</span>
     </div>
   );
 }

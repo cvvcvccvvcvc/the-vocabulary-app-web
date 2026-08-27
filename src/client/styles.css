@@ -1583,6 +1583,18 @@ button.titlebar-icon.active {
   gap: 16px;
 }
 
+.activity-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.activity-heading h2 {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
 .activity-mode-tabs {
   display: grid;
   padding: 3px;
@@ -1621,7 +1633,7 @@ button.titlebar-icon.active {
 }
 
 .activity-period {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--secondary);
   font-size: 12px;
   font-weight: 550;
@@ -2639,16 +2651,18 @@ button.titlebar-icon.active {
   }
 
   .progress-stack {
-    gap: 18px;
+    gap: 30px;
   }
 
   .progress-card {
-    padding: 20px;
-    border-radius: 15px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   .streak-card {
-    gap: 22px;
+    gap: 18px;
   }
 
   .streak-summary {
@@ -2657,13 +2671,13 @@ button.titlebar-icon.active {
   }
 
   .streak-icon {
-    width: 54px;
-    height: 54px;
+    width: 44px;
+    height: 44px;
   }
 
   .streak-icon svg {
-    width: 29px;
-    height: 29px;
+    width: 25px;
+    height: 25px;
   }
 
   .streak-value strong {
@@ -2682,6 +2696,28 @@ button.titlebar-icon.active {
 
   .activity-heatmap {
     width: 100%;
+  }
+
+  .progress-card.heatmap-card {
+    padding-top: 28px;
+    border-top: 1px solid var(--separator);
+  }
+
+  .activity-heading h2 {
+    font-size: 20px;
+  }
+
+  .selected-day-details {
+    min-height: 20px;
+    margin-left: 32px;
+    border-top: 0;
+    justify-content: flex-start;
+  }
+
+  .selected-day-summary {
+    color: var(--secondary);
+    font-size: 13px;
+    text-align: left;
   }
 
   .progress-empty-state {
