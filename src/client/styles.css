@@ -2256,7 +2256,6 @@ button.titlebar-icon.active {
     height: 100svh;
     min-height: 0;
     overflow: hidden;
-    padding-bottom: 0;
     overscroll-behavior: none;
   }
 
@@ -2268,10 +2267,7 @@ button.titlebar-icon.active {
     width: min(calc(100% - 44px), 320px);
     height: 100%;
     min-height: 0;
-    padding:
-      max(104px, calc(var(--app-safe-top) + 76px))
-      0
-      calc(104px + var(--app-safe-bottom));
+    padding: max(104px, calc(var(--app-safe-top) + 76px)) 0;
     justify-content: center;
   }
 
