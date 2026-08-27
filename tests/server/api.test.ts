@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer, type BuiltServer } from "../../src/server/app.js";
 import type { ServerConfig } from "../../src/server/config.js";
 import { VocabularyRepository } from "../../src/server/repository.js";
@@ -9,6 +9,10 @@ import {
   telegramWebhookSecret,
 } from "../../src/server/telegramBot.js";
 import type { VocabularyWord } from "../../src/domain/index.js";
+import type {
+  ReviewTransitionResponse,
+  UserStatisticsResponse,
+} from "../../src/shared/contracts.js";
 
 const config: ServerConfig = {
   environment: "test",
@@ -43,6 +47,63 @@ describe("Vocabulary API", () => {
   it("requires a session for user data", async () => {
     const response = await server.app.inject({ method: "GET", url: "/api/bootstrap" });
     expect(response.statusCode).toBe(401);
+  });
+
+  it("accepts an OIDC callback only from the browser that started the login", async () => {
+    const authServer = await buildServer({
+      ...config,
+      telegramBotId: "123456",
+      telegramClientSecret: "telegram-client-secret",
+    });
+
+    try {
+      const start = await authServer.app.inject({
+        method: "GET",
+        url: "/api/auth/telegram/start",
+      });
+      const authorizationUrl = new URL(start.headers.location ?? "");
+      const state = authorizationUrl.searchParams.get("state");
+      const authFlowCookie = start.headers["set-cookie"]?.split(";")[0] ?? "";
+      const callbackUrl = `/api/auth/telegram/callback?code=test-code&state=${encodeURIComponent(state ?? "")}`;
+
+      expect(start.statusCode).toBe(302);
+      expect(state).not.toBeNull();
+      expect(authFlowCookie).toContain("vocabulary_auth_flow=");
+
+      const foreignBrowser = await authServer.app.inject({
+        method: "GET",
+        url: callbackUrl,
+      });
+      expect(foreignBrowser.statusCode).toBe(401);
+      expect(foreignBrowser.json()).toMatchObject({
+        error: { code: "invalid_telegram_data", message: "Login state is invalid or expired" },
+      });
+
+      const telegramFetch = vi.fn(async () => new Response(null, { status: 400 }));
+      vi.stubGlobal("fetch", telegramFetch);
+      const originalBrowser = await authServer.app.inject({
+        method: "GET",
+        url: callbackUrl,
+        headers: { cookie: authFlowCookie },
+      });
+
+      expect(originalBrowser.statusCode).toBe(401);
+      expect(originalBrowser.json()).toMatchObject({
+        error: { code: "invalid_telegram_data", message: "Telegram login failed" },
+      });
+      expect(telegramFetch).toHaveBeenCalledOnce();
+
+      const replay = await authServer.app.inject({
+        method: "GET",
+        url: callbackUrl,
+        headers: { cookie: authFlowCookie },
+      });
+      expect(replay.statusCode).toBe(401);
+      expect(telegramFetch).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+      await authServer.app.close();
+    }
   });
 
   it("returns analytics only to the configured owner", async () => {
@@ -175,6 +236,26 @@ describe("Vocabulary API", () => {
     }
   });
 
+  it("reports whether browser Telegram login is configured", async () => {
+    const unavailable = await server.app.inject({ method: "GET", url: "/api/config" });
+    expect(unavailable.json()).toMatchObject({ telegramBrowserLoginAvailable: false });
+
+    const availableServer = await buildServer({
+      ...config,
+      telegramBotId: "123456",
+      telegramClientSecret: "telegram-client-secret",
+    });
+    try {
+      const available = await availableServer.app.inject({
+        method: "GET",
+        url: "/api/config",
+      });
+      expect(available.json()).toMatchObject({ telegramBrowserLoginAvailable: true });
+    } finally {
+      await availableServer.app.close();
+    }
+  });
+
   it("dispatches opted-in Telegram reminders through the protected internal API", async () => {
     const repository = new VocabularyRepository(server.database.sqlite);
     const user = repository.ensureUser({
@@ -269,14 +350,6 @@ describe("Vocabulary API", () => {
     const created = createdResponse.json<VocabularyWord>();
     expect(created.level).toBe(0);
 
-    const duplicate = await server.app.inject({
-      method: "POST",
-      url: "/api/words",
-      headers: { cookie },
-      payload: { learningText: " APPLE ", meanings: ["другое"], comment: "" },
-    });
-    expect(duplicate.statusCode).toBe(409);
-
     const updatedResponse = await server.app.inject({
       method: "PUT",
       url: `/api/words/${created.id}`,
@@ -303,6 +376,49 @@ describe("Vocabulary API", () => {
       headers: { cookie },
     });
     expect(deleted.statusCode).toBe(204);
+  });
+
+  it("returns the current user's existing word as a neutral create outcome", async () => {
+    const createdResponse = await server.app.inject({
+      method: "POST",
+      url: "/api/words",
+      headers: { cookie },
+      payload: { learningText: "apple", meanings: ["яблоко"], comment: "fruit" },
+    });
+    const created = createdResponse.json<VocabularyWord>();
+
+    const duplicate = await server.app.inject({
+      method: "POST",
+      url: "/api/words",
+      headers: { cookie },
+      payload: { learningText: " APPLE ", meanings: ["другое"], comment: "" },
+    });
+
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json<VocabularyWord>()).toMatchObject({
+      id: created.id,
+      learningText: "apple",
+      meanings: ["яблоко"],
+      comment: "fruit",
+    });
+
+    const repository = new VocabularyRepository(server.database.sqlite);
+    const other = repository.ensureUser({
+      telegramUserId: "2002",
+      displayName: "Other",
+      username: null,
+      photoUrl: null,
+    });
+    const otherCookie = `vocabulary_session=${repository.createSession(other.id)}`;
+    const otherUserCreate = await server.app.inject({
+      method: "POST",
+      url: "/api/words",
+      headers: { cookie: otherCookie },
+      payload: { learningText: "APPLE", meanings: ["другое"], comment: "" },
+    });
+
+    expect(otherUserCreate.statusCode).toBe(201);
+    expect(otherUserCreate.json<VocabularyWord>().id).not.toBe(created.id);
   });
 
   it("applies review answers exactly once", async () => {
@@ -333,6 +449,180 @@ describe("Vocabulary API", () => {
     expect(first.json<VocabularyWord>().level).toBe(1);
     expect(second.json<VocabularyWord>().level).toBe(1);
     expect(second.json<VocabularyWord>().correctCount).toBe(1);
+
+    const otherWord = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "other", meanings: ["другой"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const conflicting = await server.app.inject({
+      method: "POST",
+      url: `/api/words/${otherWord.id}/answer`,
+      headers: { cookie },
+      payload,
+    });
+
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.json()).toMatchObject({
+      error: { code: "operation_conflict" },
+    });
+  });
+
+  it("atomically answers one card and marks the next card shown", async () => {
+    const answered = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "memory", meanings: ["память"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const shown = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "future", meanings: ["будущее"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const payload = {
+      operationId: randomUUID(),
+      answer: { wordId: answered.id, correct: true, mode: "scheduled" },
+      shown: { wordId: shown.id, direction: "known-to-learning" },
+    };
+
+    const first = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload,
+    });
+    const retry = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(first.json<ReviewTransitionResponse>()).toMatchObject({
+      answeredWord: { id: answered.id, level: 1, correctCount: 1 },
+      shownWord: {
+        id: shown.id,
+        lastDirection: "known-to-learning",
+        lastSeenAt: expect.any(String),
+      },
+    });
+    expect(retry.json()).toEqual(first.json());
+
+    const operationCount = server.database.sqlite
+      .prepare("SELECT COUNT(*) AS count FROM review_events WHERE id = ?")
+      .get(payload.operationId) as { count: number };
+    expect(operationCount.count).toBe(1);
+
+    const conflicting = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload: {
+        ...payload,
+        shown: { ...payload.shown, direction: "learning-to-known" },
+      },
+    });
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.json()).toMatchObject({ error: { code: "operation_conflict" } });
+  });
+
+  it("rolls back an answer when the next card is not owned by the user", async () => {
+    const answered = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "private", meanings: ["личный"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    const repository = new VocabularyRepository(server.database.sqlite);
+    const other = repository.ensureUser({
+      telegramUserId: "2002",
+      displayName: "Other",
+      username: null,
+      photoUrl: null,
+    });
+    const foreignWord = repository.createWord(other.id, {
+      learningText: "foreign",
+      meanings: ["чужой"],
+      comment: "",
+    });
+
+    const response = await server.app.inject({
+      method: "POST",
+      url: "/api/review-transitions",
+      headers: { cookie },
+      payload: {
+        operationId: randomUUID(),
+        answer: { wordId: answered.id, correct: true, mode: "scheduled" },
+        shown: { wordId: foreignWord.id, direction: "learning-to-known" },
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const bootstrap = await server.app.inject({
+      method: "GET",
+      url: "/api/bootstrap",
+      headers: { cookie },
+    });
+    expect(bootstrap.json<{ words: VocabularyWord[] }>().words[0]).toMatchObject({
+      id: answered.id,
+      level: 0,
+      correctCount: 0,
+    });
+  });
+
+  it("returns validated, authenticated user statistics", async () => {
+    const unauthorized = await server.app.inject({
+      method: "GET",
+      url: "/api/statistics?timeZone=UTC",
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const invalid = await server.app.inject({
+      method: "GET",
+      url: "/api/statistics?timeZone=Not%2FA%2FZone",
+      headers: { cookie },
+    });
+    expect(invalid.statusCode).toBe(400);
+
+    const created = (
+      await server.app.inject({
+        method: "POST",
+        url: "/api/words",
+        headers: { cookie },
+        payload: { learningText: "progress", meanings: ["прогресс"], comment: "" },
+      })
+    ).json<VocabularyWord>();
+    await server.app.inject({
+      method: "POST",
+      url: `/api/words/${created.id}/answer`,
+      headers: { cookie },
+      payload: { correct: false, mode: "free", operationId: randomUUID() },
+    });
+
+    const response = await server.app.inject({
+      method: "GET",
+      url: "/api/statistics?timeZone=UTC",
+      headers: { cookie },
+    });
+    expect(response.statusCode).toBe(200);
+    const statistics = response.json<UserStatisticsResponse>();
+    expect(statistics.timeZone).toBe("UTC");
+    expect(statistics.streak).toEqual({ current: 1, studiedToday: true });
+    expect(statistics.activity).toHaveLength(84);
+    expect(statistics.activity.at(-1)?.answers).toBe(1);
+    expect(statistics.vocabulary.totalWords).toBe(1);
   });
 
   it("persists language and theme settings in the user profile", async () => {

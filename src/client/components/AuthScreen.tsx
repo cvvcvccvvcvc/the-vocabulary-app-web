@@ -3,6 +3,7 @@ import { api } from "../lib/api.js";
 
 interface AuthScreenProps {
   developmentLoginEnabled: boolean;
+  telegramBrowserLoginAvailable: boolean;
   telegramLaunch: boolean;
   error: string | null;
   onAuthenticated(): Promise<void>;
@@ -10,6 +11,7 @@ interface AuthScreenProps {
 
 export function AuthScreen({
   developmentLoginEnabled,
+  telegramBrowserLoginAvailable,
   telegramLaunch,
   error,
   onAuthenticated,
@@ -31,7 +33,7 @@ export function AuthScreen({
       <section className="auth-card">
         <div className="brand-mark" aria-hidden="true">V</div>
         <p className="eyebrow">Your words, wherever you are</p>
-        <h1>Vocabulary</h1>
+        <h1>The Vocabulary App</h1>
         <p className="auth-copy">
           Save a word once, then review it on your phone, Mac, or inside Telegram.
         </p>
@@ -39,15 +41,21 @@ export function AuthScreen({
         {error !== null && <p className="notice notice-error">{error}</p>}
         {telegramLaunch && error === null ? (
           <p className="muted">Connecting your Telegram profile…</p>
-        ) : (
+        ) : telegramBrowserLoginAvailable ? (
           <a className="primary-button auth-button" href="/api/auth/telegram/start">
             Continue with Telegram
           </a>
+        ) : (
+          <p className="auth-availability">Telegram login is unavailable in this preview.</p>
         )}
 
         {developmentLoginEnabled && (
           <button
-            className="text-button"
+            className={
+              telegramBrowserLoginAvailable
+                ? "auth-development-button"
+                : "primary-button auth-button"
+            }
             type="button"
             disabled={working}
             onClick={() => void developmentLogin()}

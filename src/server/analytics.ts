@@ -90,7 +90,7 @@ export class AnalyticsRepository {
       .prepare(`
         WITH answer_counts AS (
           SELECT date(created_at, '${sqliteLocalTimeModifier}') AS date, COUNT(*) AS answers
-          FROM review_operations
+          FROM review_events
           GROUP BY date
         ), word_counts AS (
           SELECT date(created_at, '${sqliteLocalTimeModifier}') AS date, COUNT(*) AS words_added
@@ -147,7 +147,7 @@ export class AnalyticsRepository {
   private activityPeriods(expression: string, periods: string[]): AnalyticsActivityPeriod[] {
     const counts = this.counts(`
       SELECT ${expression} AS period, COUNT(DISTINCT user_id) AS count
-      FROM review_operations
+      FROM review_events
       GROUP BY period
       ORDER BY period
     `);
@@ -172,7 +172,7 @@ export class AnalyticsRepository {
             user_id,
             MAX(created_at) AS last_studied_at,
             COUNT(*) AS answer_count
-          FROM review_operations
+          FROM review_events
           GROUP BY user_id
         )
         SELECT

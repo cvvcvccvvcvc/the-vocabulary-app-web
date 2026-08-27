@@ -1,5 +1,7 @@
 import type {
   LanguageSettings,
+  ReviewDirection,
+  ReviewMode,
   VocabularyWord,
 } from "../domain/models.js";
 
@@ -12,6 +14,7 @@ export interface UserProfile {
 
 export interface AppConfiguration {
   developmentLoginEnabled: boolean;
+  telegramBrowserLoginAvailable: boolean;
   telegramRemindersAvailable: boolean;
 }
 
@@ -38,6 +41,24 @@ export interface CreateWordRequest {
 
 export interface UpdateWordRequest extends CreateWordRequest {
   version: number;
+}
+
+export interface ReviewTransitionRequest {
+  operationId: string;
+  answer: {
+    wordId: string;
+    correct: boolean;
+    mode: ReviewMode;
+  };
+  shown: {
+    wordId: string;
+    direction: ReviewDirection;
+  };
+}
+
+export interface ReviewTransitionResponse {
+  answeredWord: VocabularyWord;
+  shownWord: VocabularyWord;
 }
 
 export interface ErrorResponse {
@@ -95,4 +116,23 @@ export interface AnalyticsResponse {
   };
   usage: AnalyticsUsageDay[];
   users: AnalyticsUser[];
+}
+
+export interface UserStatisticsDay {
+  date: string;
+  answers: number;
+  wordsAdded: number;
+}
+
+export interface UserStatisticsResponse {
+  generatedAt: string;
+  timeZone: string;
+  streak: {
+    current: number;
+    studiedToday: boolean;
+  };
+  activity: UserStatisticsDay[];
+  vocabulary: {
+    totalWords: number;
+  };
 }

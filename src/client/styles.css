@@ -55,6 +55,19 @@
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 html,
 body,
 #root {
@@ -257,10 +270,6 @@ button.titlebar-icon.active {
 
 .screen {
   min-height: calc(100vh - var(--titlebar-height));
-}
-
-.mobile-detail-title {
-  display: none;
 }
 
 .primary-button,
@@ -467,6 +476,11 @@ button.titlebar-icon.active {
   color: var(--danger);
 }
 
+.add-toast.existing .toast-status {
+  color: var(--secondary);
+  background: var(--badge);
+}
+
 .toast-status {
   display: grid;
   width: 24px;
@@ -573,6 +587,7 @@ button.titlebar-icon.active {
 
 .review-card {
   position: relative;
+  isolation: isolate;
   display: flex;
   width: 100%;
   min-height: 245px;
@@ -588,6 +603,27 @@ button.titlebar-icon.active {
   transition: box-shadow 160ms ease, transform 160ms ease;
 }
 
+.review-card::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms linear;
+}
+
+.review-card-drag-layer.swiping-left .review-card::before {
+  background: var(--danger-soft);
+  opacity: var(--swipe-progress);
+}
+
+.review-card-drag-layer.swiping-right .review-card::before {
+  background: var(--success-soft);
+  opacity: var(--swipe-progress);
+}
+
 .review-card:hover {
   box-shadow: 0 8px 32px rgb(0 0 0 / 6%);
 }
@@ -598,6 +634,8 @@ button.titlebar-icon.active {
 
 .review-card.revealed {
   cursor: grab;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   touch-action: pan-y;
   user-select: none;
 }
@@ -608,6 +646,20 @@ button.titlebar-icon.active {
 
 .review-card-drag-layer.dragging .review-card:active {
   transform: none;
+}
+
+.review-card-reveal {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  padding: 42px;
+  border: 0;
+  border-radius: inherit;
+  color: inherit;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-question {
@@ -627,24 +679,36 @@ button.titlebar-icon.active {
 }
 
 .speaker-button {
+  position: relative;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 50%;
   color: var(--secondary);
   background: transparent;
   place-items: center;
 }
 
-.speaker-button:hover {
+.speaker-button::before {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  content: "";
+}
+
+.speaker-button:hover::before {
   background: var(--hover);
 }
 
 .speaker-button svg {
-  width: 18px;
-  height: 18px;
+  position: relative;
+  width: 20px;
+  height: 20px;
 }
 
 .review-card-speaker {
@@ -655,22 +719,9 @@ button.titlebar-icon.active {
   transform: translateX(-50%);
 }
 
-.review-card-speaker.revealed {
-  right: 52px;
-  bottom: auto;
-  left: auto;
-  transform: none;
-}
-
-.review-card-speaker.learning-first {
-  top: 28%;
-}
-
-.review-card-speaker.learning-second {
-  top: 63%;
-}
-
 .card-reveal {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: min(100%, 460px);
   justify-items: center;
@@ -691,6 +742,26 @@ button.titlebar-icon.active {
 
 .card-side-values {
   gap: 4px;
+}
+
+.card-learning-row {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  align-items: center;
+  grid-template-columns: minmax(44px, 1fr) minmax(0, auto) minmax(44px, 1fr);
+  column-gap: 8px;
+}
+
+.card-learning-row > .card-side-value {
+  min-width: 0;
+  grid-column: 2;
+  justify-self: center;
+}
+
+.card-learning-row .speaker-button {
+  grid-column: 3;
+  justify-self: start;
 }
 
 .card-side-label {
@@ -755,39 +826,6 @@ button.titlebar-icon.active {
   font-weight: 600;
 }
 
-.swipe-feedback {
-  position: absolute;
-  z-index: 2;
-  top: 22px;
-  padding: 5px 9px;
-  border: 2px solid currentColor;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  opacity: 0;
-  pointer-events: none;
-  text-transform: uppercase;
-  transition: opacity 80ms linear;
-}
-
-.swipe-feedback.wrong {
-  left: 24px;
-  color: var(--danger);
-  transform: rotate(-7deg);
-}
-
-.swipe-feedback.correct {
-  right: 24px;
-  color: var(--success);
-  transform: rotate(7deg);
-}
-
-.review-card-drag-layer.swiping-left .swipe-feedback.wrong,
-.review-card-drag-layer.swiping-right .swipe-feedback.correct {
-  opacity: var(--swipe-progress);
-}
-
 .mobile-reveal-hint,
 .mobile-swipe-hint {
   display: none;
@@ -799,10 +837,32 @@ button.titlebar-icon.active {
   width: 100%;
 }
 
+.review-transition-failure {
+  position: absolute;
+  display: grid;
+  top: 100%;
+  left: 50%;
+  width: 100%;
+  margin-top: 18px;
+  transform: translateX(-50%);
+  justify-items: center;
+  gap: 10px;
+}
+
 .centered-screen {
   display: grid;
   padding: 30px;
   place-items: center;
+}
+
+.review-load-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.review-retry {
+  padding: 0 18px;
 }
 
 .empty-state {
@@ -1419,6 +1479,358 @@ button.titlebar-icon.active {
   font-size: 20px;
 }
 
+/* Progress */
+
+.progress-screen {
+  padding: 38px;
+}
+
+.progress-stack {
+  display: grid;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  gap: 20px;
+}
+
+.mobile-screen-header {
+  display: none;
+}
+
+.progress-card {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--card);
+}
+
+.progress-eyebrow {
+  margin-bottom: 4px;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.streak-card {
+  display: grid;
+  padding: 26px;
+  gap: 18px;
+}
+
+.streak-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.streak-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.streak-icon svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 1.65;
+}
+
+.streak-value {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.streak-value strong {
+  font-size: clamp(42px, 7vw, 58px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.streak-value span {
+  color: var(--secondary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.streak-status {
+  display: flex;
+  min-height: 19px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  gap: 6px;
+}
+
+.streak-action {
+  width: fit-content;
+  min-height: 42px;
+  padding-inline: 18px;
+}
+
+.progress-card.heatmap-card {
+  display: grid;
+  padding-bottom: 0;
+  gap: 16px;
+}
+
+.activity-mode-tabs {
+  display: grid;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--badge);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+}
+
+.activity-mode-tabs button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--secondary);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.activity-mode-tabs button.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 5%);
+}
+
+.activity-mode-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.activity-mode-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-period {
+  margin: 2px 0 0;
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.3;
+}
+
+.activity-heatmap {
+  display: grid;
+  width: min(100%, 420px);
+  margin: 0;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: 16px auto 16px;
+  column-gap: 8px;
+  row-gap: 7px;
+}
+
+.heatmap-months {
+  display: grid;
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  color: var(--secondary);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.heatmap-months span {
+  width: max-content;
+  white-space: nowrap;
+}
+
+.heatmap-weekdays {
+  display: grid;
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  color: var(--secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.heatmap-weekdays span {
+  align-self: center;
+  justify-self: start;
+}
+
+.heatmap-plot {
+  display: grid;
+  min-width: 0;
+  border-radius: 7px;
+  grid-column: 2;
+  grid-row: 2;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  aspect-ratio: 12 / 7;
+  gap: 4px;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.heatmap-plot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 5px;
+}
+
+.heatmap-day,
+.heatmap-legend i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--hover);
+}
+
+.heatmap-day[data-level="1"],
+.heatmap-legend i[data-level="1"] {
+  background: color-mix(in srgb, var(--accent) 24%, var(--card));
+}
+
+.heatmap-day[data-level="2"],
+.heatmap-legend i[data-level="2"] {
+  background: color-mix(in srgb, var(--accent) 46%, var(--card));
+}
+
+.heatmap-day[data-level="3"],
+.heatmap-legend i[data-level="3"] {
+  background: color-mix(in srgb, var(--accent) 70%, var(--card));
+}
+
+.heatmap-day[data-level="4"],
+.heatmap-legend i[data-level="4"] {
+  background: var(--accent);
+}
+
+.heatmap-day.future {
+  border-color: var(--separator);
+  background: transparent;
+  opacity: 0.45;
+}
+
+.heatmap-day.today:not(.selected) {
+  border-color: var(--accent);
+}
+
+.heatmap-day.selected {
+  position: relative;
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 4px var(--text);
+  z-index: 1;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  grid-column: 2;
+  grid-row: 3;
+  color: var(--secondary);
+  font-size: 10px;
+  line-height: 16px;
+  gap: 4px;
+}
+
+.heatmap-legend i {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+.heatmap-legend span:first-child {
+  margin-right: 2px;
+}
+
+.heatmap-legend span:last-child {
+  margin-left: 2px;
+}
+
+.selected-day-details {
+  display: flex;
+  min-height: 64px;
+  border-top: 1px solid var(--separator);
+  align-items: center;
+  justify-content: center;
+}
+
+.selected-day-summary {
+  font-size: 15px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.progress-empty-state {
+  display: grid;
+  min-height: 240px;
+  align-content: center;
+  justify-items: start;
+  gap: 10px;
+}
+
+.progress-empty-state h2 {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.progress-empty-state p {
+  max-width: 380px;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.progress-empty-state .primary-button {
+  min-height: 42px;
+  margin-top: 8px;
+  padding-inline: 18px;
+}
+
+.progress-message {
+  display: grid;
+  min-height: calc(100vh - var(--titlebar-height) - 76px);
+  padding: 24px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.progress-message h1 {
+  font-size: 24px;
+}
+
+.progress-message p {
+  max-width: 360px;
+  color: var(--secondary);
+  line-height: 1.45;
+}
+
+.progress-retry {
+  min-height: 42px;
+  margin-top: 6px;
+  padding-inline: 18px;
+}
+
 /* Settings */
 
 .settings-screen {
@@ -1651,13 +2063,35 @@ button.titlebar-icon.active {
 
 .auth-card h1 {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 38px;
+  font-size: clamp(28px, 7vw, 34px);
+  line-height: 1.1;
 }
 
 .auth-copy {
   margin: 14px 0 24px;
   color: var(--secondary);
   line-height: 1.5;
+}
+
+.auth-availability {
+  margin-bottom: 14px;
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.auth-development-button {
+  margin-top: 14px;
+  padding: 6px;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.auth-development-button:hover {
+  text-decoration: underline;
 }
 
 .auth-button {
@@ -1676,6 +2110,7 @@ button.titlebar-icon.active {
 @media (max-width: 850px) {
   :root {
     --titlebar-height: 0px;
+    --mobile-content-top: max(18px, var(--app-safe-top));
   }
 
   .desktop-titlebar,
@@ -1817,13 +2252,29 @@ button.titlebar-icon.active {
 
   /* Learn mobile */
 
+  .learn-screen {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   .review-mode-header {
     top: max(22px, calc(var(--app-safe-top) + 8px));
   }
 
   .review-stage {
     width: min(calc(100% - 44px), 320px);
-    padding: 104px 0 calc(64px + var(--app-safe-bottom));
+    height: 100%;
+    min-height: 0;
+    padding: max(104px, calc(var(--app-safe-top) + 76px)) 0;
+    justify-content: center;
+  }
+
+  .review-card-shell,
+  .review-card-drag-layer {
+    max-height: 100%;
+    min-height: 0;
   }
 
   .review-card {
@@ -1833,7 +2284,12 @@ button.titlebar-icon.active {
   }
 
   .review-card.revealed {
+    max-height: 100%;
     min-height: 250px;
+  }
+
+  .review-card-reveal {
+    padding: 26px 24px;
   }
 
   .card-question {
@@ -1872,21 +2328,6 @@ button.titlebar-icon.active {
     bottom: 22px;
   }
 
-  .review-card-speaker.revealed {
-    right: 34px;
-    bottom: auto;
-    left: auto;
-    transform: none;
-  }
-
-  .review-card-speaker.learning-first {
-    top: 27%;
-  }
-
-  .review-card-speaker.learning-second {
-    top: 62%;
-  }
-
   .reveal-hint,
   .swipe-hint {
     margin-top: 22px;
@@ -1914,7 +2355,7 @@ button.titlebar-icon.active {
     height: 100svh;
     min-height: 0;
     overflow: auto;
-    padding: max(18px, var(--app-safe-top)) 18px calc(98px + var(--app-safe-bottom));
+    padding: var(--mobile-content-top) 18px calc(98px + var(--app-safe-bottom));
   }
 
   .words-list-pane {
@@ -2026,7 +2467,7 @@ button.titlebar-icon.active {
   }
 
   .detail-open {
-    padding: 0 0 calc(96px + var(--app-safe-bottom));
+    padding: var(--mobile-content-top) 0 calc(96px + var(--app-safe-bottom));
   }
 
   .detail-open .words-list-pane {
@@ -2034,14 +2475,13 @@ button.titlebar-icon.active {
   }
 
   .word-detail {
-    min-height: calc(100svh - 96px - var(--app-safe-bottom));
+    min-height: 100%;
     border: 0;
   }
 
   .detail-toolbar {
-    position: relative;
-    height: 72px;
-    padding: max(10px, var(--app-safe-top)) 16px 8px;
+    height: 48px;
+    padding: 2px 16px;
     border: 0;
   }
 
@@ -2066,18 +2506,6 @@ button.titlebar-icon.active {
     height: 25px;
   }
 
-  .mobile-detail-title {
-    position: absolute;
-    display: block;
-    left: 50%;
-    max-width: 34%;
-    overflow: hidden;
-    font-size: 17px;
-    text-overflow: ellipsis;
-    transform: translateX(-50%);
-    white-space: nowrap;
-  }
-
   .detail-toolbar-actions {
     gap: 0;
   }
@@ -2089,10 +2517,6 @@ button.titlebar-icon.active {
   .detail-toolbar.editing .cancel-button {
     min-width: auto;
     padding-inline: 16px;
-  }
-
-  .detail-toolbar.editing .mobile-detail-title {
-    max-width: max(30px, calc(100% - 322px));
   }
 
   .detail-toolbar.editing .toolbar-button.primary {
@@ -2130,7 +2554,7 @@ button.titlebar-icon.active {
   }
 
   .app-shell:has(.word-detail.editing) .word-detail {
-    min-height: 100svh;
+    min-height: 100%;
   }
 
   .word-detail.editing .detail-comment-field textarea {
@@ -2159,8 +2583,113 @@ button.titlebar-icon.active {
 
   /* Settings mobile */
 
-  .settings-screen {
+  .mobile-screen-header {
+    display: flex;
+    width: min(100%, 760px);
+    min-height: 44px;
+    align-items: center;
+    margin: 0 auto 18px;
+    justify-content: space-between;
+  }
+
+  .mobile-screen-header h1 {
+    font-size: 25px;
+    letter-spacing: -0.03em;
+  }
+
+  .mobile-header-button,
+  .mobile-header-spacer {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+  }
+
+  .mobile-header-button {
+    display: grid;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text);
+    background: var(--floating);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 6%);
+    place-items: center;
+  }
+
+  .mobile-header-button svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .progress-mobile-header h1 {
+    margin-left: 2px;
+  }
+
+  .settings-mobile-header {
+    width: min(100%, 640px);
+  }
+
+  .settings-mobile-header h1 {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .progress-screen {
     padding: max(18px, var(--app-safe-top)) 20px calc(104px + var(--app-safe-bottom));
+  }
+
+  .progress-stack {
+    gap: 18px;
+  }
+
+  .progress-card {
+    padding: 20px;
+    border-radius: 15px;
+  }
+
+  .streak-card {
+    gap: 22px;
+  }
+
+  .streak-summary {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .streak-icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .streak-icon svg {
+    width: 29px;
+    height: 29px;
+  }
+
+  .streak-value strong {
+    font-size: 46px;
+  }
+
+  .streak-value span {
+    font-size: 14px;
+  }
+
+  .streak-action {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 12px;
+  }
+
+  .activity-heatmap {
+    width: 100%;
+  }
+
+  .progress-empty-state {
+    min-height: 220px;
+  }
+
+  .settings-screen {
+    padding: var(--mobile-content-top) 20px calc(104px + var(--app-safe-bottom));
   }
 
   .settings-stack {
@@ -2187,11 +2716,16 @@ button.titlebar-icon.active {
 }
 
 @media (max-width: 850px) {
+  :root[data-telegram-platform="mobile"] {
+    --mobile-content-top: max(96px, calc(var(--app-safe-top) + 48px));
+  }
+
   :root[data-telegram-platform="mobile"] .review-mode-header {
     top: max(96px, calc(var(--app-safe-top) + 48px));
   }
 
   :root[data-telegram-platform="mobile"] .words-screen,
+  :root[data-telegram-platform="mobile"] .progress-screen,
   :root[data-telegram-platform="mobile"] .settings-screen {
     padding-top: max(96px, calc(var(--app-safe-top) + 48px));
   }
@@ -2219,12 +2753,6 @@ button.titlebar-icon.active {
   .level-card {
     grid-template-columns: 1fr;
     gap: 14px;
-  }
-}
-
-@media (max-width: 350px) {
-  .detail-toolbar.editing .mobile-detail-title {
-    display: none;
   }
 }
 

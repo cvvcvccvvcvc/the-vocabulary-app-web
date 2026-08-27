@@ -22,7 +22,7 @@ export interface TelegramReminderResult {
 interface ReminderCandidateRow {
   user_id: string;
   telegram_user_id: string;
-  review_operation_id: string;
+  review_event_id: string;
   last_studied_at: string;
   due_card_count: number;
   processed_through_days: number | null;
@@ -63,16 +63,16 @@ export class TelegramReminderRepository {
         .prepare(`
           WITH ranked_reviews AS (
             SELECT
-              review_operations.user_id,
-              review_operations.id,
-              review_operations.created_at,
+              review_events.user_id,
+              review_events.id,
+              review_events.created_at,
               ROW_NUMBER() OVER (
-                PARTITION BY review_operations.user_id
-                ORDER BY review_operations.created_at DESC, review_operations.id DESC
+                PARTITION BY review_events.user_id
+                ORDER BY review_events.created_at DESC, review_events.id DESC
               ) AS review_rank
-            FROM review_operations
+            FROM review_events
             JOIN telegram_reminder_settings
-              ON telegram_reminder_settings.user_id = review_operations.user_id
+              ON telegram_reminder_settings.user_id = review_events.user_id
              AND telegram_reminder_settings.enabled = 1
           ), due_counts AS (
             SELECT user_id, COUNT(*) AS due_card_count
@@ -83,15 +83,15 @@ export class TelegramReminderRepository {
           ), processed_events AS (
             SELECT
               user_id,
-              review_operation_id,
+              review_event_id,
               MAX(milestone_days) AS processed_through_days
             FROM telegram_reminder_events
-            GROUP BY user_id, review_operation_id
+            GROUP BY user_id, review_event_id
           )
           SELECT
             ranked_reviews.user_id,
             users.telegram_user_id,
-            ranked_reviews.id AS review_operation_id,
+            ranked_reviews.id AS review_event_id,
             ranked_reviews.created_at AS last_studied_at,
             COALESCE(due_counts.due_card_count, 0) AS due_card_count,
             processed_events.processed_through_days
@@ -100,7 +100,7 @@ export class TelegramReminderRepository {
           LEFT JOIN due_counts ON due_counts.user_id = ranked_reviews.user_id
           LEFT JOIN processed_events
             ON processed_events.user_id = ranked_reviews.user_id
-           AND processed_events.review_operation_id = ranked_reviews.id
+           AND processed_events.review_event_id = ranked_reviews.id
           WHERE ranked_reviews.review_rank = 1
           ORDER BY ranked_reviews.created_at ASC, ranked_reviews.user_id ASC
         `)
@@ -109,7 +109,7 @@ export class TelegramReminderRepository {
       const claimed: ClaimedTelegramReminder[] = [];
       const insertEvent = this.database.prepare(`
         INSERT OR IGNORE INTO telegram_reminder_events (
-          id, user_id, review_operation_id, milestone_days, due_card_count,
+          id, user_id, review_event_id, milestone_days, due_card_count,
           status, telegram_error_code, created_at, completed_at
         ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
       `);
@@ -130,7 +130,7 @@ export class TelegramReminderRepository {
         const result = insertEvent.run(
           eventId,
           candidate.user_id,
-          candidate.review_operation_id,
+          candidate.review_event_id,
           milestone,
           candidate.due_card_count,
           status,

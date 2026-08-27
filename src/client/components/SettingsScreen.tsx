@@ -15,6 +15,7 @@ interface SettingsScreenProps {
   telegramRemindersAvailable: boolean;
   telegramLaunch: boolean;
   user: UserProfile;
+  onBack(): void;
   onUpdated(settings: LanguageSettings): void;
   onTelegramRemindersUpdated(settings: TelegramReminderSettings): void;
   onLogout(): Promise<void>;
@@ -26,6 +27,7 @@ export function SettingsScreen({
   telegramRemindersAvailable,
   telegramLaunch,
   user,
+  onBack,
   onUpdated,
   onTelegramRemindersUpdated,
   onLogout,
@@ -90,6 +92,13 @@ export function SettingsScreen({
 
   return (
     <section className="screen settings-screen">
+      <header className="mobile-screen-header settings-mobile-header">
+        <button className="mobile-header-button" type="button" aria-label="Back" onClick={onBack}>
+          <Icon name="back" />
+        </button>
+        <h1>Settings</h1>
+        <span className="mobile-header-spacer" aria-hidden="true" />
+      </header>
       <div className="settings-stack">
         <section className="settings-card">
           <header>
@@ -121,7 +130,7 @@ export function SettingsScreen({
         <section className="settings-card appearance-card">
           <header>
             <h2>Appearance</h2>
-            <p>Choose how Vocabulary looks on every device.</p>
+            <p>Choose how The Vocabulary App looks on every device.</p>
           </header>
           <div className="theme-picker" aria-label="Appearance">
             {([

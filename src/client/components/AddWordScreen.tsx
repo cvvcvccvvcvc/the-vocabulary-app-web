@@ -2,25 +2,29 @@ import { useEffect, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
-import { telegramNotification } from "../lib/telegram.js";
+import { telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
 
 interface AddWordScreenProps {
   settings: LanguageSettings;
-  onCreated(word: VocabularyWord): void;
-  onViewWords(): void;
+  onAvailable(word: VocabularyWord): void;
+  onViewWord(wordId: string): void;
 }
 
-export function AddWordScreen({ settings, onCreated, onViewWords }: AddWordScreenProps) {
+type AddNotice =
+  | { kind: "success" | "existing"; text: string; wordId: string }
+  | { kind: "error"; text: string };
+
+export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScreenProps) {
   const [learningText, setLearningText] = useState("");
   const [meanings, setMeanings] = useState([""]);
   const [comment, setComment] = useState("");
-  const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [notice, setNotice] = useState<AddNotice | null>(null);
   const [saving, setSaving] = useState(false);
   const valid = learningText.trim() !== "" && meanings.some((meaning) => meaning.trim() !== "");
 
   useEffect(() => {
-    if (notice?.kind !== "success") return;
+    if (notice === null || notice.kind === "error") return;
     const timer = window.setTimeout(() => setNotice(null), 4000);
     return () => window.clearTimeout(timer);
   }, [notice]);
@@ -38,18 +42,30 @@ export function AddWordScreen({ settings, onCreated, onViewWords }: AddWordScree
   async function save(): Promise<void> {
     if (!valid || saving) return;
     setSaving(true);
-    setNotice(null);
+    telegramImpact();
 
     try {
-      const word = await api.createWord({
+      const result = await api.createWord({
         learningText,
         meanings: meanings.filter((meaning) => meaning.trim() !== ""),
         comment,
       });
-      onCreated(word);
-      clear();
-      setNotice({ kind: "success", text: `Added ${word.learningText}` });
-      telegramNotification("success");
+      onAvailable(result.word);
+      if (result.outcome === "created") {
+        clear();
+        setNotice({
+          kind: "success",
+          text: `Added ${result.word.learningText}`,
+          wordId: result.word.id,
+        });
+        telegramNotification("success");
+      } else {
+        setNotice({
+          kind: "existing",
+          text: `${result.word.learningText} is already in your words`,
+          wordId: result.word.id,
+        });
+      }
     } catch (error) {
       setNotice({
         kind: "error",
@@ -134,10 +150,12 @@ export function AddWordScreen({ settings, onCreated, onViewWords }: AddWordScree
 
         {notice !== null && (
           <div className={`add-toast ${notice.kind}`} role="status">
-            <span className="toast-status">{notice.kind === "success" ? "✓" : "!"}</span>
+            <span className="toast-status">
+              {notice.kind === "success" ? "✓" : notice.kind === "existing" ? "i" : "!"}
+            </span>
             <span>{notice.text}</span>
-            {notice.kind === "success" && (
-              <button type="button" onClick={onViewWords}>View</button>
+            {notice.kind !== "error" && (
+              <button type="button" onClick={() => onViewWord(notice.wordId)}>View</button>
             )}
           </div>
         )}

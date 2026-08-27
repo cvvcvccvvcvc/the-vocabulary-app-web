@@ -38,6 +38,7 @@ describe("Telegram reminder repository", () => {
       "scheduled",
       new Date("2026-08-01T12:00:00.000Z"),
     );
+    database.sqlite.prepare("DELETE FROM review_operation_receipts").run();
     reminders.updateSettings(userId, true, new Date("2026-08-01T12:00:00.000Z"));
 
     expect(reminders.claimDue(20, new Date("2026-08-02T11:59:59.999Z"))).toEqual([]);

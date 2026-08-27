@@ -92,7 +92,7 @@ owner check for every analytics request.
 
 ## Telegram bot integration
 
-Telegram cannot reliably deliver webhooks directly to the RuVDS network. A small Cloudflare Worker therefore relays the request to the existing Vocabulary webhook and returns its response to Telegram. The webhook path keeps no user data and authenticates with a derived secret rather than the bot token. Both the Worker and the application verify the same Telegram webhook secret.
+Telegram cannot reliably deliver webhooks directly to the RuVDS network. A small Cloudflare Worker therefore relays the request to the existing webhook for The Vocabulary App and returns its response to Telegram. The webhook path keeps no user data and authenticates with a derived secret rather than the bot token. Both the Worker and the application verify the same Telegram webhook secret.
 
 The same Worker also runs hourly to deliver opt-in Scheduled Review reminders. That path
 requires the bot token and a separate dispatch secret in Cloudflare, but keeps all user and
