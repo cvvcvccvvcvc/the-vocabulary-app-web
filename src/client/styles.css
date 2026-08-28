@@ -1485,6 +1485,10 @@ button.titlebar-icon.active {
   padding: 38px;
 }
 
+.progress-content {
+  min-width: 0;
+}
+
 .progress-stack {
   display: grid;
   width: min(100%, 760px);
@@ -2647,7 +2651,41 @@ button.titlebar-icon.active {
   }
 
   .progress-screen {
+    display: flex;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
     padding: max(18px, var(--app-safe-top)) 20px calc(104px + var(--app-safe-bottom));
+    flex-direction: column;
+  }
+
+  html:has(.progress-screen),
+  body:has(.progress-screen),
+  #root:has(.progress-screen),
+  .app-shell:has(.progress-screen),
+  .main-content:has(.progress-screen) {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .progress-mobile-header {
+    flex: 0 0 auto;
+  }
+
+  .progress-content {
+    display: flex;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: none;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .progress-message {
+    min-height: 0;
+    padding: 0;
+    flex: 1;
   }
 
   .progress-stack {
