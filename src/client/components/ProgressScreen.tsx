@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { UserStatisticsDay, UserStatisticsResponse } from "../../shared/contracts.js";
-import { api, ApiError } from "../lib/api.js";
 import { setTelegramVerticalSwipesEnabled } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
 
 interface ProgressScreenProps {
+  error: string | null;
+  report: UserStatisticsResponse | null;
   onAddWord(): void;
   onLearn(): void;
   onOpenSettings(): void;
+  onRetry(): void;
 }
 
 type ActivityMode = "reviews" | "words";
@@ -18,32 +20,14 @@ interface CalendarDay {
   activity: UserStatisticsDay | null;
 }
 
-export function ProgressScreen({ onAddWord, onLearn, onOpenSettings }: ProgressScreenProps) {
-  const [reloadKey, setReloadKey] = useState(0);
-  const [report, setReport] = useState<UserStatisticsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const timeZone = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    [],
-  );
-
-  useEffect(() => {
-    let active = true;
-    setReport(null);
-    setError(null);
-    api.statistics(timeZone)
-      .then((statistics) => {
-        if (active) setReport(statistics);
-      })
-      .catch((requestError: unknown) => {
-        if (!active) return;
-        setError(requestError instanceof ApiError ? requestError.message : "Could not load progress");
-      });
-    return () => {
-      active = false;
-    };
-  }, [reloadKey, timeZone]);
-
+export function ProgressScreen({
+  error,
+  report,
+  onAddWord,
+  onLearn,
+  onOpenSettings,
+  onRetry,
+}: ProgressScreenProps) {
   const isEmptyProgress = report !== null
     && report.vocabulary.totalWords === 0
     && report.activity.every((day) => day.answers === 0 && day.wordsAdded === 0);
@@ -57,34 +41,36 @@ export function ProgressScreen({ onAddWord, onLearn, onOpenSettings }: ProgressS
         </button>
       </header>
 
-      {report === null && error === null && (
-        <div className="progress-message" aria-label="Loading progress">
-          <div className="loading-ring" />
-        </div>
-      )}
+      <div className="progress-content" aria-busy={report === null && error === null}>
+        {report === null && error === null && (
+          <div className="progress-message" aria-label="Loading progress">
+            <div className="loading-ring" />
+          </div>
+        )}
 
-      {error !== null && (
-        <div className="progress-message">
-          <h1>Could not load progress</h1>
-          <p>{error}</p>
-          <button className="primary-button progress-retry" type="button" onClick={() => setReloadKey((key) => key + 1)}>
-            Try again
-          </button>
-        </div>
-      )}
+        {report === null && error !== null && (
+          <div className="progress-message">
+            <h1>Could not load progress</h1>
+            <p>{error}</p>
+            <button className="primary-button progress-retry" type="button" onClick={onRetry}>
+              Try again
+            </button>
+          </div>
+        )}
 
-      {report !== null && (
-        <div className="progress-stack">
-          {isEmptyProgress ? (
-            <EmptyProgress onAddWord={onAddWord} />
-          ) : (
-            <>
-              <StreakCard report={report} onAddWord={onAddWord} onLearn={onLearn} />
-              <ActivityCard activity={report.activity} />
-            </>
-          )}
-        </div>
-      )}
+        {report !== null && (
+          <div className="progress-stack">
+            {isEmptyProgress ? (
+              <EmptyProgress onAddWord={onAddWord} />
+            ) : (
+              <>
+                <StreakCard report={report} onAddWord={onAddWord} onLearn={onLearn} />
+                <ActivityCard activity={report.activity} />
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

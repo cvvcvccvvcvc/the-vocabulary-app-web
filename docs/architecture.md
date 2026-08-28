@@ -36,6 +36,11 @@ streak and current active-word total. Each day contains review and addition volu
 calculation is a pure domain operation; the server supplies already-normalized local day
 identifiers.
 
+The client owns the latest progress report above the navigation tabs. It preloads the report
+after authentication, keeps it when the user visits another tab, and revalidates it in the
+background when Progress is opened. This avoids a blank loading state on repeat visits without
+adding a persistent client cache or changing the server's canonical data model.
+
 `review_events` is the permanent source for accepted answers. It stores compact semantic
 facts and authoritative outcomes rather than copies of complete cards. Both Scheduled
 Review and Free Review answers count. Current vocabulary excludes soft-deleted words, while

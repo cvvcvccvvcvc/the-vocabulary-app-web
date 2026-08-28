@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ReviewSession,
   SystemRandomSource,
@@ -9,6 +9,7 @@ import type {
   AppConfiguration,
   TelegramReminderSettings,
   UserProfile,
+  UserStatisticsResponse,
 } from "../shared/contracts.js";
 import { AddWordScreen } from "./components/AddWordScreen.js";
 import { AuthScreen } from "./components/AuthScreen.js";
@@ -27,6 +28,54 @@ interface ApplicationData {
   words: VocabularyWord[];
   settings: LanguageSettings;
   telegramReminders: TelegramReminderSettings;
+}
+
+function useProgressReport(userId: string | null) {
+  const [timeZone] = useState(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  );
+  const [report, setReport] = useState<UserStatisticsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const ownerRef = useRef<string | null>(null);
+  const generationRef = useRef(0);
+  const requestRef = useRef<Promise<void> | null>(null);
+
+  const refresh = useCallback((): Promise<void> => {
+    if (userId === null) return Promise.resolve();
+    if (requestRef.current !== null) return requestRef.current;
+
+    const generation = ++generationRef.current;
+    setError(null);
+    const request = api.statistics(timeZone)
+      .then((statistics) => {
+        if (ownerRef.current === userId && generationRef.current === generation) {
+          setReport(statistics);
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (ownerRef.current === userId && generationRef.current === generation) {
+          setError(requestError instanceof ApiError ? requestError.message : "Could not load progress");
+        }
+      })
+      .finally(() => {
+        if (generationRef.current === generation) requestRef.current = null;
+      });
+    requestRef.current = request;
+    return request;
+  }, [timeZone, userId]);
+
+  useEffect(() => {
+    if (ownerRef.current !== userId) {
+      ownerRef.current = userId;
+      generationRef.current += 1;
+      requestRef.current = null;
+      setReport(null);
+      setError(null);
+    }
+    if (userId !== null) void refresh();
+  }, [refresh, userId]);
+
+  return { report, error, refresh };
 }
 
 export function App() {
@@ -50,6 +99,7 @@ export function App() {
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
   );
   const [telegramLaunch] = useState(() => initializeTelegram()?.initData ?? "");
+  const progress = useProgressReport(application?.user.id ?? null);
   const notifyReviewSessionChanged = useCallback((): void => {
     setReviewSessionRevision((revision) => revision + 1);
   }, []);
@@ -104,6 +154,10 @@ export function App() {
     }
     void start();
   }, [loadApplication, telegramLaunch]);
+
+  useEffect(() => {
+    if (application !== null && section === "progress") void progress.refresh();
+  }, [application?.user.id, progress.refresh, section]);
 
   const storeWord = useCallback((updated: VocabularyWord): void => {
     setApplication((current) =>
@@ -215,9 +269,12 @@ export function App() {
     case "progress":
       content = (
         <ProgressScreen
+          error={progress.error}
+          report={progress.report}
           onAddWord={() => selectSection("add")}
           onLearn={() => selectSection("learn")}
           onOpenSettings={openSettings}
+          onRetry={() => void progress.refresh()}
         />
       );
       break;
