@@ -71,6 +71,8 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             -o IdentitiesOnly=yes \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=20 \
             -o StrictHostKeyChecking=yes \
             root@194.87.238.188 \
             'cd /root/TheVocabularyApp/the-vocabulary-app-web &&
