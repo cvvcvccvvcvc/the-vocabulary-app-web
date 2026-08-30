@@ -53,6 +53,18 @@ the same design questions again.
 - Empty states should give one relevant next action instead of presenting several empty
   analytical charts.
 
+## Review motion
+
+- Keep the card stack shallow and aligned: one quiet rear edge and one blurred incoming
+  surface are enough to communicate continuity without turning review into a game effect.
+- Tie the stack's depth response directly to horizontal drag progress. A cancelled gesture
+  returns every layer with the card; an accepted gesture promotes the real next card.
+- Remove the incoming blur when the outgoing card leaves the screen, independently of the
+  server response. Saving controls whether another answer is allowed, not visual focus.
+- Animate only the card transforms, opacity, and the small question surface. Decorative
+  layers stay outside the accessibility tree, and reduced-motion mode removes depth and
+  blur transitions.
+
 ## Progress screen
 
 The screen answers three related questions and intentionally adds no general collection
@@ -96,6 +108,8 @@ completion message.
 
 ## Sources
 
+- [Apple Human Interface Guidelines: Motion](https://developer.apple.com/design/human-interface-guidelines/motion)
+- [Apple Human Interface Guidelines: Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
 - [Apple Human Interface Guidelines: Color](https://developer.apple.com/design/human-interface-guidelines/color)
 - [Apple Human Interface Guidelines: Charts](https://developer.apple.com/design/human-interface-guidelines/charts)
 - [Android design guidance: Color](https://developer.android.com/design/ui/mobile/guides/styles/color)
@@ -105,7 +119,9 @@ completion message.
 - [W3C: Understanding non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast)
 - [W3C: Understanding use of color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)
 - [W3C: Understanding target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
+- [W3C: Using `prefers-reduced-motion`](https://www.w3.org/WAI/WCAG21/Techniques/css/C39.html)
 - [US Web Design System: Data visualizations](https://designsystem.digital.gov/components/data-visualizations/)
+- [web.dev: High-performance CSS animations](https://web.dev/articles/animations-guide)
 - [GitHub Docs: Viewing contributions on your profile](https://docs.github.com/en/account-and-profile/concepts/contributions-visible-on-your-profile)
 - [Journal of Consumer Research: The Motivating-Uncertainty Effect of Streaks](https://academic.oup.com/jcr/article/49/6/1095/6623414)
 - [Nature Reviews Psychology: Making memories last using the science of effective learning](https://doi.org/10.1038/s44159-022-00089-1)

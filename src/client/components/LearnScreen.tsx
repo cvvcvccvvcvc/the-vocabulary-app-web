@@ -12,6 +12,7 @@ import {
   type LanguageSettings,
   type ReviewMode,
   type ReviewSession,
+  type ReviewSessionCard,
   type VocabularyWord,
 } from "../../domain/index.js";
 import type { ReviewTransitionRequest } from "../../shared/contracts.js";
@@ -32,7 +33,7 @@ interface LearnScreenProps {
 }
 
 type SwipeAxis = "horizontal" | "vertical" | null;
-type SwipePhase = "idle" | "dragging" | "returning" | "exiting";
+type SwipePhase = "idle" | "dragging" | "returning" | "exiting" | "focusing";
 
 interface SwipeSession {
   pointerId: number;
@@ -43,6 +44,11 @@ interface SwipeSession {
   velocityX: number;
   axis: SwipeAxis;
   thresholdDirection: -1 | 0 | 1;
+}
+
+interface ReviewCardSnapshot {
+  card: ReviewSessionCard;
+  word: VocabularyWord;
 }
 
 const SWIPE_AXIS_LOCK_DISTANCE = 8;
@@ -85,6 +91,119 @@ function SpeakerButton({ className = "", onSpeak }: SpeakerButtonProps) {
   );
 }
 
+interface ReviewCardProps {
+  card: ReviewSessionCard;
+  word: VocabularyWord;
+  settings: LanguageSettings;
+  revealed: boolean;
+  onReveal?: (() => void) | undefined;
+  onSpeak(): void;
+  onPointerDown?: ((event: ReactPointerEvent<HTMLDivElement>) => void) | undefined;
+  onPointerMove?: ((event: ReactPointerEvent<HTMLDivElement>) => void) | undefined;
+  onPointerUp?: ((event: ReactPointerEvent<HTMLDivElement>) => void) | undefined;
+  onPointerCancel?: ((event: ReactPointerEvent<HTMLDivElement>) => void) | undefined;
+}
+
+function ReviewCard({
+  card,
+  word,
+  settings,
+  revealed,
+  onReveal,
+  onSpeak,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+}: ReviewCardProps) {
+  const questionIsLearning = card.direction === "learning-to-known";
+  const question = questionIsLearning ? word.learningText : word.meanings.join(" · ");
+  const questionLanguage = languageName(questionIsLearning ? settings.learningLanguage : settings.knownLanguage);
+  const answerLanguage = languageName(questionIsLearning ? settings.knownLanguage : settings.learningLanguage);
+
+  return (
+    <div
+      className={revealed ? "review-card revealed" : "review-card"}
+      draggable={false}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+    >
+      {revealed ? (
+        <span className="card-reveal">
+          <span className="card-reveal-side">
+            <span className="card-side-label">{questionLanguage}</span>
+            {questionIsLearning ? (
+              <span className="card-learning-row">
+                <span className="card-side-value learning">{question}</span>
+                <SpeakerButton onSpeak={onSpeak} />
+              </span>
+            ) : (
+              <span className="card-side-value known">{question}</span>
+            )}
+          </span>
+          <span className="card-reveal-divider" aria-hidden="true" />
+          <span className="card-reveal-side">
+            <span className="card-side-label">{answerLanguage}</span>
+            {questionIsLearning ? (
+              <span className="card-side-values">
+                {word.meanings.map((meaning, index) => (
+                  <strong className="card-side-value known" key={`${meaning}-${index}`}>
+                    {meaning}
+                  </strong>
+                ))}
+              </span>
+            ) : (
+              <span className="card-learning-row">
+                <strong className="card-side-value learning">{word.learningText}</strong>
+                <SpeakerButton onSpeak={onSpeak} />
+              </span>
+            )}
+            {word.comment !== "" && <small className="card-reveal-comment">“{word.comment}”</small>}
+          </span>
+        </span>
+      ) : (
+        <>
+          <button className="review-card-reveal" type="button" onClick={onReveal}>
+            <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
+              {question}
+            </span>
+          </button>
+          {questionIsLearning && <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+interface ReviewCardPreviewProps {
+  snapshot: ReviewCardSnapshot | null;
+}
+
+function ReviewCardPreview({ snapshot }: ReviewCardPreviewProps) {
+  const question = snapshot === null
+    ? null
+    : snapshot.card.direction === "learning-to-known"
+      ? snapshot.word.learningText
+      : snapshot.word.meanings.join(" · ");
+  const knownQuestion = snapshot?.card.direction === "known-to-learning";
+
+  return (
+    <div className="review-card-preview-layer" aria-hidden="true">
+      <div className="review-card review-card-preview">
+        {question === null ? (
+          <span className="review-card-preview-placeholder" />
+        ) : (
+          <span className={knownQuestion ? "card-question known-question" : "card-question"}>
+            {question}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LearnScreen({
   words,
   settings,
@@ -98,7 +217,7 @@ export function LearnScreen({
   const [dragX, setDragX] = useState(0);
   const [swipeThreshold, setSwipeThreshold] = useState(90);
   const [swipePhase, setSwipePhase] = useState<SwipePhase>("idle");
-  const [pendingAnswer, setPendingAnswer] = useState<boolean | null>(null);
+  const [outgoingCard, setOutgoingCard] = useState<ReviewCardSnapshot | null>(null);
   const [modeHelpOpen, setModeHelpOpen] = useState(false);
   const modeHelp = useDismissiblePopover<HTMLElement>(modeHelpOpen, setModeHelpOpen);
   const { card, revealed, phase } = session.snapshot;
@@ -110,11 +229,17 @@ export function LearnScreen({
     return () => setTelegramVerticalSwipesEnabled(true);
   }, []);
 
+  useEffect(() => {
+    if (swipePhase !== "focusing") return;
+    const frame = window.requestAnimationFrame(() => setSwipePhase("idle"));
+    return () => window.cancelAnimationFrame(frame);
+  }, [swipePhase]);
+
   const resetSwipe = useCallback(() => {
     swipeSession.current = null;
     setDragX(0);
     setSwipePhase("idle");
-    setPendingAnswer(null);
+    setOutgoingCard(null);
   }, []);
 
   const chooseNext = useCallback(async (latestWords: VocabularyWord[]) => {
@@ -152,15 +277,15 @@ export function LearnScreen({
   useEffect(() => {
     function handleKey(event: KeyboardEvent): void {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      if (event.code === "Space" && currentWord !== null) {
+      if (event.code === "Space" && currentWord !== null && swipePhase === "idle") {
         event.preventDefault();
         if (session.reveal()) {
           onSessionChanged();
         }
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowLeft") {
-        void answer(false);
+        startAnswer(false, window.innerWidth + 620);
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowRight") {
-        void answer(true);
+        startAnswer(true, window.innerWidth + 620);
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -187,7 +312,7 @@ export function LearnScreen({
     }
   }
 
-  async function answer(correct: boolean): Promise<void> {
+  function startAnswer(correct: boolean, exitDistance: number): void {
     if (
       card === null
       || currentWord === null
@@ -195,15 +320,21 @@ export function LearnScreen({
     ) return;
 
     const transition = session.beginTransition(words, currentWord.id, correct);
-    if (transition === null) return;
+    if (transition === null) {
+      setDragX(0);
+      setSwipePhase(Math.abs(dragX) > 1 ? "returning" : "idle");
+      return;
+    }
 
     const operation = reviewTransitions.begin(transition);
     if (operation === null) return;
 
-    resetSwipe();
+    setOutgoingCard({ card: { ...card }, word: currentWord });
+    setSwipePhase("exiting");
+    setDragX((correct ? 1 : -1) * exitDistance);
     onSessionChanged();
     setError(null);
-    await saveTransition(operation);
+    void saveTransition(operation);
   }
 
   async function retryTransition(): Promise<void> {
@@ -215,10 +346,10 @@ export function LearnScreen({
     await saveTransition(operation);
   }
 
-  function speak(): void {
-    if (currentWord === null || !("speechSynthesis" in window)) return;
+  function speak(word: VocabularyWord): void {
+    if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(currentWord.learningText);
+    const utterance = new SpeechSynthesisUtterance(word.learningText);
     utterance.lang = settings.learningLanguage;
     window.speechSynthesis.speak(utterance);
     telegramImpact();
@@ -303,19 +434,17 @@ export function LearnScreen({
     }
 
     const correct = deltaX > 0;
-    setPendingAnswer(correct);
-    setSwipePhase("exiting");
-    setDragX((correct ? 1 : -1) * (window.innerWidth + event.currentTarget.offsetWidth));
+    startAnswer(correct, window.innerWidth + event.currentTarget.offsetWidth);
   }
 
   function handleSwipeTransitionEnd(event: ReactTransitionEvent<HTMLDivElement>): void {
-    if (event.propertyName !== "transform") return;
+    if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
     if (swipePhase === "returning") {
       setSwipePhase("idle");
-    } else if (swipePhase === "exiting" && pendingAnswer !== null) {
-      const correct = pendingAnswer;
-      setPendingAnswer(null);
-      void answer(correct);
+    } else if (swipePhase === "exiting" && outgoingCard !== null) {
+      setOutgoingCard(null);
+      setDragX(0);
+      setSwipePhase("focusing");
     }
   }
 
@@ -354,16 +483,26 @@ export function LearnScreen({
     );
   }
 
-  const question = card.direction === "learning-to-known" ? currentWord.learningText : currentWord.meanings.join(" · ");
-  const questionIsLearning = card.direction === "learning-to-known";
-  const questionLanguage = languageName(questionIsLearning ? settings.learningLanguage : settings.knownLanguage);
-  const answerLanguage = languageName(questionIsLearning ? settings.knownLanguage : settings.learningLanguage);
+  const displayedCard = outgoingCard ?? { card, word: currentWord };
+  const incomingCard = outgoingCard === null ? null : { card, word: currentWord };
   const scheduledDueCount = words.filter((word) => isScheduledReviewCandidate(word, new Date())).length;
   const swipeDirection = dragX > 0 ? "swiping-right" : dragX < 0 ? "swiping-left" : "";
   const swipeProgress = Math.min(Math.abs(dragX) / swipeThreshold, 1);
   const swipeRotation = Math.max(-7, Math.min(7, dragX / 24));
-  const swipeStyle: CSSProperties & { "--swipe-progress": number } = {
+  const stackStyle: CSSProperties & {
+    "--swipe-progress": number;
+    "--stack-scale": number;
+    "--stack-offset": string;
+    "--rear-scale": number;
+    "--rear-offset": string;
+  } = {
     "--swipe-progress": swipeProgress,
+    "--stack-scale": 0.985 + swipeProgress * 0.015,
+    "--stack-offset": `${6 * (1 - swipeProgress)}px`,
+    "--rear-scale": 0.97 + swipeProgress * 0.015,
+    "--rear-offset": `${12 - swipeProgress * 6}px`,
+  };
+  const swipeStyle: CSSProperties = {
     transform: `translate3d(${dragX}px, 0, 0) rotate(${swipeRotation}deg)`,
   };
 
@@ -374,7 +513,7 @@ export function LearnScreen({
         className="review-mode-header"
       >
         <button
-          className={card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}
+          className={displayedCard.card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}
           type="button"
           aria-haspopup="dialog"
           aria-expanded={modeHelpOpen}
@@ -382,93 +521,46 @@ export function LearnScreen({
           onClick={() => setModeHelpOpen((open) => !open)}
         >
           <span aria-hidden="true" />
-          {card.mode === "scheduled" ? "Scheduled Review" : "Free Review"}
+          {displayedCard.card.mode === "scheduled" ? "Scheduled Review" : "Free Review"}
         </button>
-        {card.mode === "scheduled" && <small>{scheduledDueCount} left</small>}
+        {displayedCard.card.mode === "scheduled" && <small>{scheduledDueCount} left</small>}
         {modeHelpOpen && (
           <HelpPopover
             id="review-mode-help"
-            label={`${card.mode === "scheduled" ? "Scheduled" : "Free"} Review details`}
-            items={REVIEW_HELP_ITEMS[card.mode]}
+            label={`${displayedCard.card.mode === "scheduled" ? "Scheduled" : "Free"} Review details`}
+            items={REVIEW_HELP_ITEMS[displayedCard.card.mode]}
             className="review-mode-help"
           />
         )}
       </header>
 
       <div className="review-stage">
-        <div className="review-card-shell">
+        <div className={`review-card-shell ${swipePhase}`} style={stackStyle}>
+          <ReviewCardPreview snapshot={incomingCard} />
           <div
             className={`review-card-drag-layer ${swipePhase} ${swipeDirection}`}
             style={swipeStyle}
             onTransitionEnd={handleSwipeTransitionEnd}
           >
-            <div
-              className={revealed ? "review-card revealed" : "review-card"}
-              draggable={false}
-              onPointerDown={handleSwipeStart}
-              onPointerMove={handleSwipeMove}
-              onPointerUp={(event) => finishSwipe(event)}
-              onPointerCancel={(event) => finishSwipe(event, true)}
-            >
-              {revealed ? (
-                <span className="card-reveal">
-                  <span className="card-reveal-side">
-                    <span className="card-side-label">{questionLanguage}</span>
-                    {questionIsLearning ? (
-                      <span className="card-learning-row">
-                        <span className="card-side-value learning">{question}</span>
-                        <SpeakerButton onSpeak={speak} />
-                      </span>
-                    ) : (
-                      <span className="card-side-value known">{question}</span>
-                    )}
-                  </span>
-                  <span className="card-reveal-divider" aria-hidden="true" />
-                  <span className="card-reveal-side">
-                    <span className="card-side-label">{answerLanguage}</span>
-                    {questionIsLearning ? (
-                      <span className="card-side-values">
-                        {currentWord.meanings.map((meaning, index) => (
-                          <strong className="card-side-value known" key={`${meaning}-${index}`}>
-                            {meaning}
-                          </strong>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="card-learning-row">
-                        <strong className="card-side-value learning">
-                          {currentWord.learningText}
-                        </strong>
-                        <SpeakerButton onSpeak={speak} />
-                      </span>
-                    )}
-                    {currentWord.comment !== "" && <small className="card-reveal-comment">“{currentWord.comment}”</small>}
-                  </span>
-                </span>
-              ) : (
-                <>
-                  <button
-                    className="review-card-reveal"
-                    type="button"
-                    onClick={() => {
-                      if (session.reveal()) {
-                        onSessionChanged();
-                        telegramImpact();
-                      }
-                    }}
-                  >
-                    <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
-                      {question}
-                    </span>
-                  </button>
-                  {questionIsLearning && (
-                    <SpeakerButton className="review-card-speaker" onSpeak={speak} />
-                  )}
-                </>
-              )}
-            </div>
+            <ReviewCard
+              card={displayedCard.card}
+              word={displayedCard.word}
+              settings={settings}
+              revealed={outgoingCard === null ? revealed : true}
+              onReveal={outgoingCard === null ? () => {
+                if (session.reveal()) {
+                  onSessionChanged();
+                  telegramImpact();
+                }
+              } : undefined}
+              onSpeak={() => speak(displayedCard.word)}
+              onPointerDown={outgoingCard === null ? handleSwipeStart : undefined}
+              onPointerMove={outgoingCard === null ? handleSwipeMove : undefined}
+              onPointerUp={outgoingCard === null ? (event) => finishSwipe(event) : undefined}
+              onPointerCancel={outgoingCard === null ? (event) => finishSwipe(event, true) : undefined}
+            />
           </div>
-          {phase === "transition-failed" ? (
+          {outgoingCard !== null || swipePhase === "focusing" ? null : phase === "transition-failed" ? (
             <div className="review-transition-failure">
               <p className="notice notice-error">{error ?? "Could not save the answer"}</p>
               <button
