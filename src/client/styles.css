@@ -338,8 +338,7 @@ button.titlebar-icon.active {
   gap: 22px;
 }
 
-.add-field,
-.add-meanings {
+.add-field {
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -353,7 +352,7 @@ button.titlebar-icon.active {
 }
 
 .add-field > span,
-.add-meanings > legend {
+.meaning-fields > legend {
   width: 100%;
   color: var(--secondary);
   font-size: 11px;
@@ -364,7 +363,7 @@ button.titlebar-icon.active {
 
 .add-field input,
 .add-field textarea,
-.add-meaning-row input {
+.meaning-fields-add .meaning-row input {
   width: 100%;
   padding: 0;
   border: 0;
@@ -382,7 +381,7 @@ button.titlebar-icon.active {
 }
 
 .learning-field input::placeholder,
-.add-meaning-row input::placeholder,
+.meaning-row input::placeholder,
 .comment-field textarea::placeholder {
   color: var(--tertiary);
   opacity: 1;
@@ -395,45 +394,152 @@ button.titlebar-icon.active {
   background: var(--separator);
 }
 
-.add-meanings {
+.meaning-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.meaning-fields > legend {
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.meaning-fields-add {
+  text-align: center;
+}
+
+.meaning-rows {
+  position: relative;
   display: grid;
   gap: 8px;
 }
 
-.add-meaning-row {
+.meaning-row {
   position: relative;
-  display: flex;
-  min-height: 40px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  min-height: 44px;
   align-items: center;
-  padding: 0 42px;
+  gap: 4px;
 }
 
-.add-meaning-row input {
+.meaning-row input {
+  min-width: 0;
+}
+
+.meaning-fields-add .meaning-row input {
   font-size: 27px;
   font-weight: 500;
 }
 
-.circle-control {
-  position: absolute;
-  right: 0;
+.meaning-control-slot {
   display: grid;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--secondary);
-  background: var(--hover);
+  height: 44px;
   place-items: center;
 }
 
-.circle-control svg {
-  width: 16px;
-  height: 16px;
+.meaning-control {
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--secondary);
+  background: transparent;
+  place-items: center;
 }
 
-.remove-control {
-  font-size: 18px;
+.meaning-control:hover {
+  background: var(--hover);
+}
+
+.meaning-control svg {
+  width: 20px;
+  height: 20px;
+}
+
+.meaning-remove {
+  font-size: 20px;
+}
+
+.meaning-remove::before {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  content: "";
+}
+
+.meaning-reorder {
+  touch-action: none;
+  cursor: grab;
+}
+
+.meaning-row.dragging {
+  z-index: 2;
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 12%);
+}
+
+.meaning-row.dragging .meaning-reorder {
+  cursor: grabbing;
+}
+
+.meaning-row.drop-before::before,
+.meaning-drop-end {
+  position: absolute;
+  right: 44px;
+  left: 44px;
+  border-top: 2px solid var(--accent);
+  pointer-events: none;
+  content: "";
+}
+
+.meaning-row.drop-before::before {
+  top: -5px;
+}
+
+.meaning-drop-end {
+  bottom: -5px;
+}
+
+.meaning-move-menu {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: center;
+  gap: 8px;
+  padding-block: 4px;
+}
+
+.meaning-move-menu button {
+  flex: 1;
+  min-height: 44px;
+  max-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--floating);
+  font-size: 14px;
+}
+
+.meaning-limit {
+  margin: 10px 0 0;
+  color: var(--secondary);
+  font-size: 12px;
+}
+
+.meaning-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .comment-field textarea {
@@ -1290,8 +1396,7 @@ button.titlebar-icon.active {
 }
 
 .detail-label,
-.detail-edit-field > span,
-.detail-edit-meanings > legend {
+.detail-edit-field > span {
   color: var(--secondary);
   font-size: 11px;
   font-weight: 600;
@@ -1458,8 +1563,7 @@ button.titlebar-icon.active {
   gap: 34px;
 }
 
-.detail-edit-field,
-.detail-edit-meanings {
+.detail-edit-field {
   display: grid;
   min-width: 0;
   margin: 0;
@@ -1468,13 +1572,9 @@ button.titlebar-icon.active {
   gap: 10px;
 }
 
-.detail-edit-meanings {
-  position: relative;
-}
-
 .detail-edit-field input,
 .detail-edit-field textarea,
-.detail-meaning-row input {
+.meaning-fields-edit .meaning-row input {
   width: 100%;
   padding: 9px 0 13px;
   border: 0;
@@ -1487,7 +1587,7 @@ button.titlebar-icon.active {
 
 .detail-edit-field input:focus,
 .detail-edit-field textarea:focus,
-.detail-meaning-row input:focus {
+.meaning-fields-edit .meaning-row input:focus {
   border-bottom-color: var(--accent);
 }
 
@@ -1497,7 +1597,7 @@ button.titlebar-icon.active {
   font-weight: 500;
 }
 
-.detail-meaning-row input {
+.meaning-fields-edit .meaning-row input {
   font-size: 20px;
 }
 
@@ -1507,45 +1607,6 @@ button.titlebar-icon.active {
   font-size: 16px;
   font-style: italic;
   line-height: 1.5;
-}
-
-.detail-meaning-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.add-meaning-button,
-.remove-meaning-button {
-  display: grid;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--secondary);
-  background: var(--floating);
-  place-items: center;
-}
-
-.add-meaning-button {
-  position: absolute;
-  top: -13px;
-  right: 0;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  box-shadow: 0 8px 22px rgb(0 0 0 / 6%);
-}
-
-.add-meaning-button svg {
-  width: 23px;
-  height: 23px;
-}
-
-.remove-meaning-button {
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  flex: 0 0 auto;
-  font-size: 20px;
 }
 
 /* Progress */
@@ -2307,7 +2368,7 @@ button.titlebar-icon.active {
     font-size: 33px;
   }
 
-  .add-meaning-row input {
+  .meaning-fields-add .meaning-row input {
     font-size: 24px;
   }
 

@@ -10,6 +10,7 @@ export type IconName =
   | "delete"
   | "edit"
   | "flame"
+  | "grip"
   | "learn"
   | "level"
   | "list"
@@ -37,6 +38,7 @@ export function Icon({ name, ...props }: IconProps) {
     delete: <><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6" /></>,
     edit: <><path d="m4 20 4.2-1 10.6-10.6-3.2-3.2L5 15.8 4 20Zm10-13 3 3" /></>,
     flame: <><path d="M13.5 2.5c.7 3.2-.7 4.7-2.3 6.1-1.4 1.2-2.7 2.4-2.7 4.8 0 2 1.6 3.6 3.5 3.6s3.5-1.6 3.5-3.6c0-1.2-.5-2.2-1.3-3.2 2.7 1.2 4.3 3.4 4.3 6 0 3.2-2.8 5.8-6.5 5.8s-6.5-2.6-6.5-5.8c0-4.2 3.2-6.7 8-13.7Z" /></>,
+    grip: <path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01" strokeWidth="3" />,
     learn: <><path d="M5 7.5h14v12H5zM7 4.5h10M8 2.5h8" /></>,
     level: <><path d="M5 19V14m7 5V9m7 10V4M3 19h18" /></>,
     list: <><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></>,

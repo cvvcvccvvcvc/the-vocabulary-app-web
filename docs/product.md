@@ -9,6 +9,7 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Responsive Learn, Add Word, Words, and Progress sections. They form the four primary destinations on mobile and desktop. Settings is a secondary destination opened from a gear button and returns to the section that opened it. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
 - Centered review cards with compact labeled question and answer sides.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
+- Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered with its handle or Move up / Move down controls; the empty field is optional and never saved.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only.
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.

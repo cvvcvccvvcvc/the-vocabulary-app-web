@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
+import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../lib/meaningDraft.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon, type IconName } from "./Icons.js";
+import { MeaningFields } from "./MeaningFields.js";
 
 type WordsSort = "recent" | "alphabetical" | "level";
 const EDIT_SAVE_GUARD_MS = 400;
@@ -178,13 +180,14 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   const editStartedAt = useRef(Number.NEGATIVE_INFINITY);
   const [editing, setEditing] = useState(false);
   const [learningText, setLearningText] = useState(word.learningText);
-  const [meanings, setMeanings] = useState(word.meanings);
+  const [meaningDraft, dispatchMeaning] = useReducer(meaningDraftReducer, word.meanings, createMeaningDraft);
+  const meanings = getMeaningValues(meaningDraft);
   const [comment, setComment] = useState(word.comment);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [levelHelpOpen, setLevelHelpOpen] = useState(false);
   const levelHelp = useDismissiblePopover<HTMLDivElement>(levelHelpOpen, setLevelHelpOpen);
-  const canSave = learningText.trim() !== "" && meanings.some((meaning) => meaning.trim() !== "");
+  const canSave = learningText.trim() !== "" && meanings.length > 0;
 
   function speak(): void {
     if (!("speechSynthesis" in window)) return;
@@ -196,7 +199,7 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
 
   function cancelEditing(): void {
     setLearningText(word.learningText);
-    setMeanings(word.meanings);
+    dispatchMeaning({ type: "reset", values: word.meanings });
     setComment(word.comment);
     setEditing(false);
     setMessage(null);
@@ -209,7 +212,7 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
     try {
       const updated = await api.updateWord(word.id, {
         learningText,
-        meanings: meanings.filter((meaning) => meaning.trim() !== ""),
+        meanings,
         comment,
         version: word.version,
       });
@@ -286,36 +289,13 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
                 onChange={(event) => setLearningText(event.target.value)}
               />
             </label>
-            <fieldset className="detail-edit-meanings">
-              <legend>{languageName(settings.knownLanguage)}</legend>
-              {meanings.length < 8 && (
-                <button
-                  className="add-meaning-button"
-                  type="button"
-                  aria-label="Add meaning"
-                  onClick={() => setMeanings((current) => [...current, ""])}
-                >
-                  <Icon name="add" />
-                </button>
-              )}
-              {meanings.map((meaning, index) => (
-                <div className="detail-meaning-row" key={index}>
-                  <input
-                    aria-label={`Meaning ${index + 1}`}
-                    value={meaning}
-                    maxLength={600}
-                    onChange={(event) =>
-                      setMeanings((current) => current.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))
-                    }
-                  />
-                  {meanings.length > 1 && (
-                    <button className="remove-meaning-button" type="button" aria-label={`Remove meaning ${index + 1}`} onClick={() => setMeanings((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
-                      −
-                    </button>
-                  )}
-                </div>
-              ))}
-            </fieldset>
+            <MeaningFields
+              label={languageName(settings.knownLanguage)}
+              rows={meaningDraft.rows}
+              onAction={dispatchMeaning}
+              variant="edit"
+              disabled={saving}
+            />
             <label className="detail-edit-field detail-comment-field">
               <span>Comment</span>
               <textarea rows={5} maxLength={12_000} value={comment} onChange={(event) => setComment(event.target.value)} />

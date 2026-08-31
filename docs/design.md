@@ -18,6 +18,22 @@ the same design questions again.
   alone to distinguish a state; pair it with text, shape, or an icon.
 - Check contrast for icons, chart marks, and other meaningful graphics as well as text.
 
+## Meaning fields
+
+- Add and Edit use the same meaning-field behavior. Keep one optional empty field after
+  the populated meanings; at eight meanings, replace it with a quiet limit label.
+- Never transfer focus to an automatically created field. If a user clears an existing
+  field, keep it in place and remove the other empty slot. Once focus leaves, the empty
+  slot returns to the end. Defer structural changes during IME composition.
+- Give rows stable local identities across edits and moves. Preserve the user's order
+  and exclude the empty slot from saved content; the server still validates uniqueness.
+- Put the reorder handle, input, and remove button in separate columns with 44-pixel
+  control targets. Start dragging only from the handle; text selection and scrolling
+  remain native. Tapping the handle exposes Move up / Move down buttons for touch and
+  keyboard access. Cancelled drags do not change order.
+- Disable Telegram's vertical close gesture while reorder controls are available and
+  restore it when leaving the editor. Scroll the card or screen at its edges during dragging.
+
 ## Data visualization
 
 - A chart must communicate a specific message, not merely display available data. Add a

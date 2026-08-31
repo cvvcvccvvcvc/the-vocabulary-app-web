@@ -7,6 +7,13 @@ Validation is proportional to the affected layer:
 - Authentication helpers require signature, expiry, malformed-input, and browser-bound
   OIDC state tests.
 - UI changes require a production build and focused manual checks at phone and desktop widths.
+- Meaning-editor tests cover automatic empty slots, replacement without changing field
+  identity, first/middle/last deletion, reordering, the eight-meaning limit, composition,
+  reset, and serialization. Manual checks exercise both Add and Edit at 320/390 pixels
+  and desktop width, light/dark themes, keyboard and handle/menu reordering, cancelled
+  drags and edge scrolling, Save/reopen and Cancel, and clearing/retyping a focused field.
+  Check the software keyboard, text selection, composition, and Telegram's vertical
+  close gesture on an actual phone; desktop emulation does not prove those behaviors.
 - Deployment changes require configuration validation before they reach the server.
 - Reminder changes require milestone-boundary, opt-in, deduplication, delivery-result, and
   Worker transport tests.

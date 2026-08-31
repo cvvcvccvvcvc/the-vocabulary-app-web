@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
+import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../lib/meaningDraft.js";
 import { telegramImpact, telegramNotification } from "../lib/telegram.js";
-import { Icon } from "./Icons.js";
+import { MeaningFields } from "./MeaningFields.js";
 
 interface AddWordScreenProps {
   settings: LanguageSettings;
@@ -17,11 +18,12 @@ type AddNotice =
 
 export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScreenProps) {
   const [learningText, setLearningText] = useState("");
-  const [meanings, setMeanings] = useState([""]);
+  const [meaningDraft, dispatchMeaning] = useReducer(meaningDraftReducer, [], createMeaningDraft);
+  const meanings = getMeaningValues(meaningDraft);
   const [comment, setComment] = useState("");
   const [notice, setNotice] = useState<AddNotice | null>(null);
   const [saving, setSaving] = useState(false);
-  const valid = learningText.trim() !== "" && meanings.some((meaning) => meaning.trim() !== "");
+  const valid = learningText.trim() !== "" && meanings.length > 0;
 
   useEffect(() => {
     if (notice === null || notice.kind === "error") return;
@@ -29,13 +31,9 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  function updateMeaning(index: number, value: string): void {
-    setMeanings((current) => current.map((meaning, itemIndex) => (itemIndex === index ? value : meaning)));
-  }
-
   function clear(): void {
     setLearningText("");
-    setMeanings([""]);
+    dispatchMeaning({ type: "reset", values: [] });
     setComment("");
   }
 
@@ -47,7 +45,7 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
     try {
       const result = await api.createWord({
         learningText,
-        meanings: meanings.filter((meaning) => meaning.trim() !== ""),
+        meanings,
         comment,
       });
       onAvailable(result.word);
@@ -100,39 +98,13 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
 
           <span className="add-divider" aria-hidden="true" />
 
-          <fieldset className="add-meanings">
-            <legend>{languageName(settings.knownLanguage)}</legend>
-            {meanings.map((meaning, index) => (
-              <div className="add-meaning-row" key={index}>
-                <input
-                  aria-label={`Meaning ${index + 1}`}
-                  maxLength={600}
-                  placeholder={index === 0 ? "Meaning" : "Another meaning"}
-                  value={meaning}
-                  onChange={(event) => updateMeaning(index, event.target.value)}
-                />
-                {index === 0 && meanings.length < 8 ? (
-                  <button
-                    className="circle-control"
-                    type="button"
-                    aria-label="Add another meaning"
-                    onClick={() => setMeanings((current) => [...current, ""])}
-                  >
-                    <Icon name="add" />
-                  </button>
-                ) : meanings.length > 1 ? (
-                  <button
-                    className="circle-control remove-control"
-                    type="button"
-                    aria-label={`Remove meaning ${index + 1}`}
-                    onClick={() => setMeanings((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                  >
-                    −
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </fieldset>
+          <MeaningFields
+            label={languageName(settings.knownLanguage)}
+            rows={meaningDraft.rows}
+            onAction={dispatchMeaning}
+            variant="add"
+            disabled={saving}
+          />
 
           <span className="add-divider" aria-hidden="true" />
 
@@ -164,7 +136,7 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
           <button
             className="clear-button"
             type="button"
-            disabled={learningText === "" && meanings.every((meaning) => meaning === "") && comment === ""}
+            disabled={saving || (learningText === "" && meaningDraft.rows.every((row) => row.text === "") && comment === "")}
             onClick={clear}
           >
             Clear
