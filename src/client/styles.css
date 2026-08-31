@@ -484,28 +484,16 @@ button.titlebar-icon.active {
   border-radius: 8px;
   background: var(--card);
   box-shadow: 0 5px 18px rgb(0 0 0 / 12%);
+  will-change: transform;
 }
 
 .meaning-row.dragging .meaning-reorder {
   cursor: grabbing;
 }
 
-.meaning-row.drop-before::before,
-.meaning-drop-end {
-  position: absolute;
-  right: 44px;
-  left: 44px;
-  border-top: 2px solid var(--accent);
-  pointer-events: none;
-  content: "";
-}
-
-.meaning-row.drop-before::before {
-  top: -5px;
-}
-
-.meaning-drop-end {
-  bottom: -5px;
+.meaning-fields.reordering .meaning-row:not(.dragging) {
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
 }
 
 .meaning-move-menu {

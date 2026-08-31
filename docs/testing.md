@@ -11,7 +11,9 @@ Validation is proportional to the affected layer:
   identity, first/middle/last deletion, reordering, the eight-meaning limit, composition,
   reset, and serialization. Manual checks exercise both Add and Edit at 320/390 pixels
   and desktop width, light/dark themes, keyboard and handle/menu reordering, cancelled
-  drags and edge scrolling, Save/reopen and Cancel, and clearing/retyping a focused field.
+  drags, live neighbor displacement, edge scrolling at different refresh rates, Save/reopen
+  and Cancel, and clearing/retyping a focused field. Before release, the visible order must
+  match the saved order after reopening.
   Check the software keyboard, text selection, composition, and Telegram's vertical
   close gesture on an actual phone; desktop emulation does not prove those behaviors.
 - Deployment changes require configuration validation before they reach the server.

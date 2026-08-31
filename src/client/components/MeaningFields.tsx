@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent } from "react";
 import { hasMeaning, MAX_MEANINGS, type MeaningAction, type MeaningRow } from "../lib/meaningDraft.js";
+import {
+  calculateMeaningReorderLayout,
+  type MeaningReorderItem,
+  type MeaningReorderShift,
+} from "../lib/meaningReorder.js";
 import { setTelegramVerticalSwipesEnabled } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
+
+const DRAG_START_DISTANCE = 6;
+const DRAG_HORIZONTAL_MARGIN = 48;
+const AUTO_SCROLL_EDGE = 44;
+const AUTO_SCROLL_MAX_SPEED = 600;
 
 interface MeaningFieldsProps {
   label: string;
@@ -21,13 +31,18 @@ interface DragSession {
   x: number;
   y: number;
   startScroll: number;
-  maxScroll: number;
+  geometry: MeaningReorderItem[];
+  sourceIndex: number;
+  targetIndex: number;
+  lastFrameAt: number | null;
   started: boolean;
 }
 
 interface DragPreview {
   id: number;
   beforeId: number | null;
+  targetIndex: number;
+  shifts: MeaningReorderShift[];
   offset: number;
   inside: boolean;
 }
@@ -40,9 +55,11 @@ function findScrollContainer(element: HTMLElement): HTMLElement {
 }
 
 function scrollBounds(scroller: HTMLElement): { top: number; bottom: number } {
-  if (scroller === document.scrollingElement) return { top: 0, bottom: window.innerHeight };
+  const visibleTop = window.visualViewport?.offsetTop ?? 0;
+  const visibleBottom = visibleTop + (window.visualViewport?.height ?? window.innerHeight);
+  if (scroller === document.scrollingElement) return { top: visibleTop, bottom: visibleBottom };
   const bounds = scroller.getBoundingClientRect();
-  return { top: Math.max(0, bounds.top), bottom: Math.min(window.innerHeight, bounds.bottom) };
+  return { top: Math.max(visibleTop, bounds.top), bottom: Math.min(visibleBottom, bounds.bottom) };
 }
 
 export function MeaningFields({ label, rows, onAction, variant, disabled }: MeaningFieldsProps) {
@@ -52,6 +69,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
   const drag = useRef<DragSession | null>(null);
   const animation = useRef<number | null>(null);
   const suppressClick = useRef(false);
+  const menuAtPointerDown = useRef<number | null>(null);
   const [preview, setPreview] = useState<DragPreview | null>(null);
   const [menuId, setMenuId] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -133,31 +151,44 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     const bounds = fieldset.current!.getBoundingClientRect();
     const container = session.scroller;
     const viewport = scrollBounds(container);
-    const beforeId = filled.find((row) => {
-      if (row.id === session.id) return false;
-      const rect = rowElements.current.get(row.id)!.getBoundingClientRect();
-      return session.y < rect.top + rect.height / 2;
-    })?.id ?? null;
+    const offset = session.y - session.startY + container.scrollTop - session.startScroll;
+    const source = session.geometry[session.sourceIndex]!;
+    const layout = calculateMeaningReorderLayout(
+      session.geometry,
+      session.id,
+      source.top + source.height / 2 + offset,
+      session.targetIndex,
+    );
+    session.targetIndex = layout.targetIndex;
     return {
       id: session.id,
-      beforeId,
-      offset: session.y - session.startY + container.scrollTop - session.startScroll,
-      inside: session.x >= bounds.left && session.x <= bounds.right
-        && session.y >= Math.max(bounds.top, viewport.top, 0)
-        && session.y <= Math.min(bounds.bottom, viewport.bottom, window.innerHeight),
+      ...layout,
+      offset,
+      inside: session.x >= bounds.left - DRAG_HORIZONTAL_MARGIN
+        && session.x <= bounds.right + DRAG_HORIZONTAL_MARGIN
+        && session.y >= Math.max(bounds.top, viewport.top)
+        && session.y <= Math.min(bounds.bottom, viewport.bottom),
     };
   }
 
-  function animateDrag(): void {
+  function animateDrag(frameAt: number): void {
     const session = drag.current;
     if (session === null || !session.started) return;
     const container = session.scroller;
     const { top, bottom } = scrollBounds(container);
-    const scroll = session.y < top + 36 ? -Math.min(10, (top + 36 - session.y) / 3)
-      : session.y > bottom - 36 ? Math.min(10, (session.y - bottom + 36) / 3) : 0;
-    container.scrollTop = Math.max(0, Math.min(session.maxScroll, container.scrollTop + scroll));
+    const elapsed = session.lastFrameAt === null ? 0 : Math.min(frameAt - session.lastFrameAt, 32);
+    session.lastFrameAt = frameAt;
+    const velocity = session.y < top + AUTO_SCROLL_EDGE
+      ? -AUTO_SCROLL_MAX_SPEED * Math.min(1, (top + AUTO_SCROLL_EDGE - session.y) / AUTO_SCROLL_EDGE)
+      : session.y > bottom - AUTO_SCROLL_EDGE
+        ? AUTO_SCROLL_MAX_SPEED * Math.min(1, (session.y - bottom + AUTO_SCROLL_EDGE) / AUTO_SCROLL_EDGE)
+        : 0;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    container.scrollTop = Math.max(0, Math.min(maxScroll, container.scrollTop + velocity * elapsed / 1000));
     const next = dragPreview(session);
-    setPreview((current) => current?.beforeId === next.beforeId && current.offset === next.offset && current.inside === next.inside ? current : next);
+    setPreview((current) => current?.targetIndex === next.targetIndex
+      && current.offset === next.offset
+      && current.inside === next.inside ? current : next);
     animation.current = requestAnimationFrame(animateDrag);
   }
 
@@ -169,10 +200,13 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
     suppressClick.current = false;
+    menuAtPointerDown.current = menuId;
+    setMenuId(null);
     drag.current = {
       id, pointerId: event.pointerId, captureTarget: fieldset.current, scroller: container,
       startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY,
-      startScroll: container.scrollTop, maxScroll: container.scrollHeight - container.clientHeight, started: false,
+      startScroll: container.scrollTop, geometry: [], sourceIndex: -1, targetIndex: -1,
+      lastFrameAt: null, started: false,
     };
   }
 
@@ -181,12 +215,19 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     if (session === null || session.pointerId !== event.pointerId) return;
     session.x = event.clientX;
     session.y = event.clientY;
-    if (!session.started && Math.hypot(session.x - session.startX, session.y - session.startY) >= 6) {
+    if (!session.started
+      && Math.hypot(session.x - session.startX, session.y - session.startY) >= DRAG_START_DISTANCE) {
+      session.geometry = filled.map((row) => {
+        const rect = rowElements.current.get(row.id)!.getBoundingClientRect();
+        return { id: row.id, top: rect.top + session.scroller.scrollTop, height: rect.height };
+      });
+      session.sourceIndex = session.geometry.findIndex((item) => item.id === session.id);
+      if (session.sourceIndex < 0) { stopDrag(); return; }
+      session.targetIndex = session.sourceIndex;
       session.started = true;
-      // The list stays in place while the dragged handle is translated.
       session.captureTarget.setPointerCapture(session.pointerId);
-      setMenuId(null);
-      animateDrag();
+      setPreview(dragPreview(session));
+      animation.current = requestAnimationFrame(animateDrag);
     }
   }
 
@@ -197,13 +238,13 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     session.y = event.clientY;
     const target = session.started ? dragPreview(session) : null;
     stopDrag();
-    if (target?.inside) moveRow(session.id, target.beforeId);
+    if (target?.inside && target.targetIndex !== session.sourceIndex) moveRow(session.id, target.beforeId);
   }
 
   return (
     <fieldset
       ref={fieldset}
-      className={`meaning-fields meaning-fields-${variant}`}
+      className={`meaning-fields meaning-fields-${variant}${preview === null ? "" : " reordering"}`}
       disabled={disabled}
       onPointerMove={updateDrag}
       onPointerUp={finishDrag}
@@ -228,13 +269,17 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
           const populated = hasMeaning(row);
           const position = filled.findIndex((item) => item.id === row.id);
           const dragging = preview?.id === row.id;
-          const before = preview?.inside && (preview.beforeId === row.id || (preview.beforeId === null && !populated));
+          const shift = preview?.inside
+            ? preview.shifts.find((item) => item.id === row.id)?.offset ?? 0
+            : 0;
           return (
             <div
               key={row.id}
               ref={(element) => { if (element === null) rowElements.current.delete(row.id); else rowElements.current.set(row.id, element); }}
-              className={`meaning-row${dragging ? " dragging" : ""}${before ? " drop-before" : ""}`}
-              style={dragging ? { transform: `translateY(${preview.offset}px)` } : undefined}
+              className={`meaning-row${dragging ? " dragging" : ""}`}
+              style={preview === null ? undefined : {
+                transform: `translateY(${dragging ? preview.offset : shift}px)`,
+              }}
             >
               <div className="meaning-control-slot">
                 {populated && filled.length > 1 && (
@@ -245,9 +290,11 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                     aria-expanded={menuId === row.id}
                     onPointerDown={(event) => startDrag(event, row.id)}
                     onClick={(event) => {
+                      const wasOpenOnPointerDown = event.detail > 0 && menuAtPointerDown.current === row.id;
+                      menuAtPointerDown.current = null;
                       if (suppressClick.current && event.detail > 0) { suppressClick.current = false; return; }
                       suppressClick.current = false;
-                      setMenuId((current) => current === row.id ? null : row.id);
+                      setMenuId((current) => wasOpenOnPointerDown || current === row.id ? null : row.id);
                     }}
                   >
                     <Icon name="grip" />
@@ -292,7 +339,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
             </div>
           );
         })}
-        {preview?.inside && preview.beforeId === null && filled.length === rows.length && <span className="meaning-drop-end" aria-hidden="true" />}
       </div>
       {filled.length === MAX_MEANINGS && <p className="meaning-limit">8 of 8 meanings</p>}
       <span className="meaning-announcement" role="status" aria-live="polite">{announcement}</span>

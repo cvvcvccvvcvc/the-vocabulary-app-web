@@ -31,8 +31,13 @@ the same design questions again.
   control targets. Start dragging only from the handle; text selection and scrolling
   remain native. Tapping the handle exposes Move up / Move down buttons for touch and
   keyboard access. Cancelled drags do not change order.
+- During dragging, lift the selected row and shift neighboring rows into their prospective
+  positions. The visible order before release must equal the committed order; do not add a
+  separate insertion line. Calculate destinations from geometry captured before rows move,
+  and remove nonessential transitions when reduced motion is requested.
 - Disable Telegram's vertical close gesture while reorder controls are available and
-  restore it when leaving the editor. Scroll the card or screen at its edges during dragging.
+  restore it when leaving the editor. Scroll the visible card or screen at its edges during
+  dragging, including when the software keyboard reduces the visual viewport.
 
 ## Data visualization
 
@@ -125,6 +130,7 @@ completion message.
 ## Sources
 
 - [Apple Human Interface Guidelines: Motion](https://developer.apple.com/design/human-interface-guidelines/motion)
+- [Apple: Build powerful drag and drop in SwiftUI](https://developer.apple.com/videos/play/wwdc2026/271/)
 - [Apple Human Interface Guidelines: Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
 - [Apple Human Interface Guidelines: Color](https://developer.apple.com/design/human-interface-guidelines/color)
 - [Apple Human Interface Guidelines: Charts](https://developer.apple.com/design/human-interface-guidelines/charts)
@@ -135,7 +141,10 @@ completion message.
 - [W3C: Understanding non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast)
 - [W3C: Understanding use of color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)
 - [W3C: Understanding target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
+- [W3C: Understanding dragging movements](https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html)
 - [W3C: Using `prefers-reduced-motion`](https://www.w3.org/WAI/WCAG21/Techniques/css/C39.html)
+- [MDN: Visual Viewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)
+- [MDN: `requestAnimationFrame`](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
 - [US Web Design System: Data visualizations](https://designsystem.digital.gov/components/data-visualizations/)
 - [web.dev: High-performance CSS animations](https://web.dev/articles/animations-guide)
 - [GitHub Docs: Viewing contributions on your profile](https://docs.github.com/en/account-and-profile/concepts/contributions-visible-on-your-profile)
