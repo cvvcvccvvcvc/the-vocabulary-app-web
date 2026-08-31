@@ -10,7 +10,8 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Centered review cards with compact labeled question and answer sides.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
 - Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered by dragging its handle. While dragging, neighboring meanings shift to show the exact resulting order before release, and releasing preserves that order without an intermediate return to the old layout. The empty field is optional, does not participate in reordering, and is never saved.
-- Focused word editing with separate Save and Cancel actions; review level remains read-only.
+- Focused word editing with separate Save and Cancel actions; review level remains read-only
+  and is hidden while editing. Edit and Delete remain separate actions on the word screen.
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
 - The active review-mode badge opens a short contextual explanation. The whole Level card opens an explanation of level progress; neither control relies on a tiny question-mark target.

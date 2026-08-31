@@ -40,6 +40,19 @@ the same design questions again.
   restore it when leaving the editor. Scroll the visible card or screen at its edges during
   dragging, including when the software keyboard reduces the visual viewport.
 
+## Word detail and editing
+
+- Keep Edit and Delete as separate actions on the word screen. Delete remains directly
+  available and asks for confirmation; it does not require entering the editor first.
+- Treat editing as a focused mode: show Cancel on the leading side and the blue Save action
+  on the trailing side. Hide Back, Delete, pronunciation, Level, and bottom navigation until
+  editing ends.
+- Preserve the reading view's typography while editing. Fields have no persistent borders,
+  fills, or underlines; the selected field alone shows a blue line along its bottom edge.
+  Entering edit mode does not choose a field or open the keyboard automatically.
+- Start Comment at one line and grow it with its content. Its active line follows the bottom
+  of the text until eight lines, after which the field scrolls internally.
+
 ## Data visualization
 
 - A chart must communicate a specific message, not merely display available data. Add a

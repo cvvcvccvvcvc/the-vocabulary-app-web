@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
@@ -178,6 +178,7 @@ interface WordDetailProps {
 
 function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetailProps) {
   const editStartedAt = useRef(Number.NEGATIVE_INFINITY);
+  const commentInput = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState(false);
   const [learningText, setLearningText] = useState(word.learningText);
   const [meaningDraft, dispatchMeaning] = useReducer(meaningDraftReducer, word.meanings, createMeaningDraft);
@@ -188,6 +189,13 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   const [levelHelpOpen, setLevelHelpOpen] = useState(false);
   const levelHelp = useDismissiblePopover<HTMLDivElement>(levelHelpOpen, setLevelHelpOpen);
   const canSave = learningText.trim() !== "" && meanings.length > 0;
+
+  useLayoutEffect(() => {
+    const field = commentInput.current;
+    if (!editing || field === null) return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  }, [comment, editing]);
 
   function speak(): void {
     if (!("speechSynthesis" in window)) return;
@@ -238,31 +246,33 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   return (
     <section className={editing ? "word-detail editing" : "word-detail"}>
       <header className={editing ? "detail-toolbar editing" : "detail-toolbar"}>
-        <button className="toolbar-button back-button" type="button" aria-label="Back to words" onClick={onBack}>
-          <Icon name="back" /> <span>Back</span>
-        </button>
-        {editing && (
+        {editing ? (
           <button className="toolbar-button cancel-button" type="button" onClick={cancelEditing}>Cancel</button>
+        ) : (
+          <button className="toolbar-button back-button" type="button" aria-label="Back to words" onClick={onBack}>
+            <Icon name="back" /> <span>Back</span>
+          </button>
         )}
         <div className="detail-toolbar-actions">
           {editing ? (
-            <button className="toolbar-button primary" type="submit" form="word-edit-form" disabled={!canSave || saving}>
+            <button className="toolbar-button primary save-button" type="submit" form="word-edit-form" disabled={!canSave || saving}>
               {saving ? "Saving…" : "Save"}
             </button>
           ) : (
             <>
+              <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
+                <Icon name="delete" /> <span>Delete</span>
+              </button>
               <button
-                className="toolbar-button primary"
+                className="toolbar-button edit-button"
                 type="button"
                 onClick={() => {
                   editStartedAt.current = performance.now();
+                  setLevelHelpOpen(false);
                   setEditing(true);
                 }}
               >
-                <Icon name="edit" /> <span>Edit</span>
-              </button>
-              <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
-                <Icon name="delete" /> <span>Delete</span>
+                Edit
               </button>
             </>
           )}
@@ -285,7 +295,6 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
                 className="detail-learning-input"
                 value={learningText}
                 maxLength={300}
-                autoFocus
                 onChange={(event) => setLearningText(event.target.value)}
               />
             </label>
@@ -298,7 +307,14 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
             />
             <label className="detail-edit-field detail-comment-field">
               <span>Comment</span>
-              <textarea rows={5} maxLength={12_000} value={comment} onChange={(event) => setComment(event.target.value)} />
+              <textarea
+                ref={commentInput}
+                rows={1}
+                maxLength={12_000}
+                placeholder="Add an example or a note…"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+              />
             </label>
           </form>
         ) : (
@@ -325,35 +341,37 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
           </div>
         )}
 
-        <div
-          ref={levelHelp}
-          className="level-help"
-        >
-          <button
-            className="level-card"
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={levelHelpOpen}
-            aria-controls="level-help-popover"
-            onClick={() => setLevelHelpOpen((open) => !open)}
+        {!editing && (
+          <div
+            ref={levelHelp}
+            className="level-help"
           >
-            <span>
-              <span className="detail-label">Level</span>
-              <span className="level-value">Level {word.level} <small>of 9</small></span>
-            </span>
-            <span className="level-progress" aria-label={`Level ${word.level} of 9`}>
-              <span style={{ width: `${(word.level / 9) * 100}%` }} />
-            </span>
-          </button>
-          {levelHelpOpen && (
-            <HelpPopover
-              id="level-help-popover"
-              label="Level details"
-              items={LEVEL_HELP_ITEMS}
-              className="level-help-popover"
-            />
-          )}
-        </div>
+            <button
+              className="level-card"
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={levelHelpOpen}
+              aria-controls="level-help-popover"
+              onClick={() => setLevelHelpOpen((open) => !open)}
+            >
+              <span>
+                <span className="detail-label">Level</span>
+                <span className="level-value">Level {word.level} <small>of 9</small></span>
+              </span>
+              <span className="level-progress" aria-label={`Level ${word.level} of 9`}>
+                <span style={{ width: `${(word.level / 9) * 100}%` }} />
+              </span>
+            </button>
+            {levelHelpOpen && (
+              <HelpPopover
+                id="level-help-popover"
+                label="Level details"
+                items={LEVEL_HELP_ITEMS}
+                className="level-help-popover"
+              />
+            )}
+          </div>
+        )}
 
         {message !== null && <p className="notice notice-error">{message}</p>}
       </div>
