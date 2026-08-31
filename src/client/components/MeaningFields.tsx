@@ -4,15 +4,17 @@ import { hasMeaning, MAX_MEANINGS, type MeaningAction, type MeaningRow } from ".
 import {
   calculateMeaningReorderLayout,
   type MeaningReorderItem,
+  type MeaningReorderLayout,
   type MeaningReorderShift,
 } from "../lib/meaningReorder.js";
 import { setTelegramVerticalSwipesEnabled } from "../lib/telegram.js";
+import { trackPointerGesture } from "../lib/pointerGesture.js";
 import { Icon } from "./Icons.js";
 
 const DRAG_START_DISTANCE = 6;
-const DRAG_HORIZONTAL_MARGIN = 48;
 const AUTO_SCROLL_EDGE = 44;
 const AUTO_SCROLL_MAX_SPEED = 600;
+const DROP_SETTLE_DURATION = 160;
 
 interface MeaningFieldsProps {
   label: string;
@@ -37,15 +39,17 @@ interface DragSession {
   targetIndex: number;
   lastFrameAt: number | null;
   started: boolean;
+  cleanup: () => void;
 }
 
-interface DragPreview {
+interface DragPreview extends MeaningReorderLayout {
   id: number;
-  beforeId: number | null;
-  targetIndex: number;
-  shifts: MeaningReorderShift[];
-  offset: number;
-  inside: boolean;
+}
+
+interface DropAnimation {
+  id: number;
+  offsets: MeaningReorderShift[];
+  active: boolean;
 }
 
 function findScrollContainer(element: HTMLElement): HTMLElement {
@@ -69,7 +73,10 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
   const composing = useRef<number | null>(null);
   const drag = useRef<DragSession | null>(null);
   const animation = useRef<number | null>(null);
+  const dropFrame = useRef<number | null>(null);
+  const dropTimer = useRef<number | null>(null);
   const [preview, setPreview] = useState<DragPreview | null>(null);
+  const [drop, setDrop] = useState<DropAnimation | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const filled = rows.filter(hasMeaning);
   const canReorder = filled.length > 1 && !disabled;
@@ -91,11 +98,15 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       window.removeEventListener("blur", cancel);
       window.removeEventListener("keydown", escape);
       stopDrag();
+      clearDropAnimation();
     };
   }, []);
 
   useEffect(() => {
-    if (disabled) stopDrag();
+    if (disabled) {
+      stopDrag();
+      clearDropAnimation();
+    }
   }, [disabled]);
 
   function activeInputId(): number | null {
@@ -126,6 +137,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
   function detachDrag(session: DragSession | null): void {
     if (drag.current !== session) return;
     drag.current = null;
+    session?.cleanup();
     if (animation.current !== null) cancelAnimationFrame(animation.current);
     animation.current = null;
   }
@@ -137,10 +149,16 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     setPreview(null);
   }
 
+  function clearDropAnimation(): void {
+    if (dropFrame.current !== null) cancelAnimationFrame(dropFrame.current);
+    if (dropTimer.current !== null) window.clearTimeout(dropTimer.current);
+    dropFrame.current = null;
+    dropTimer.current = null;
+    setDrop(null);
+  }
+
   function dragPreview(session: DragSession): DragPreview {
-    const bounds = fieldset.current!.getBoundingClientRect();
     const container = session.scroller;
-    const viewport = scrollBounds(container);
     const offset = session.y - session.startY + container.scrollTop - session.startScroll;
     const source = session.geometry[session.sourceIndex]!;
     const layout = calculateMeaningReorderLayout(
@@ -153,11 +171,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     return {
       id: session.id,
       ...layout,
-      offset,
-      inside: session.x >= bounds.left - DRAG_HORIZONTAL_MARGIN
-        && session.x <= bounds.right + DRAG_HORIZONTAL_MARGIN
-        && session.y >= Math.max(bounds.top, viewport.top)
-        && session.y <= Math.min(bounds.bottom, viewport.bottom),
     };
   }
 
@@ -173,12 +186,16 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       : session.y > bottom - AUTO_SCROLL_EDGE
         ? AUTO_SCROLL_MAX_SPEED * Math.min(1, (session.y - bottom + AUTO_SCROLL_EDGE) / AUTO_SCROLL_EDGE)
         : 0;
+    const first = session.geometry[0]!;
+    const last = session.geometry[session.geometry.length - 1]!;
+    const hiddenAbove = Math.max(0, top - (first.top - container.scrollTop));
+    const hiddenBelow = Math.max(0, last.top + last.height - container.scrollTop - bottom);
+    const scrollStep = Math.max(-hiddenAbove, Math.min(hiddenBelow, velocity * elapsed / 1000));
     const maxScroll = container.scrollHeight - container.clientHeight;
-    container.scrollTop = Math.max(0, Math.min(maxScroll, container.scrollTop + velocity * elapsed / 1000));
+    container.scrollTop = Math.max(0, Math.min(maxScroll, container.scrollTop + scrollStep));
     const next = dragPreview(session);
     setPreview((current) => current?.targetIndex === next.targetIndex
-      && current.offset === next.offset
-      && current.inside === next.inside ? current : next);
+      && current.offset === next.offset ? current : next);
     animation.current = requestAnimationFrame(animateDrag);
   }
 
@@ -187,16 +204,22 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     if (fieldset.current === null) return;
     const container = findScrollContainer(fieldset.current);
     stopDrag();
+    clearDropAnimation();
     event.preventDefault();
     drag.current = {
       id, pointerId: event.pointerId, captureTarget: fieldset.current, scroller: container,
       startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY,
       startScroll: container.scrollTop, geometry: [], sourceIndex: -1, targetIndex: -1,
       lastFrameAt: null, started: false,
+      cleanup: trackPointerGesture(window, event.pointerId, {
+        move: updateDrag,
+        end: finishDrag,
+        cancel: stopDrag,
+      }),
     };
   }
 
-  function updateDrag(event: ReactPointerEvent<HTMLFieldSetElement>): void {
+  function updateDrag(event: PointerEvent): void {
     const session = drag.current;
     if (session === null || session.pointerId !== event.pointerId) return;
     session.x = event.clientX;
@@ -217,7 +240,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     }
   }
 
-  function finishDrag(event: ReactPointerEvent<HTMLFieldSetElement>): void {
+  function finishDrag(event: PointerEvent): void {
     const session = drag.current;
     if (session === null || session.pointerId !== event.pointerId) return;
     session.x = event.clientX;
@@ -229,15 +252,44 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       return;
     }
 
-    // Clearing transforms and applying the new row order in separate renders produces
-    // one visible frame of the old order. Commit both states in the same render so the
-    // layout shown before release is the layout shown after release.
+    const beforeTops = new Map(filled.map((row) => [
+      row.id,
+      rowElements.current.get(row.id)!.getBoundingClientRect().top,
+    ]));
+
+    // Flush the final pointer position even if it arrived before the next animation frame.
+    // FLIP preserves the actual painted positions, including partially shifted neighbors.
     flushSync(() => {
       setPreview(null);
-      if (target.inside && target.targetIndex !== session.sourceIndex) {
+      if (target.targetIndex !== session.sourceIndex) {
         moveRow(session.id, target.beforeId);
       }
     });
+
+    const offsets = filled.flatMap((row) => {
+      const element = rowElements.current.get(row.id);
+      const beforeTop = beforeTops.get(row.id);
+      if (element === undefined || beforeTop === undefined) return [];
+      const offset = beforeTop - element.getBoundingClientRect().top;
+      return Math.abs(offset) < 0.5 ? [] : [{ id: row.id, offset }];
+    });
+
+    if (offsets.length > 0 && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      flushSync(() => setDrop({ id: session.id, offsets, active: false }));
+      rowElements.current.get(offsets[0]!.id)?.getBoundingClientRect();
+      dropFrame.current = requestAnimationFrame(() => {
+        dropFrame.current = null;
+        setDrop((current) => current === null ? null : {
+          ...current,
+          active: true,
+          offsets: current.offsets.map((item) => ({ ...item, offset: 0 })),
+        });
+        dropTimer.current = window.setTimeout(() => {
+          dropTimer.current = null;
+          setDrop(null);
+        }, DROP_SETTLE_DURATION + 80);
+      });
+    }
 
     if (session.captureTarget.hasPointerCapture(session.pointerId)) {
       session.captureTarget.releasePointerCapture(session.pointerId);
@@ -249,9 +301,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       ref={fieldset}
       className={`meaning-fields meaning-fields-${variant}${preview === null ? "" : " reordering"}`}
       disabled={disabled}
-      onPointerMove={updateDrag}
-      onPointerUp={finishDrag}
-      onPointerCancel={() => stopDrag()}
       onLostPointerCapture={(event) => {
         if (event.target === event.currentTarget && drag.current?.pointerId === event.pointerId) stopDrag();
       }}
@@ -266,16 +315,21 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
         {rows.map((row, index) => {
           const populated = hasMeaning(row);
           const dragging = preview?.id === row.id;
-          const shift = preview?.inside
-            ? preview.shifts.find((item) => item.id === row.id)?.offset ?? 0
-            : 0;
+          const shift = preview?.shifts.find((item) => item.id === row.id)?.offset ?? 0;
+          const dropOffset = drop?.offsets.find((item) => item.id === row.id)?.offset;
+          const dropping = dropOffset !== undefined;
           return (
             <div
               key={row.id}
               ref={(element) => { if (element === null) rowElements.current.delete(row.id); else rowElements.current.set(row.id, element); }}
-              className={`meaning-row${dragging ? " dragging" : ""}`}
-              style={preview === null ? undefined : {
-                transform: `translateY(${dragging ? preview.offset : shift}px)`,
+              className={`meaning-row${dragging ? " dragging" : ""}${dropping ? " drop-settling" : ""}${drop?.id === row.id ? " drop-lifted" : ""}${dropping && drop?.active === true ? " drop-settling-active" : ""}`}
+              style={preview !== null
+                ? { transform: `translateY(${dragging ? preview.offset : shift}px)` }
+                : dropping ? { transform: `translateY(${dropOffset}px)` } : undefined}
+              onTransitionEnd={(event) => {
+                if (dropping && drop?.active && event.propertyName === "transform" && event.target === event.currentTarget) {
+                  clearDropAnimation();
+                }
               }}
             >
               <div className="meaning-control-slot">

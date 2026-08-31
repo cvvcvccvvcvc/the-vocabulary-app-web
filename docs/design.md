@@ -30,15 +30,21 @@ the same design questions again.
 - Put the reorder handle, input, and remove button in separate columns with 44-pixel
   control targets. Start dragging only from the handle; text selection and scrolling
   remain native. The handle is direct manipulation, not a button, and does not open a
-  secondary action menu. Cancelled drags do not change order.
+  secondary action menu. Keep the dragged row within the populated rows: moving beyond
+  either end selects the first or last position, while the optional empty field is never
+  a destination. Only an explicit cancellation such as Escape or a system pointer cancel
+  leaves the order unchanged. Track the active gesture on the window so releasing above
+  another field still finishes it, even when pointer capture is unavailable.
 - During dragging, lift the selected row and shift neighboring rows into their prospective
   positions. The visible order before release must equal the committed order; do not add a
-  separate insertion line. Calculate destinations from geometry captured before rows move,
-  and commit the new order in the same render that clears the preview so the old order is
-  never painted between them. Remove nonessential transitions when reduced motion is requested.
+  separate insertion line. Calculate destinations from fixed slot midpoints captured before rows move,
+  commit the displayed order in the same render that clears the preview, and settle every
+  row from its release position into the new layout so the old order is never painted between
+  them. Remove nonessential transitions when reduced motion is requested.
 - Disable Telegram's vertical close gesture while reorder controls are available and
   restore it when leaving the editor. Scroll the visible card or screen at its edges during
-  dragging, including when the software keyboard reduces the visual viewport.
+  dragging, including when the software keyboard reduces the visual viewport. Stop scrolling
+  once the populated track is fully visible; do not scroll toward Comment after its last row.
 
 ## Word detail and editing
 

@@ -15,6 +15,8 @@ export interface MeaningReorderLayout {
   targetIndex: number;
   beforeId: number | null;
   shifts: MeaningReorderShift[];
+  clampedCenter: number;
+  offset: number;
 }
 
 function center(item: MeaningReorderItem): number {
@@ -29,6 +31,16 @@ export function calculateMeaningReorderLayout(
 ): MeaningReorderLayout {
   const sourceIndex = items.findIndex((item) => item.id === sourceId);
   if (sourceIndex < 0) throw new Error("Reordered meaning is missing from its geometry");
+  const source = items[sourceIndex]!;
+  const remaining = items.filter((item) => item.id !== sourceId);
+  const gaps = items.slice(1).map((item, index) => item.top - items[index]!.top - items[index]!.height);
+  const slotTops = [items[0]!.top];
+  for (let index = 0; index < remaining.length; index += 1) {
+    slotTops.push(slotTops[index]! + remaining[index]!.height + gaps[index]!);
+  }
+  const firstCenter = slotTops[0]! + source.height / 2;
+  const lastCenter = slotTops[slotTops.length - 1]! + source.height / 2;
+  const clampedCenter = Math.max(firstCenter, Math.min(lastCenter, draggedCenter));
 
   let targetIndex = previousTargetIndex === undefined
     || previousTargetIndex < 0
@@ -36,37 +48,36 @@ export function calculateMeaningReorderLayout(
     ? sourceIndex
     : previousTargetIndex;
 
-  // The boundary between two possible destinations is the center of the row
-  // that the dragged item would cross. Geometry is captured before rows move,
-  // so visual shifts cannot make the destination oscillate.
-  const boundary = (slotIndex: number): number => {
-    const crossedIndex = slotIndex < sourceIndex ? slotIndex : slotIndex + 1;
-    return center(items[crossedIndex]!);
-  };
+  // Use fixed destination slots, not the animated neighbors. Midpoint boundaries
+  // let a row reach either end without requiring the pointer to overshoot the track.
+  const boundary = (index: number): number => (slotTops[index]! + slotTops[index + 1]! + source.height) / 2;
 
   while (targetIndex < items.length - 1
-    && draggedCenter > boundary(targetIndex) + REORDER_HYSTERESIS) {
+    && clampedCenter > boundary(targetIndex) + REORDER_HYSTERESIS) {
     targetIndex += 1;
   }
   while (targetIndex > 0
-    && draggedCenter < boundary(targetIndex - 1) - REORDER_HYSTERESIS) {
+    && clampedCenter < boundary(targetIndex - 1) - REORDER_HYSTERESIS) {
     targetIndex -= 1;
   }
 
-  const remaining = items.filter((item) => item.id !== sourceId);
-  const shifts = items.map((item, index) => {
-    if (targetIndex > sourceIndex && index > sourceIndex && index <= targetIndex) {
-      return { id: item.id, offset: items[index - 1]!.top - item.top };
-    }
-    if (targetIndex < sourceIndex && index >= targetIndex && index < sourceIndex) {
-      return { id: item.id, offset: items[index + 1]!.top - item.top };
-    }
-    return { id: item.id, offset: 0 };
+  const ordered = [...remaining];
+  ordered.splice(targetIndex, 0, source);
+  let top = items[0]!.top;
+  const destinationTops = new Map(ordered.map((item, index) => {
+    const entry = [item.id, top] as const;
+    top += item.height + (gaps[index] ?? 0);
+    return entry;
+  }));
+  const shifts = items.map((item) => {
+    return { id: item.id, offset: item.id === sourceId ? 0 : destinationTops.get(item.id)! - item.top };
   });
 
   return {
     targetIndex,
     beforeId: remaining[targetIndex]?.id ?? null,
     shifts,
+    clampedCenter,
+    offset: clampedCenter - center(source),
   };
 }

@@ -479,7 +479,8 @@ button.titlebar-icon.active {
   cursor: grab;
 }
 
-.meaning-row.dragging {
+.meaning-row.dragging,
+.meaning-row.drop-lifted {
   z-index: 2;
   border-radius: 8px;
   background: var(--card);
@@ -494,6 +495,14 @@ button.titlebar-icon.active {
 .meaning-fields.reordering .meaning-row:not(.dragging) {
   transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
   will-change: transform;
+}
+
+.meaning-row.drop-settling {
+  will-change: transform;
+}
+
+.meaning-row.drop-settling-active {
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .meaning-limit {
