@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent } from "react";
+import { flushSync } from "react-dom";
 import { hasMeaning, MAX_MEANINGS, type MeaningAction, type MeaningRow } from "../lib/meaningDraft.js";
 import {
   calculateMeaningReorderLayout,
@@ -68,10 +69,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
   const composing = useRef<number | null>(null);
   const drag = useRef<DragSession | null>(null);
   const animation = useRef<number | null>(null);
-  const suppressClick = useRef(false);
-  const menuAtPointerDown = useRef<number | null>(null);
   const [preview, setPreview] = useState<DragPreview | null>(null);
-  const [menuId, setMenuId] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const filled = rows.filter(hasMeaning);
   const canReorder = filled.length > 1 && !disabled;
@@ -97,17 +95,8 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
   }, []);
 
   useEffect(() => {
-    if (disabled) {
-      stopDrag();
-      setMenuId(null);
-    }
+    if (disabled) stopDrag();
   }, [disabled]);
-
-  useEffect(() => {
-    if (menuId !== null) {
-      rowElements.current.get(menuId)?.querySelector<HTMLButtonElement>(".meaning-move-menu button:not(:disabled)")?.focus();
-    }
-  }, [menuId]);
 
   function activeInputId(): number | null {
     const active = document.activeElement;
@@ -124,7 +113,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       if (next !== undefined) rowElements.current.get(next.id)?.querySelector("input")?.focus({ preventScroll: true });
     }
     onAction({ type: "remove", id, activeId: activeInputId() });
-    setMenuId(null);
     setAnnouncement(`Meaning ${index + 1} removed`);
   }
 
@@ -132,18 +120,20 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     const others = filled.filter((row) => row.id !== id);
     const position = beforeId === null ? others.length : others.findIndex((row) => row.id === beforeId);
     onAction({ type: "move", id, beforeId });
-    setMenuId(null);
-    rowElements.current.get(id)?.querySelector<HTMLButtonElement>(".meaning-reorder")?.focus({ preventScroll: true });
     setAnnouncement(`Meaning moved to position ${position + 1} of ${filled.length}`);
+  }
+
+  function detachDrag(session: DragSession | null): void {
+    if (drag.current !== session) return;
+    drag.current = null;
+    if (animation.current !== null) cancelAnimationFrame(animation.current);
+    animation.current = null;
   }
 
   function stopDrag(): void {
     const session = drag.current;
-    drag.current = null;
-    if (animation.current !== null) cancelAnimationFrame(animation.current);
-    animation.current = null;
+    detachDrag(session);
     if (session?.captureTarget.hasPointerCapture(session.pointerId)) session.captureTarget.releasePointerCapture(session.pointerId);
-    if (session?.started) suppressClick.current = true;
     setPreview(null);
   }
 
@@ -192,16 +182,12 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     animation.current = requestAnimationFrame(animateDrag);
   }
 
-  function startDrag(event: ReactPointerEvent<HTMLButtonElement>, id: number): void {
+  function startDrag(event: ReactPointerEvent<HTMLSpanElement>, id: number): void {
     if (!canReorder || !event.isPrimary || event.button !== 0 || composing.current !== null) return;
     if (fieldset.current === null) return;
     const container = findScrollContainer(fieldset.current);
     stopDrag();
     event.preventDefault();
-    event.currentTarget.focus({ preventScroll: true });
-    suppressClick.current = false;
-    menuAtPointerDown.current = menuId;
-    setMenuId(null);
     drag.current = {
       id, pointerId: event.pointerId, captureTarget: fieldset.current, scroller: container,
       startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY,
@@ -237,8 +223,25 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
     session.x = event.clientX;
     session.y = event.clientY;
     const target = session.started ? dragPreview(session) : null;
-    stopDrag();
-    if (target?.inside && target.targetIndex !== session.sourceIndex) moveRow(session.id, target.beforeId);
+    detachDrag(session);
+    if (target === null) {
+      setPreview(null);
+      return;
+    }
+
+    // Clearing transforms and applying the new row order in separate renders produces
+    // one visible frame of the old order. Commit both states in the same render so the
+    // layout shown before release is the layout shown after release.
+    flushSync(() => {
+      setPreview(null);
+      if (target.inside && target.targetIndex !== session.sourceIndex) {
+        moveRow(session.id, target.beforeId);
+      }
+    });
+
+    if (session.captureTarget.hasPointerCapture(session.pointerId)) {
+      session.captureTarget.releasePointerCapture(session.pointerId);
+    }
   }
 
   return (
@@ -249,17 +252,12 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       onPointerMove={updateDrag}
       onPointerUp={finishDrag}
       onPointerCancel={() => stopDrag()}
-      onLostPointerCapture={(event) => { if (event.target === event.currentTarget) stopDrag(); }}
+      onLostPointerCapture={(event) => {
+        if (event.target === event.currentTarget && drag.current?.pointerId === event.pointerId) stopDrag();
+      }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           onAction({ type: "settle", activeId: null });
-          setMenuId(null);
-        }
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && menuId !== null) {
-          rowElements.current.get(menuId)?.querySelector<HTMLButtonElement>(".meaning-reorder")?.focus();
-          setMenuId(null);
         }
       }}
     >
@@ -267,7 +265,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       <div className="meaning-rows">
         {rows.map((row, index) => {
           const populated = hasMeaning(row);
-          const position = filled.findIndex((item) => item.id === row.id);
           const dragging = preview?.id === row.id;
           const shift = preview?.inside
             ? preview.shifts.find((item) => item.id === row.id)?.offset ?? 0
@@ -283,22 +280,13 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
             >
               <div className="meaning-control-slot">
                 {populated && filled.length > 1 && (
-                  <button
+                  <span
                     className="meaning-control meaning-reorder"
-                    type="button"
-                    aria-label={`Reorder meaning ${index + 1}`}
-                    aria-expanded={menuId === row.id}
+                    aria-hidden="true"
                     onPointerDown={(event) => startDrag(event, row.id)}
-                    onClick={(event) => {
-                      const wasOpenOnPointerDown = event.detail > 0 && menuAtPointerDown.current === row.id;
-                      menuAtPointerDown.current = null;
-                      if (suppressClick.current && event.detail > 0) { suppressClick.current = false; return; }
-                      suppressClick.current = false;
-                      setMenuId((current) => wasOpenOnPointerDown || current === row.id ? null : row.id);
-                    }}
                   >
                     <Icon name="grip" />
-                  </button>
+                  </span>
                 )}
               </div>
               <input
@@ -310,7 +298,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                 value={row.text}
                 onFocus={() => {
                   onAction({ type: "settle", activeId: row.id });
-                  setMenuId(null);
                 }}
                 onChange={(event) => onAction({ type: "change", id: row.id, text: event.target.value, composing: composing.current === row.id })}
                 onCompositionStart={() => { composing.current = row.id; }}
@@ -330,12 +317,6 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                   >−</button>
                 )}
               </div>
-              {menuId === row.id && populated && filled.length > 1 && (
-                <div className="meaning-move-menu" role="group" aria-label={`Move meaning ${index + 1}`}>
-                  <button type="button" disabled={position === 0} onClick={() => moveRow(row.id, filled[position - 1]!.id)}>Move up</button>
-                  <button type="button" disabled={position === filled.length - 1} onClick={() => moveRow(row.id, filled[position + 2]?.id ?? null)}>Move down</button>
-                </div>
-              )}
             </div>
           );
         })}

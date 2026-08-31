@@ -496,25 +496,6 @@ button.titlebar-icon.active {
   will-change: transform;
 }
 
-.meaning-move-menu {
-  display: flex;
-  grid-column: 1 / -1;
-  justify-content: center;
-  gap: 8px;
-  padding-block: 4px;
-}
-
-.meaning-move-menu button {
-  flex: 1;
-  min-height: 44px;
-  max-width: 160px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  background: var(--floating);
-  font-size: 14px;
-}
-
 .meaning-limit {
   margin: 10px 0 0;
   color: var(--secondary);

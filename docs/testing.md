@@ -10,10 +10,11 @@ Validation is proportional to the affected layer:
 - Meaning-editor tests cover automatic empty slots, replacement without changing field
   identity, first/middle/last deletion, reordering, the eight-meaning limit, composition,
   reset, and serialization. Manual checks exercise both Add and Edit at 320/390 pixels
-  and desktop width, light/dark themes, keyboard and handle/menu reordering, cancelled
-  drags, live neighbor displacement, edge scrolling at different refresh rates, Save/reopen
-  and Cancel, and clearing/retyping a focused field. Before release, the visible order must
-  match the saved order after reopening.
+  and desktop width, light/dark themes, mouse and touch-handle reordering, cancelled drags,
+  live neighbor displacement, edge scrolling at different refresh rates, Save/reopen and
+  Cancel, and clearing/retyping a focused field. The visible order before release must match
+  the immediate order after release and the saved order after reopening, without a frame of
+  the previous layout between those states.
   Check the software keyboard, text selection, composition, and Telegram's vertical
   close gesture on an actual phone; desktop emulation does not prove those behaviors.
 - Deployment changes require configuration validation before they reach the server.

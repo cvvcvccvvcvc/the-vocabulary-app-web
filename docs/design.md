@@ -29,12 +29,13 @@ the same design questions again.
   and exclude the empty slot from saved content; the server still validates uniqueness.
 - Put the reorder handle, input, and remove button in separate columns with 44-pixel
   control targets. Start dragging only from the handle; text selection and scrolling
-  remain native. Tapping the handle exposes Move up / Move down buttons for touch and
-  keyboard access. Cancelled drags do not change order.
+  remain native. The handle is direct manipulation, not a button, and does not open a
+  secondary action menu. Cancelled drags do not change order.
 - During dragging, lift the selected row and shift neighboring rows into their prospective
   positions. The visible order before release must equal the committed order; do not add a
   separate insertion line. Calculate destinations from geometry captured before rows move,
-  and remove nonessential transitions when reduced motion is requested.
+  and commit the new order in the same render that clears the preview so the old order is
+  never painted between them. Remove nonessential transitions when reduced motion is requested.
 - Disable Telegram's vertical close gesture while reorder controls are available and
   restore it when leaving the editor. Scroll the visible card or screen at its edges during
   dragging, including when the software keyboard reduces the visual viewport.
