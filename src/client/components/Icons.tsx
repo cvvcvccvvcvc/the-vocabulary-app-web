@@ -21,6 +21,7 @@ export type IconName =
   | "sidebar"
   | "sort"
   | "speaker"
+  | "support"
   | "sun";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
@@ -49,6 +50,7 @@ export function Icon({ name, ...props }: IconProps) {
     sidebar: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></>,
     sort: <><path d="M8 5v14m0-14L5 8m3-3 3 3m5 11V5m0 14-3-3m3 3 3-3" /></>,
     speaker: <><path d="M5 10v4h3l4 3V7l-4 3H5Zm10-1a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" /></>,
+    support: <><path d="M3 14v-3a9 9 0 0 1 18 0v3M21 17v1a4 4 0 0 1-4 4h-3" /><rect x="2" y="11" width="4" height="7" rx="2" /><rect x="18" y="11" width="4" height="7" rx="2" /></>,
     sun: <><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
   };
 

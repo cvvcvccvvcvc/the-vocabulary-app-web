@@ -8,6 +8,7 @@ interface TelegramWebApp {
   isVersionAtLeast?(version: string): boolean;
   requestFullscreen?(): void;
   requestWriteAccess?(callback: (granted: boolean) => void): void;
+  openTelegramLink?(url: string): void;
   enableVerticalSwipes?(): void;
   disableVerticalSwipes?(): void;
   setBackgroundColor?(color: string): void;
@@ -70,6 +71,17 @@ export function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
   } else {
     webApp.disableVerticalSwipes?.();
   }
+}
+
+export function openTelegramLink(url: string): boolean {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.initData
+    || webApp.openTelegramLink === undefined
+    || webApp.isVersionAtLeast?.("6.1") === false) {
+    return false;
+  }
+  webApp.openTelegramLink(url);
+  return true;
 }
 
 export function telegramImpact(style: "light" | "medium" | "heavy" = "light"): void {

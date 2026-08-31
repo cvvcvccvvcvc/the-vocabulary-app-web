@@ -17,6 +17,9 @@ the same design questions again.
   semantic color only when it has a stable meaning across the product. Never rely on color
   alone to distinguish a state; pair it with text, shape, or an icon.
 - Check contrast for icons, chart marks, and other meaningful graphics as well as text.
+- Contact Support is a quiet headset icon at the top right of Settings. Use the same
+  neutral text color as the settings gear, a 22-pixel glyph, a 44-pixel hit area,
+  keyboard focus, and a Contact Support tooltip. Do not add a support card or blue accent.
 
 ## Meaning fields
 

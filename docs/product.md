@@ -27,6 +27,9 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
   vertical close gesture is disabled while the interactive calendar is present. A
   brand-new account sees one Add Word action instead of empty analytics.
 - Opt-in Telegram reminders when Scheduled Review cards are ready.
+- A Contact Support headset icon appears only in Settings: in the mobile heading or
+  the desktop titlebar. It opens private messages to `@thevocabularyapp`, without
+  a support form, an extra settings row, or changes to the bot.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
