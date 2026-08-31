@@ -36,7 +36,7 @@ export function ProgressScreen({
     <section className="screen progress-screen">
       <header className="mobile-screen-header progress-mobile-header">
         <h1>Progress</h1>
-        <button className="mobile-header-button" type="button" aria-label="Settings" onClick={onOpenSettings}>
+        <button className="progress-settings-button" type="button" aria-label="Settings" onClick={onOpenSettings}>
           <Icon name="settings" />
         </button>
       </header>

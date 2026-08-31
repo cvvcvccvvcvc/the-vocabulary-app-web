@@ -2524,6 +2524,33 @@ button.titlebar-icon.active {
     display: none;
   }
 
+  /* Mobile controls */
+
+  .search-control,
+  .sort-trigger,
+  .progress-settings-button {
+    height: 48px;
+    border: 0;
+    border-radius: 24px;
+    background: var(--floating);
+    box-shadow: 0 9px 24px rgb(0 0 0 / 5%);
+  }
+
+  .sort-trigger,
+  .progress-settings-button {
+    display: grid;
+    padding: 0;
+    justify-content: center;
+    place-items: center;
+    gap: 0;
+  }
+
+  .sort-trigger:focus-visible,
+  .progress-settings-button:focus-visible {
+    outline: 0;
+    box-shadow: 0 9px 24px rgb(0 0 0 / 5%), inset 0 0 0 2px rgb(10 132 255 / 32%);
+  }
+
   /* Words mobile */
 
   .words-screen {
@@ -2545,15 +2572,6 @@ button.titlebar-icon.active {
     gap: 10px;
   }
 
-  .search-control,
-  .sort-trigger {
-    height: 48px;
-    border: 0;
-    border-radius: 24px;
-    background: var(--floating);
-    box-shadow: 0 9px 24px rgb(0 0 0 / 5%);
-  }
-
   .search-control svg {
     width: 21px;
     height: 21px;
@@ -2566,18 +2584,6 @@ button.titlebar-icon.active {
 
   .sort-menu {
     height: 48px;
-  }
-
-  .sort-trigger {
-    display: grid;
-    padding: 0;
-    justify-content: center;
-    place-items: center;
-    gap: 0;
-  }
-
-  .sort-trigger:focus-visible {
-    box-shadow: 0 9px 24px rgb(0 0 0 / 5%), inset 0 0 0 2px rgb(10 132 255 / 32%);
   }
 
   .sort-trigger svg {
@@ -2800,6 +2806,23 @@ button.titlebar-icon.active {
 
   .progress-mobile-header h1 {
     margin-left: 2px;
+  }
+
+  .progress-settings-button {
+    width: 54px;
+    color: var(--secondary);
+    flex: 0 0 auto;
+  }
+
+  .progress-settings-button:hover,
+  .progress-settings-button:active {
+    color: var(--text);
+    background: var(--hover);
+  }
+
+  .progress-settings-button svg {
+    width: 22px;
+    height: 22px;
   }
 
   .settings-mobile-header {
