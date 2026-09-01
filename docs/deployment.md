@@ -1,12 +1,23 @@
-# RuVDS deployment
+# Production deployment
 
-Production runs on <code>194.87.238.188</code> from:
+Production runs on the Selectel VDS declared in <code>deploy/production.env</code>. The current target is:
+
+| Setting | Value |
+| --- | --- |
+| VDS | <code>135.106.167.202</code> (<code>quiana</code>, Ubuntu 24.04) |
+| Public origin | <code>https://vocabulary.135-106-167-202.sslip.io</code> |
+| S3 bucket | <code>vocabulary-backups-2026</code> in <code>kz-1</code> |
+
+The server checkout is:
 
 ~~~text
 /root/TheVocabularyApp/the-vocabulary-app-web
 ~~~
 
-Caddy terminates HTTPS for <code>vocabulary.194-87-238-188.sslip.io</code>, the application runs in Docker Compose, and SQLite lives in the <code>vocabulary_data</code> Docker volume. The real <code>.env</code> exists only in the server checkout and is never committed.
+Caddy terminates HTTPS, the application runs in Docker Compose, and SQLite lives in the
+<code>deploy_vocabulary_data</code> Docker volume. Public topology is tracked in
+<code>deploy/production.env</code>. The real <code>.env</code> contains only secrets and exists
+only in the server checkout; it is never committed.
 
 ## Manual update
 
@@ -15,8 +26,8 @@ Use this when automatic deployment has not been configured or needs to be retrie
 ~~~bash
 cd /root/TheVocabularyApp/the-vocabulary-app-web
 git pull --ff-only origin main
-docker compose --env-file .env -f deploy/compose.yml up -d --build --remove-orphans
-docker compose --env-file .env -f deploy/compose.yml ps
+docker compose --env-file .env --env-file deploy/production.env -f deploy/compose.yml up -d --build --remove-orphans
+docker compose --env-file .env --env-file deploy/production.env -f deploy/compose.yml ps
 ~~~
 
 Database migrations run automatically when the new application container starts.
@@ -27,7 +38,7 @@ Database migrations run automatically when the new application container starts.
 
 1. Install locked dependencies.
 2. Run tests, type checking, and the production build.
-3. Connect to RuVDS over SSH.
+3. Load the tracked production target and connect to Selectel over SSH.
 4. Fast-forward the server checkout and rebuild Docker Compose.
 5. Confirm that the public <code>/api/config</code> endpoint responds successfully.
 
@@ -39,16 +50,16 @@ Create a dedicated key on a trusted local computer:
 
 ~~~bash
 ssh-keygen -t ed25519 -f ./vocabulary_deploy_key -N '' -C github-actions-vocabulary
-cat ./vocabulary_deploy_key.pub | ssh root@194.87.238.188 \
+sed 's/^/restrict /' ./vocabulary_deploy_key.pub | ssh root@135.106.167.202 \
   'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'
-ssh-keyscan -H 194.87.238.188 2>/dev/null > ./vocabulary_known_hosts
+ssh-keyscan -H 135.106.167.202 2>/dev/null > ./vocabulary_known_hosts
 ~~~
 
 Before trusting the scanned host key, compare its fingerprint with the server:
 
 ~~~bash
 ssh-keygen -lf ./vocabulary_known_hosts
-ssh root@194.87.238.188 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+ssh root@135.106.167.202 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
 ~~~
 
 The fingerprints must match.
@@ -66,15 +77,19 @@ After creating the secrets, open **Actions → Verify and deploy → Run workflo
 
 If deployment reports <code>Host key verification failed</code>, regenerate <code>vocabulary_known_hosts</code> with the command above and replace the complete <code>DEPLOY_KNOWN_HOSTS</code> secret. Do not paste the fingerprint printed by <code>ssh-keygen -lf</code>; GitHub needs the original <code>ssh-keyscan</code> lines.
 
-Keep <code>vocabulary_deploy_key</code> private. It grants SSH access as <code>root</code>; replace it and remove the old public key from <code>authorized_keys</code> if the private key or GitHub repository is compromised.
+Keep <code>vocabulary_deploy_key</code> private. It grants command execution as
+<code>root</code>; the <code>restrict</code> option disables forwarding and interactive terminal
+allocation but is not a privilege boundary. Replace the key and remove its public half from
+<code>authorized_keys</code> if the private key or GitHub repository is compromised.
 
 ## Application configuration
 
-The existing server <code>.env</code> must define:
+The tracked <code>deploy/production.env</code> defines <code>DEPLOY_HOST</code> and
+<code>APP_DOMAIN</code>. They are public deployment settings, not secrets. The existing server
+<code>.env</code> must define only:
 
 | Variable | Purpose |
 | --- | --- |
-| <code>APP_DOMAIN</code> | Public host used by Caddy and <code>APP_ORIGIN</code>. |
 | <code>SESSION_SECRET</code> | High-entropy application secret. |
 | <code>TELEGRAM_BOT_ID</code> | Telegram OIDC client ID. |
 | <code>TELEGRAM_BOT_TOKEN</code> | Mini App init-data validation secret. |
@@ -85,6 +100,17 @@ The existing server <code>.env</code> must define:
 
 Development may additionally set <code>DEV_TELEGRAM_USER_ID</code>. Production refuses that login path.
 
+The normal website's Telegram OIDC client must allow both the public origin and the exact
+callback URI derived from it. For the current production target, configure these in
+<code>@BotFather → Bot Settings → Login Widget → Allowed URLs</code>:
+
+```text
+https://vocabulary.135-106-167-202.sslip.io
+https://vocabulary.135-106-167-202.sslip.io/api/auth/telegram/callback
+```
+
+When the public origin changes, register the new URLs before removing the old ones.
+
 After setting `ANALYTICS_OWNER_TELEGRAM_USER_ID`, sign in to the normal website with that
 Telegram account and open `/analytics` directly. The page is deliberately absent from the
 normal application navigation. Its URL is not the security boundary; the API repeats the
@@ -92,11 +118,19 @@ owner check for every analytics request.
 
 ## Telegram bot integration
 
-Telegram cannot reliably deliver webhooks directly to the RuVDS network. A small Cloudflare Worker therefore relays the request to the existing webhook for The Vocabulary App and returns its response to Telegram. The webhook path keeps no user data and authenticates with a derived secret rather than the bot token. Both the Worker and the application verify the same Telegram webhook secret.
+A small Cloudflare Worker relays Telegram requests to The Vocabulary App and returns its
+response to Telegram. The webhook path keeps no user data and authenticates with a derived
+secret rather than the bot token. Both the Worker and the application verify the same
+Telegram webhook secret.
 
 The same Worker also runs hourly to deliver opt-in Scheduled Review reminders. That path
 requires the bot token and a separate dispatch secret in Cloudflare, but keeps all user and
 delivery state in the server's SQLite database.
+
+If the bot has a Main Mini App or a custom Menu Button configured in <code>@BotFather</code>, its
+URL must equal the current public origin. Buttons returned by <code>/start</code>, <code>/help</code>,
+and reminders do not require separate configuration because the server derives them from
+<code>APP_DOMAIN</code>.
 
 ### Deploy the relay
 
@@ -233,10 +267,62 @@ For rollback, removing the server dispatch secret and recreating the application
 the feature and hides its setting. A Worker-only problem can be handled by redeploying the
 previous Worker version. Neither rollback requires changing the Telegram webhook URL.
 
+## Database backups
+
+The server creates one consistent SQLite snapshot every day at 00:30 UTC with up to ten
+minutes of randomized delay. <code>sqlite3 .backup</code> runs while the application is online,
+the snapshot must pass <code>PRAGMA integrity_check</code>, and gzip-compressed output is uploaded
+to <code>s3://vocabulary-backups-2026/daily/</code>. Temporary local files are removed after the
+upload. The S3 credentials live only in <code>/root/.s3cfg</code> with mode <code>600</code>.
+
+Install or refresh the tracked units after provisioning a server:
+
+```bash
+apt-get install -y s3cmd sqlite3
+install -m 700 deploy/backup/vocabulary-backup /usr/local/sbin/vocabulary-backup
+install -m 644 deploy/backup/vocabulary-backup.service /etc/systemd/system/
+install -m 644 deploy/backup/vocabulary-backup.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now vocabulary-backup.timer
+```
+
+After configuring <code>/root/.s3cfg</code> for the private bucket, run and verify one backup:
+
+```bash
+systemctl start vocabulary-backup.service
+systemctl status vocabulary-backup.service --no-pager
+s3cmd --config=/root/.s3cfg ls s3://vocabulary-backups-2026/daily/ | tail
+```
+
+Test restoration without touching production by downloading to a temporary directory and
+opening the decompressed copy read-only:
+
+```bash
+restore_dir=$(mktemp -d /root/vocabulary-restore-test.XXXXXX)
+latest_object=$(s3cmd --config=/root/.s3cfg ls s3://vocabulary-backups-2026/daily/ | awk 'END { print $4 }')
+s3cmd --config=/root/.s3cfg get "$latest_object" "$restore_dir/vocabulary.sqlite.gz"
+gzip -dc "$restore_dir/vocabulary.sqlite.gz" > "$restore_dir/vocabulary.sqlite"
+sqlite3 -readonly "$restore_dir/vocabulary.sqlite" 'PRAGMA integrity_check;'
+```
+
+The expected result is <code>ok</code>. Remove only the explicit temporary directory after the
+check. A real restore requires stopping the application first, retaining the current database
+as a rollback copy, installing the verified file into the Docker volume with owner
+<code>1000:1000</code> and mode <code>600</code>, and then restarting and checking the public API.
+
+## Server migration order
+
+Never allow two production copies to accept writes. Stop the old application, create and
+verify one final <code>sqlite3 .backup</code>, transfer that exact file, stop the target application,
+install the database, and only then start the target. Preserve the stopped source server until
+the new origin, Telegram login, Worker relay, reminders, GitHub deployment, and S3 restore test
+have all passed. If rollback is needed after the new server accepted writes, transfer a fresh
+snapshot back before starting the old application.
+
 ## Operational notes
 
 - Do not expose the SQLite volume or application port directly.
 - Keep enough free disk space for a second Docker image during builds.
-- Back up the SQLite database off-server.
+- Keep <code>vocabulary-backup.timer</code> enabled and inspect failed units before relying on a copy.
 - Inspect failed releases in GitHub Actions before retrying manually.
 - Keep the Worker deployment aligned with the exact production `main` commit.

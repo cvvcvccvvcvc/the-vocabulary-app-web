@@ -43,6 +43,24 @@ jobs:
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Load production target
+        run: |
+          set -a
+          . deploy/production.env
+          set +a
+          if [[ ! "$DEPLOY_HOST" =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
+            echo "::error title=Invalid production target::DEPLOY_HOST must be an IPv4 address."
+            exit 1
+          fi
+          if [[ ! "$APP_DOMAIN" =~ ^[a-z0-9.-]+$ ]]; then
+            echo "::error title=Invalid production target::APP_DOMAIN must be a hostname."
+            exit 1
+          fi
+          printf 'DEPLOY_HOST=%s\nAPP_DOMAIN=%s\n' "$DEPLOY_HOST" "$APP_DOMAIN" >> "$GITHUB_ENV"
+
       - name: Report missing deployment secrets
         if: env.DEPLOY_SSH_KEY == '' || env.DEPLOY_KNOWN_HOSTS == ''
         run: echo "Verification passed; deployment is skipped until production secrets are configured."
@@ -59,8 +77,8 @@ jobs:
             echo "::error title=Invalid DEPLOY_SSH_KEY::Replace the secret with the complete private key, including its header and footer."
             exit 1
           fi
-          if ! ssh-keygen -F 194.87.238.188 -f "$HOME/.ssh/known_hosts" > /dev/null; then
-            echo "::error title=Invalid DEPLOY_KNOWN_HOSTS::Replace the secret with the complete ssh-keyscan output for 194.87.238.188."
+          if ! ssh-keygen -F "$DEPLOY_HOST" -f "$HOME/.ssh/known_hosts" > /dev/null; then
+            echo "::error title=Invalid DEPLOY_KNOWN_HOSTS::Replace the secret with the complete ssh-keyscan output for $DEPLOY_HOST."
             exit 1
           fi
 
@@ -74,11 +92,11 @@ jobs:
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=20 \
             -o StrictHostKeyChecking=yes \
-            root@194.87.238.188 \
+            root@"$DEPLOY_HOST" \
             'cd /root/TheVocabularyApp/the-vocabulary-app-web &&
              git pull --ff-only origin main &&
-             docker compose --env-file .env -f deploy/compose.yml up -d --build --remove-orphans &&
-             docker compose --env-file .env -f deploy/compose.yml ps'
+             docker compose --env-file .env --env-file deploy/production.env -f deploy/compose.yml up -d --build --remove-orphans &&
+             docker compose --env-file .env --env-file deploy/production.env -f deploy/compose.yml ps'
           curl --fail --silent --show-error \
             --retry 6 --retry-delay 5 \
-            https://vocabulary.194-87-238-188.sslip.io/api/config > /dev/null
+            "https://${APP_DOMAIN}/api/config" > /dev/null

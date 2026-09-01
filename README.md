@@ -6,7 +6,7 @@ The project is under initial development. See:
 
 - [`docs/product.md`](docs/product.md) for product behavior.
 - [`docs/architecture.md`](docs/architecture.md) for system boundaries.
-- [`docs/deployment.md`](docs/deployment.md) for the RuVDS deployment and automatic releases.
+- [`docs/deployment.md`](docs/deployment.md) for the Selectel deployment, backups, and automatic releases.
 - [`docs/testing.md`](docs/testing.md) for validation policy.
 
 ## Local commands
