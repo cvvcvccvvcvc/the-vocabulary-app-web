@@ -4,6 +4,23 @@ interface PointerGestureHandlers {
   cancel: () => void;
 }
 
+export type PointerGestureAxis = "horizontal" | "vertical" | null;
+
+export function resolvePointerGestureAxis(
+  deltaX: number,
+  deltaY: number,
+  lockDistance: number,
+  dominanceRatio: number,
+): PointerGestureAxis {
+  if (Math.hypot(deltaX, deltaY) < lockDistance) return null;
+
+  const distanceX = Math.abs(deltaX);
+  const distanceY = Math.abs(deltaY);
+  if (distanceX > distanceY * dominanceRatio) return "horizontal";
+  if (distanceY > distanceX * dominanceRatio) return "vertical";
+  return null;
+}
+
 // Listen on the window for the lifetime of one gesture, not on its starting element.
 // Pointer capture is useful but must not be the only way to receive its final event.
 export function trackPointerGesture(

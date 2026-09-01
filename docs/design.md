@@ -116,9 +116,12 @@ the same design questions again.
 - Treat the comment as secondary prose rather than a quotation. Preserve its line breaks,
   omit quotation marks, italics, and a visible `Comment` heading, and separate it from the
   meanings with spacing and a neutral rule. Keep it readable in both themes.
-- The card itself owns vertical overflow so reading an oversized card continues to win over
-  the horizontal answer gesture. Start each new presentation at the top, keep short content
-  vertically balanced, and reserve space for review context and mobile navigation around it.
+- The Learn shell stays fixed, including review context and mobile navigation. The card owns
+  vertical overflow on both the question and revealed sides, starts each new presentation at
+  the top, and keeps short content vertically balanced.
+- Resolve gesture intent from a clear dominant axis rather than whether the card currently
+  overflows. Horizontal intent answers; vertical intent scrolls long content or does nothing
+  on a short card; an ambiguous diagonal gesture waits without moving the card.
 
 - Keep the card stack shallow and aligned: one quiet rear edge and one blurred incoming
   surface are enough to communicate continuity without turning review into a game effect.

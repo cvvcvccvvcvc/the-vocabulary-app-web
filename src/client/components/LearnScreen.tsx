@@ -19,6 +19,7 @@ import type { ReviewTransitionRequest } from "../../shared/contracts.js";
 import { api, ApiError } from "../lib/api.js";
 import type { ReviewTransitionTracker } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
+import { resolvePointerGestureAxis, type PointerGestureAxis } from "../lib/pointerGesture.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
@@ -32,7 +33,6 @@ interface LearnScreenProps {
   onUpdated(word: VocabularyWord): void;
 }
 
-type SwipeAxis = "horizontal" | "vertical" | null;
 type SwipePhase = "idle" | "dragging" | "returning" | "exiting" | "focusing";
 
 interface SwipeSession {
@@ -42,7 +42,7 @@ interface SwipeSession {
   lastX: number;
   lastAt: number;
   velocityX: number;
-  axis: SwipeAxis;
+  axis: PointerGestureAxis;
   thresholdDirection: -1 | 0 | 1;
 }
 
@@ -52,6 +52,7 @@ interface ReviewCardSnapshot {
 }
 
 const SWIPE_AXIS_LOCK_DISTANCE = 8;
+const SWIPE_AXIS_DOMINANCE_RATIO = 1.2;
 const SWIPE_DISTANCE_RATIO = 0.27;
 const SWIPE_MIN_FAST_DISTANCE = 36;
 const SWIPE_VELOCITY_THRESHOLD = 0.65;
@@ -192,9 +193,13 @@ function ReviewCard({
           {word.comment !== "" && <p className="card-reveal-comment">{word.comment}</p>}
         </div>
       ) : (
-        <>
+        <div
+          className={questionIsLearning
+            ? "review-card-question-layout learning-question-layout"
+            : "review-card-question-layout"}
+        >
           <button
-            className={questionIsLearning ? "review-card-reveal" : "review-card-reveal known-question-surface"}
+            className="review-card-reveal"
             type="button"
             aria-label={questionIsLearning ? word.learningText : word.meanings.join(", ")}
             lang={questionIsLearning ? settings.learningLanguage : settings.knownLanguage}
@@ -203,7 +208,7 @@ function ReviewCard({
             <CardQuestion direction={card.direction} word={word} settings={settings} />
           </button>
           {questionIsLearning && <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />}
-        </>
+        </div>
       )}
     </div>
   );
@@ -249,8 +254,12 @@ export function LearnScreen({
   const currentWord = words.find((word) => word.id === card?.wordId) ?? null;
 
   useEffect(() => {
+    document.documentElement.classList.add("review-scroll-locked");
     setTelegramVerticalSwipesEnabled(false);
-    return () => setTelegramVerticalSwipesEnabled(true);
+    return () => {
+      document.documentElement.classList.remove("review-scroll-locked");
+      setTelegramVerticalSwipesEnabled(true);
+    };
   }, []);
 
   useEffect(() => {
@@ -380,7 +389,14 @@ export function LearnScreen({
   }
 
   function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>): void {
-    if (!event.isPrimary || event.button !== 0 || !revealed || !canAnswer || swipePhase !== "idle") return;
+    if (
+      !event.isPrimary
+      || event.button !== 0
+      || !revealed
+      || !canAnswer
+      || swipePhase !== "idle"
+      || swipeSession.current !== null
+    ) return;
     const now = performance.now();
     swipeSession.current = {
       pointerId: event.pointerId,
@@ -393,7 +409,6 @@ export function LearnScreen({
       thresholdDirection: 0,
     };
     setSwipeThreshold(event.currentTarget.getBoundingClientRect().width * SWIPE_DISTANCE_RATIO);
-    setSwipePhase("dragging");
   }
 
   function handleSwipeMove(event: ReactPointerEvent<HTMLDivElement>): void {
@@ -403,16 +418,18 @@ export function LearnScreen({
     const deltaX = event.clientX - session.startX;
     const deltaY = event.clientY - session.startY;
     if (session.axis === null) {
-      if (Math.hypot(deltaX, deltaY) < SWIPE_AXIS_LOCK_DISTANCE) return;
-      const canScrollVertically = event.currentTarget.scrollHeight > event.currentTarget.clientHeight + 1;
-      session.axis = !canScrollVertically || Math.abs(deltaX) > Math.abs(deltaY)
-        ? "horizontal"
-        : "vertical";
+      session.axis = resolvePointerGestureAxis(
+        deltaX,
+        deltaY,
+        SWIPE_AXIS_LOCK_DISTANCE,
+        SWIPE_AXIS_DOMINANCE_RATIO,
+      );
+      if (session.axis === null) return;
       if (session.axis === "vertical") {
         swipeSession.current = null;
-        setSwipePhase("idle");
         return;
       }
+      setSwipePhase("dragging");
       event.currentTarget.setPointerCapture(event.pointerId);
     }
 
@@ -453,7 +470,7 @@ export function LearnScreen({
 
     if (!accepted) {
       setDragX(0);
-      setSwipePhase(Math.abs(deltaX) > 1 ? "returning" : "idle");
+      setSwipePhase(session.axis === "horizontal" && Math.abs(deltaX) > 1 ? "returning" : "idle");
       return;
     }
 

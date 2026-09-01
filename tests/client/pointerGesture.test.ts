@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { trackPointerGesture } from "../../src/client/lib/pointerGesture.js";
+import {
+  resolvePointerGestureAxis,
+  trackPointerGesture,
+} from "../../src/client/lib/pointerGesture.js";
 
 function pointer(type: string, pointerId = 1, clientY = 0): Event {
   return Object.assign(new Event(type), { pointerId, clientY });
@@ -72,5 +75,21 @@ describe("pointer gesture lifetime", () => {
     target.dispatchEvent(pointer("pointerup"));
     expect(first.end).not.toHaveBeenCalled();
     expect(second.end).toHaveBeenCalledOnce();
+  });
+});
+
+describe("pointer gesture axis", () => {
+  it("waits until the gesture passes the lock distance", () => {
+    expect(resolvePointerGestureAxis(5, 5, 8, 1.2)).toBeNull();
+  });
+
+  it("locks clear horizontal and vertical intent independently of scrollability", () => {
+    expect(resolvePointerGestureAxis(20, 5, 8, 1.2)).toBe("horizontal");
+    expect(resolvePointerGestureAxis(5, -20, 8, 1.2)).toBe("vertical");
+  });
+
+  it("keeps an ambiguous diagonal gesture unlocked", () => {
+    expect(resolvePointerGestureAxis(20, 18, 8, 1.2)).toBeNull();
+    expect(resolvePointerGestureAxis(-18, -20, 8, 1.2)).toBeNull();
   });
 });
