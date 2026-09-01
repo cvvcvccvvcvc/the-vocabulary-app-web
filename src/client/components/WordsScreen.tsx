@@ -6,9 +6,11 @@ import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../li
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon, type IconName } from "./Icons.js";
 import { MeaningFields } from "./MeaningFields.js";
+import { SwipeableWordRow } from "./SwipeableWordRow.js";
 
 type WordsSort = "recent" | "alphabetical" | "level";
 const EDIT_SAVE_GUARD_MS = 400;
+const WORD_ROW_EXIT_MS = 180;
 const LEVEL_HELP_ITEMS = [
   { marker: "✓", tone: "success", title: "Correct answer", detail: "Moves this word up one level." },
   { marker: "×", tone: "danger", title: "Wrong answer", detail: "Moves this word down one level." },
@@ -40,6 +42,11 @@ export function WordsScreen({
   const [sort, setSort] = useState<WordsSort>("recent");
   const [sortOpen, setSortOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
+  const deleteRequestId = useRef<string | null>(null);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
   const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
@@ -66,17 +73,58 @@ export function WordsScreen({
     }
   }, [selectedId, words]);
 
+  useEffect(() => {
+    if (revealedId !== null && !filtered.some((word) => word.id === revealedId)) {
+      setRevealedId(null);
+    }
+  }, [filtered, revealedId]);
+
+  async function deleteFromList(word: VocabularyWord): Promise<void> {
+    if (deleteRequestId.current !== null || !window.confirm(`Delete “${word.learningText}”?`)) return;
+
+    deleteRequestId.current = word.id;
+    setDeletingId(word.id);
+    setDeleteMessage(null);
+    try {
+      try {
+        await api.deleteWord(word.id);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      }
+
+      setRemovingId(word.id);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, WORD_ROW_EXIT_MS));
+      }
+      setRevealedId(null);
+      onDeleted(word.id);
+    } catch (error) {
+      setDeleteMessage(error instanceof ApiError ? error.message : "Could not delete the word");
+    } finally {
+      if (deleteRequestId.current === word.id) deleteRequestId.current = null;
+      setDeletingId(null);
+      setRemovingId(null);
+    }
+  }
+
   return (
     <section className={selected === null ? "screen words-screen" : "screen words-screen detail-open"}>
       <div className="words-list-pane">
-        <div className="words-controls">
+        <div
+          className="words-controls"
+          onFocusCapture={() => setRevealedId(null)}
+          onPointerDown={() => setRevealedId(null)}
+        >
           <label className="search-control">
             <Icon name="search" />
             <input
               type="search"
               placeholder="Search words"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setRevealedId(null);
+              }}
             />
           </label>
           <div
@@ -115,6 +163,7 @@ export function WordsScreen({
                     onClick={() => {
                       setSort(option.value);
                       setSortOpen(false);
+                      setRevealedId(null);
                       sortTrigger.current?.focus();
                     }}
                   >
@@ -128,21 +177,37 @@ export function WordsScreen({
           </div>
         </div>
 
-        <div className="words-list">
+        {deleteMessage !== null && (
+          <p className="notice notice-error words-delete-error" role="alert">{deleteMessage}</p>
+        )}
+
+        <div
+          className="words-list"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setRevealedId(null);
+          }}
+          onScroll={() => setRevealedId(null)}
+        >
           {filtered.length === 0 && <p className="empty-list">No matching words</p>}
           {filtered.map((word) => (
-            <button
+            <SwipeableWordRow
               key={word.id}
-              className={word.id === selectedId ? "word-row selected" : "word-row"}
-              type="button"
-              onClick={() => setSelectedId(word.id)}
-            >
-              <span className="word-row-copy">
-                <strong>{word.learningText}</strong>
-                <small>{word.meanings.join(", ")}</small>
-              </span>
-              <span className={word.level === 0 ? "level-badge zero" : "level-badge"}>{word.level}</span>
-            </button>
+              word={word}
+              selected={word.id === selectedId}
+              revealed={word.id === revealedId}
+              deleting={word.id === deletingId}
+              removing={word.id === removingId}
+              onSetRevealed={(revealed) => {
+                setDeleteMessage(null);
+                setRevealedId(revealed ? word.id : null);
+              }}
+              onOpen={() => {
+                setDeleteMessage(null);
+                setRevealedId(null);
+                setSelectedId(word.id);
+              }}
+              onDelete={() => void deleteFromList(word)}
+            />
           ))}
         </div>
 

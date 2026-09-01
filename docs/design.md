@@ -54,6 +54,17 @@ the same design questions again.
   dragging, including when the software keyboard reduces the visual viewport. Stop scrolling
   once the populated track is fully visible; do not scroll toward Comment after its last row.
 
+## Word list actions
+
+- Drag a Words row toward the leading edge to reveal one 72-pixel trailing Delete action.
+  Use the solid danger color with a white trash icon; the action appears progressively as
+  the row moves, without a second border, shadow, label, or decorative container.
+- Keep only one action open. Clear horizontal intent owns the row while vertical intent keeps
+  scrolling native; scrolling, opening another word, or moving the row back closes it. A full
+  swipe never deletes by itself: Delete remains a separate tap and uses the same confirmation
+  as the word detail screen. Remove the row only after the server accepts the deletion, and
+  leave it available with an error message when the request fails.
+
 ## Word detail and editing
 
 - Keep Edit and Delete as separate actions on the word screen. Delete remains directly
