@@ -854,8 +854,9 @@ button.titlebar-icon.active {
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  align-items: stretch;
+  align-items: center;
   justify-content: flex-start;
+  flex-direction: column;
 }
 
 .known-question-surface > .card-question {
