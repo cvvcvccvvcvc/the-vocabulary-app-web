@@ -91,6 +91,36 @@ function SpeakerButton({ className = "", onSpeak }: SpeakerButtonProps) {
   );
 }
 
+interface CardQuestionProps {
+  direction: ReviewSessionCard["direction"];
+  word: VocabularyWord;
+  settings: LanguageSettings;
+}
+
+function CardQuestion({ direction, word, settings }: CardQuestionProps) {
+  if (direction === "learning-to-known") {
+    return (
+      <span className="card-question" lang={settings.learningLanguage}>
+        {word.learningText}
+      </span>
+    );
+  }
+
+  const className = word.meanings.length > 1
+    ? "card-question known-question multiple"
+    : "card-question known-question";
+
+  return (
+    <span className={className} lang={settings.knownLanguage}>
+      {word.meanings.map((meaning, index) => (
+        <span className="card-question-meaning" key={`${meaning}-${index}`}>
+          {meaning}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 interface ReviewCardProps {
   card: ReviewSessionCard;
   word: VocabularyWord;
@@ -117,7 +147,6 @@ function ReviewCard({
   onPointerCancel,
 }: ReviewCardProps) {
   const questionIsLearning = card.direction === "learning-to-known";
-  const question = questionIsLearning ? word.learningText : word.meanings.join(" · ");
   const learningLanguage = languageName(settings.learningLanguage);
   const knownLanguage = languageName(settings.knownLanguage);
   const multipleMeanings = word.meanings.length > 1;
@@ -164,10 +193,14 @@ function ReviewCard({
         </div>
       ) : (
         <>
-          <button className="review-card-reveal" type="button" onClick={onReveal}>
-            <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
-              {question}
-            </span>
+          <button
+            className={questionIsLearning ? "review-card-reveal" : "review-card-reveal known-question-surface"}
+            type="button"
+            aria-label={questionIsLearning ? word.learningText : word.meanings.join(", ")}
+            lang={questionIsLearning ? settings.learningLanguage : settings.knownLanguage}
+            onClick={onReveal}
+          >
+            <CardQuestion direction={card.direction} word={word} settings={settings} />
           </button>
           {questionIsLearning && <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />}
         </>
@@ -178,25 +211,17 @@ function ReviewCard({
 
 interface ReviewCardPreviewProps {
   snapshot: ReviewCardSnapshot | null;
+  settings: LanguageSettings;
 }
 
-function ReviewCardPreview({ snapshot }: ReviewCardPreviewProps) {
-  const question = snapshot === null
-    ? null
-    : snapshot.card.direction === "learning-to-known"
-      ? snapshot.word.learningText
-      : snapshot.word.meanings.join(" · ");
-  const knownQuestion = snapshot?.card.direction === "known-to-learning";
-
+function ReviewCardPreview({ snapshot, settings }: ReviewCardPreviewProps) {
   return (
     <div className="review-card-preview-layer" aria-hidden="true">
       <div className="review-card review-card-preview">
-        {question === null ? (
+        {snapshot === null ? (
           <span className="review-card-preview-placeholder" />
         ) : (
-          <span className={knownQuestion ? "card-question known-question" : "card-question"}>
-            {question}
-          </span>
+          <CardQuestion direction={snapshot.card.direction} word={snapshot.word} settings={settings} />
         )}
       </div>
     </div>
@@ -535,7 +560,7 @@ export function LearnScreen({
 
       <div className="review-stage">
         <div className={`review-card-shell ${swipePhase}`} style={stackStyle}>
-          <ReviewCardPreview snapshot={incomingCard} />
+          <ReviewCardPreview snapshot={incomingCard} settings={settings} />
           <div
             className={`review-card-drag-layer ${swipePhase} ${swipeDirection}`}
             style={swipeStyle}

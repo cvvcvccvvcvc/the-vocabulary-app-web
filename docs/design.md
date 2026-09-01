@@ -104,6 +104,11 @@ the same design questions again.
 
 ## Review motion
 
+- Before reveal, keep a single question visually quiet. When the known-language question
+  contains multiple meanings, preserve their order in an unnumbered vertical group. Center
+  the group and each meaning horizontally within the card, and wrap each meaning independently.
+  Let oversized questions scroll vertically inside the card rather than shrinking,
+  truncating, or joining them with punctuation.
 - Keep revealed review cards in a stable reading order regardless of question direction:
   learning language, known-language meanings, then the optional comment. Present multiple
   meanings as a quiet numbered list and omit numbering for a single meaning. Preserve the

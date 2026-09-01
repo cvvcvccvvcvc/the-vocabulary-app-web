@@ -850,6 +850,20 @@ button.titlebar-icon.active {
   justify-content: center;
 }
 
+.review-card-reveal.known-question-surface {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.known-question-surface > .card-question {
+  margin-block: auto;
+  align-self: center;
+  flex: 0 0 auto;
+}
+
 .card-question {
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -874,6 +888,25 @@ button.titlebar-icon.active {
   font-family: inherit;
   font-size: clamp(28px, 4vw, 38px);
   font-weight: 500;
+}
+
+.card-question.known-question.multiple {
+  display: grid;
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  justify-items: center;
+  gap: 12px;
+  line-height: 1.18;
+  text-align: center;
+}
+
+.card-question-meaning {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .speaker-button {
@@ -2526,6 +2559,10 @@ button.titlebar-icon.active {
 
   .card-question.known-question {
     font-size: 24px;
+  }
+
+  .card-question.known-question.multiple {
+    gap: 10px;
   }
 
   .card-reveal {
