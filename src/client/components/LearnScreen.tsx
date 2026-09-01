@@ -118,8 +118,9 @@ function ReviewCard({
 }: ReviewCardProps) {
   const questionIsLearning = card.direction === "learning-to-known";
   const question = questionIsLearning ? word.learningText : word.meanings.join(" · ");
-  const questionLanguage = languageName(questionIsLearning ? settings.learningLanguage : settings.knownLanguage);
-  const answerLanguage = languageName(questionIsLearning ? settings.knownLanguage : settings.learningLanguage);
+  const learningLanguage = languageName(settings.learningLanguage);
+  const knownLanguage = languageName(settings.knownLanguage);
+  const multipleMeanings = word.meanings.length > 1;
 
   return (
     <div
@@ -131,38 +132,36 @@ function ReviewCard({
       onPointerCancel={onPointerCancel}
     >
       {revealed ? (
-        <span className="card-reveal">
-          <span className="card-reveal-side">
-            <span className="card-side-label">{questionLanguage}</span>
-            {questionIsLearning ? (
-              <span className="card-learning-row">
-                <span className="card-side-value learning">{question}</span>
-                <SpeakerButton onSpeak={onSpeak} />
+        <div className="card-reveal">
+          <div className="card-reveal-side">
+            <span className="card-side-label">{learningLanguage}</span>
+            <div className="card-learning-row">
+              <span className="card-side-value learning" lang={settings.learningLanguage}>
+                {word.learningText}
               </span>
-            ) : (
-              <span className="card-side-value known">{question}</span>
-            )}
-          </span>
+              <SpeakerButton onSpeak={onSpeak} />
+            </div>
+          </div>
           <span className="card-reveal-divider" aria-hidden="true" />
-          <span className="card-reveal-side">
-            <span className="card-side-label">{answerLanguage}</span>
-            {questionIsLearning ? (
-              <span className="card-side-values">
-                {word.meanings.map((meaning, index) => (
-                  <strong className="card-side-value known" key={`${meaning}-${index}`}>
-                    {meaning}
-                  </strong>
-                ))}
-              </span>
-            ) : (
-              <span className="card-learning-row">
-                <strong className="card-side-value learning">{word.learningText}</strong>
-                <SpeakerButton onSpeak={onSpeak} />
-              </span>
-            )}
-            {word.comment !== "" && <small className="card-reveal-comment">“{word.comment}”</small>}
-          </span>
-        </span>
+          <div className="card-reveal-side">
+            <span className="card-side-label">{knownLanguage}</span>
+            <ol
+              className={multipleMeanings ? "card-meaning-list" : "card-meaning-list single"}
+              aria-label={`${knownLanguage} meanings`}
+              role="list"
+            >
+              {word.meanings.map((meaning, index) => (
+                <li key={`${meaning}-${index}`} role="listitem">
+                  {multipleMeanings && (
+                    <span className="card-meaning-number" aria-hidden="true">{index + 1}</span>
+                  )}
+                  <span className="card-meaning-text" lang={settings.knownLanguage}>{meaning}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          {word.comment !== "" && <p className="card-reveal-comment">{word.comment}</p>}
+        </div>
       ) : (
         <>
           <button className="review-card-reveal" type="button" onClick={onReveal}>
@@ -543,6 +542,7 @@ export function LearnScreen({
             onTransitionEnd={handleSwipeTransitionEnd}
           >
             <ReviewCard
+              key={`${displayedCard.card.wordId}:${displayedCard.card.direction}:${displayedCard.card.mode}`}
               card={displayedCard.card}
               word={displayedCard.word}
               settings={settings}

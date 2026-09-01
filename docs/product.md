@@ -7,7 +7,9 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Telegram identity shared by the website and Telegram Mini App.
 - The bot's `/start` and `/help` commands return a compact launch menu for Learn, Add Word, and Words. Each button opens the Mini App directly on that section.
 - Responsive Learn, Add Word, Words, and Progress sections. They form the four primary destinations on mobile and desktop. Settings is a secondary destination opened from a gear button and returns to the section that opened it. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
-- Centered review cards with compact labeled question and answer sides.
+- Centered review cards. Before reveal they show only the question. After reveal they use
+  one stable reading order: learning language, ordered known-language meanings, then the
+  optional comment. Multiple meanings are individually numbered; a single meaning is not.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
 - Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered by dragging its handle. While dragging, neighboring meanings shift to show the exact resulting order before release; moving beyond the populated rows keeps the first or last position selected, and releasing settles into that order without an intermediate return to the old layout. The empty field is optional, does not participate in reordering, and is never saved.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only

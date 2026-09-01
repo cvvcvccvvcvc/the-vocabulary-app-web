@@ -612,9 +612,23 @@ button.titlebar-icon.active {
 /* Learn */
 
 .learn-screen {
+  --review-stage-top: 82px;
+  --review-stage-bottom: 74px;
+  --review-navigation-space: 0px;
+  --review-card-max-height: max(
+    160px,
+    calc(
+      100svh - var(--titlebar-height) - var(--review-stage-top)
+      - var(--review-stage-bottom) - var(--review-navigation-space)
+    )
+  );
   position: relative;
   display: flex;
+  height: calc(100svh - var(--titlebar-height));
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   flex-direction: column;
 }
 
@@ -673,8 +687,10 @@ button.titlebar-icon.active {
   position: relative;
   display: flex;
   width: min(620px, calc(100% - 80px));
+  height: 100%;
+  min-height: 0;
   margin: auto;
-  padding: 82px 0 74px;
+  padding: var(--review-stage-top) 0 var(--review-stage-bottom);
   align-items: center;
   flex-direction: column;
 }
@@ -802,11 +818,14 @@ button.titlebar-icon.active {
 }
 
 .review-card.revealed {
+  min-height: min(245px, var(--review-card-max-height));
+  max-height: var(--review-card-max-height);
   cursor: grab;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
   user-select: none;
+  justify-content: flex-start;
 }
 
 .review-card-drag-layer.dragging .review-card.revealed {
@@ -903,44 +922,42 @@ button.titlebar-icon.active {
   z-index: 1;
   display: grid;
   width: min(100%, 460px);
-  justify-items: center;
-  gap: 16px;
-  text-align: center;
-}
-
-.card-reveal-side,
-.card-side-values {
-  display: grid;
-  width: 100%;
-  justify-items: center;
+  min-width: 0;
+  margin-block: auto;
+  flex: 0 0 auto;
+  justify-items: stretch;
+  gap: 22px;
+  text-align: left;
 }
 
 .card-reveal-side {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  justify-items: stretch;
   gap: 8px;
-}
-
-.card-side-values {
-  gap: 4px;
 }
 
 .card-learning-row {
   display: grid;
   width: 100%;
   max-width: 100%;
-  align-items: center;
-  grid-template-columns: minmax(44px, 1fr) minmax(0, auto) minmax(44px, 1fr);
+  min-width: 0;
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 44px;
   column-gap: 8px;
 }
 
 .card-learning-row > .card-side-value {
   min-width: 0;
-  grid-column: 2;
-  justify-self: center;
+  grid-column: 1;
+  align-self: center;
+  justify-self: start;
 }
 
 .card-learning-row .speaker-button {
-  grid-column: 3;
-  justify-self: start;
+  grid-column: 2;
+  justify-self: end;
 }
 
 .card-side-label {
@@ -963,23 +980,61 @@ button.titlebar-icon.active {
   font-weight: 600;
 }
 
-.card-side-value.known {
-  font-size: 27px;
-  font-weight: 500;
-}
-
 .card-reveal-divider {
-  width: 40px;
+  width: 100%;
   height: 1px;
   background: var(--separator);
 }
 
-.card-reveal-comment {
-  margin-top: 3px;
+.card-meaning-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 12px;
+  list-style: none;
+}
+
+.card-meaning-list li {
+  display: grid;
+  min-width: 0;
+  align-items: baseline;
+  grid-template-columns: 14px minmax(0, 1fr);
+  column-gap: 12px;
+}
+
+.card-meaning-list.single li {
+  display: block;
+}
+
+.card-meaning-number {
   color: var(--secondary);
-  font-size: 14px;
-  font-style: italic;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.card-meaning-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 27px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.card-reveal-comment {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--separator);
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+  font-size: 15px;
   font-weight: 400;
+  line-height: 1.55;
+  text-align: left;
   white-space: pre-wrap;
 }
 
@@ -2422,10 +2477,10 @@ button.titlebar-icon.active {
   /* Learn mobile */
 
   .learn-screen {
+    --review-stage-top: max(104px, calc(var(--app-safe-top) + 76px));
+    --review-stage-bottom: max(104px, calc(var(--app-safe-bottom) + 76px));
+    --review-navigation-space: 96px;
     height: 100svh;
-    min-height: 0;
-    overflow: hidden;
-    overscroll-behavior: none;
   }
 
   .review-mode-header {
@@ -2434,9 +2489,6 @@ button.titlebar-icon.active {
 
   .review-stage {
     width: min(calc(100% - 44px), 320px);
-    height: 100%;
-    min-height: 0;
-    padding: max(104px, calc(var(--app-safe-top) + 76px)) 0;
     justify-content: center;
   }
 
@@ -2457,7 +2509,7 @@ button.titlebar-icon.active {
   }
 
   .review-card.revealed {
-    max-height: 100%;
+    min-height: min(250px, var(--review-card-max-height));
   }
 
   .review-card-preview-placeholder {
@@ -2477,7 +2529,7 @@ button.titlebar-icon.active {
   }
 
   .card-reveal {
-    gap: 14px;
+    gap: 18px;
   }
 
   .card-reveal-side {
@@ -2492,12 +2544,12 @@ button.titlebar-icon.active {
     font-size: 24px;
   }
 
-  .card-side-value.known {
+  .card-meaning-text {
     font-size: 24px;
   }
 
   .card-reveal-comment {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .review-card-speaker {
@@ -2983,6 +3035,10 @@ button.titlebar-icon.active {
 
   :root[data-telegram-platform="mobile"] .review-mode-header {
     top: max(96px, calc(var(--app-safe-top) + 48px));
+  }
+
+  :root[data-telegram-platform="mobile"] .learn-screen {
+    --review-stage-top: max(152px, calc(var(--app-safe-top) + 124px));
   }
 
   :root[data-telegram-platform="mobile"] .words-screen,
