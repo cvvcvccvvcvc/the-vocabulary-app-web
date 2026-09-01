@@ -5,8 +5,8 @@
   "workers_dev": true,
   "preview_urls": false,
   "vars": {
-    "ORIGIN_WEBHOOK_URL": "https://vocabulary.194-87-238-188.sslip.io/api/telegram/webhook",
-    "ORIGIN_REMINDER_API_URL": "https://vocabulary.194-87-238-188.sslip.io/api/internal/telegram-reminders/"
+    "ORIGIN_WEBHOOK_URL": "https://vocabulary.135-106-167-202.sslip.io/api/telegram/webhook",
+    "ORIGIN_REMINDER_API_URL": "https://vocabulary.135-106-167-202.sslip.io/api/internal/telegram-reminders/"
   },
   "triggers": {
     "crons": ["0 * * * *"]

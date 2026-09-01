@@ -59,9 +59,9 @@ The public configuration response tells the client whether browser Telegram logi
 available. Development previews without OIDC credentials show only the local development
 profile instead of offering an authentication action that the server cannot complete.
 
-Telegram bot commands arrive through a minimal Cloudflare Worker because Telegram cannot reliably connect to the RuVDS network directly. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to The Vocabulary App's fixed HTTPS endpoint, and returns the endpoint response without interpreting it.
+Telegram bot commands arrive through a minimal Cloudflare Worker. The Worker accepts only the fixed webhook path, verifies Telegram's secret header, forwards the JSON body to The Vocabulary App's fixed HTTPS endpoint, and returns the endpoint response without interpreting it.
 
-The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendPhoto` method, a caption, and Mini App navigation buttons. The photo is referenced by its Telegram `file_id`; when it is not configured, the application falls back to `sendMessage`. Telegram executes the method from the webhook response, so neither RuVDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
+The application independently verifies the same secret and answers `/start` or `/help` with a Telegram `sendPhoto` method, a caption, and Mini App navigation buttons. The photo is referenced by its Telegram `file_id`; when it is not configured, the application falls back to `sendMessage`. Telegram executes the method from the webhook response, so neither the VDS nor the Worker makes an outbound Bot API request. The webhook secret is deterministically derived from the bot token and is supplied to Cloudflare as a Worker secret and to Telegram during webhook registration.
 
 The same Worker has an hourly Cron Trigger for opt-in reminders. It authenticates to a
 fixed internal endpoint on The Vocabulary App, claims at most 20 reminder jobs, calls Telegram's
@@ -113,7 +113,7 @@ operation from being applied again. Analytics and reminder cycles depend only on
 
 ## Deployment
 
-The first production topology is one RuVDS instance plus a stateless webhook relay:
+The production topology is one Selectel VDS plus Selectel S3 backups and a stateless webhook relay:
 
 ```text
 Telegram -------> Cloudflare Worker ------> The Vocabulary App webhook
@@ -121,7 +121,8 @@ Worker Cron ----> reminder dispatch API --> SQLite
 Worker Cron ------------------------------> Telegram Bot API
 Internet ---------------------------------> The Vocabulary App API
                                              |-- static client build
-                                             +-- SQLite volume
+                                             |-- SQLite volume
+                                             +-- daily verified backup --> Selectel S3
 ```
 
 No database port is exposed. Only HTTPS and restricted administrative access are public.

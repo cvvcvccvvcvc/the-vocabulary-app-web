@@ -1,0 +1,8 @@
+[Unit]
+Description=Back up The Vocabulary App SQLite database to Selectel S3
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vocabulary-backup
