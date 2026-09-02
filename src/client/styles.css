@@ -751,6 +751,12 @@ button.titlebar-icon.active {
   position: relative;
   z-index: 2;
   width: 100%;
+  touch-action: pan-y;
+}
+
+.review-card-drag-layer.dragging,
+.review-card-drag-layer.returning,
+.review-card-drag-layer.exiting {
   will-change: transform;
 }
 
@@ -856,7 +862,7 @@ button.titlebar-icon.active {
   max-height: var(--review-card-max-height);
   padding: 42px;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   touch-action: pan-y;
   align-items: center;
   justify-content: flex-start;
@@ -1589,13 +1595,16 @@ button.titlebar-icon.active {
 
 .detail-content {
   width: 100%;
+  min-width: 0;
   max-width: 650px;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 46px 52px;
 }
 
 .detail-read {
   display: grid;
+  min-width: 0;
 }
 
 .detail-label,
@@ -1608,23 +1617,40 @@ button.titlebar-icon.active {
 }
 
 .detail-learning-value {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: start;
+  column-gap: 14px;
   margin: 8px 0 30px;
 }
 
 .detail-learning-value strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 38px;
   font-weight: 600;
 }
 
+.detail-learning-value .speaker-button {
+  justify-self: end;
+}
+
 .detail-meanings {
   display: grid;
+  min-width: 0;
   margin: 8px 0 30px;
   gap: 6px;
   font-size: 22px;
+}
+
+.detail-meanings span,
+.detail-comment {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .detail-comment {

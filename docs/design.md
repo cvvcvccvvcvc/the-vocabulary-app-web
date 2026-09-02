@@ -77,6 +77,9 @@ the same design questions again.
   Entering edit mode does not choose a field or open the keyboard automatically.
 - Start Comment at one line and grow it with its content. Its active line follows the bottom
   of the text until eight lines, after which the field scrolls internally.
+- In reading mode, wrap saved text at the available content width, including uninterrupted
+  strings. Keep pronunciation at its full tap-target size and never introduce horizontal page
+  scrolling to accommodate word, meaning, or comment content.
 
 ## Data visualization
 
@@ -142,7 +145,9 @@ the same design questions again.
   card regardless of its scroll position.
 - Resolve gesture intent from a clear dominant axis rather than whether the card currently
   overflows. Horizontal intent answers; vertical intent scrolls long content or does nothing
-  on a short card; an ambiguous diagonal gesture waits without moving the card.
+  on a short card; an ambiguous diagonal gesture waits without moving the card. Once vertical
+  intent wins, leave the complete gesture to native scrolling without updating card layout or
+  animation state. Do not chain or rubber-band the card's boundary into the fixed Learn shell.
 
 - Keep the card stack shallow and aligned: one quiet rear edge and one blurred incoming
   surface are enough to communicate continuity without turning review into a game effect.
