@@ -623,6 +623,7 @@ button.titlebar-icon.active {
 /* Learn */
 
 .learn-screen {
+  --review-header-offset: 18px;
   --review-stage-top: 82px;
   --review-stage-bottom: 74px;
   --review-navigation-space: 0px;
@@ -643,10 +644,15 @@ button.titlebar-icon.active {
   flex-direction: column;
 }
 
+.learn-screen:not(.centered-screen) {
+  display: grid;
+  padding: var(--review-header-offset) 0 36px;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .review-mode-header {
-  position: absolute;
+  position: relative;
   z-index: 20;
-  inset: 18px 0 auto;
   display: flex;
   align-items: center;
   flex-direction: column;
@@ -698,11 +704,10 @@ button.titlebar-icon.active {
   position: relative;
   display: flex;
   width: min(620px, calc(100% - 80px));
-  height: 100%;
   min-height: 0;
-  margin: auto;
-  padding: var(--review-stage-top) 0 var(--review-stage-bottom);
+  margin-inline: auto;
   align-items: center;
+  justify-content: center;
   flex-direction: column;
 }
 
@@ -1746,7 +1751,11 @@ button.titlebar-icon.active {
 }
 
 .review-mode-help {
-  margin-top: 5px;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 10px;
+  transform: translateX(-50%);
 }
 
 .level-help-popover {
@@ -2611,19 +2620,20 @@ button.titlebar-icon.active {
   /* Learn mobile */
 
   .learn-screen {
+    --review-header-offset: max(22px, calc(var(--app-safe-top) + 8px));
     --review-stage-top: max(104px, calc(var(--app-safe-top) + 76px));
     --review-stage-bottom: max(104px, calc(var(--app-safe-bottom) + 76px));
     --review-navigation-space: 96px;
     height: 100svh;
   }
 
-  .review-mode-header {
-    top: max(22px, calc(var(--app-safe-top) + 8px));
+  .learn-screen:not(.centered-screen) {
+    padding-top: var(--review-header-offset);
+    padding-bottom: calc(96px + var(--app-safe-bottom));
   }
 
   .review-stage {
     width: min(calc(100% - 44px), 320px);
-    justify-content: center;
   }
 
   .review-card-shell,
@@ -3179,11 +3189,8 @@ button.titlebar-icon.active {
     --mobile-content-top: max(96px, calc(var(--app-safe-top) + 48px));
   }
 
-  :root[data-telegram-platform="mobile"] .review-mode-header {
-    top: max(96px, calc(var(--app-safe-top) + 48px));
-  }
-
   :root[data-telegram-platform="mobile"] .learn-screen {
+    --review-header-offset: max(96px, calc(var(--app-safe-top) + 48px));
     --review-stage-top: max(152px, calc(var(--app-safe-top) + 124px));
   }
 

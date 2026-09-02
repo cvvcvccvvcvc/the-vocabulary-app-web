@@ -129,9 +129,11 @@ the same design questions again.
 - Treat the comment as secondary prose rather than a quotation. Preserve its line breaks,
   omit quotation marks, italics, and a visible `Comment` heading, and separate it from the
   meanings with spacing and a neutral rule. Keep it readable in both themes.
-- The Learn shell stays fixed, including review context and mobile navigation. The card owns
-  vertical overflow on both the question and revealed sides, starts each new presentation at
-  the top, and keeps short content vertically balanced.
+- The Learn shell stays fixed, including review context and mobile navigation. Keep review
+  context in the layout flow and center the card in the remaining space above navigation, so
+  both Free Review and the taller Scheduled Review header determine the card position. The card
+  owns vertical overflow on both the question and revealed sides, starts each new presentation
+  at the top, and keeps short content vertically balanced.
 - Before reveal, the whole visible card is the reveal target except for the pronunciation
   control. Scrolling must not reveal it, and the pronunciation control must not propagate a
   reveal action.
