@@ -118,8 +118,10 @@ the same design questions again.
 - Before reveal, keep a single question visually quiet. When the known-language question
   contains multiple meanings, preserve their order in an unnumbered vertical group. Center
   the group and each meaning horizontally within the card, and wrap each meaning independently.
-  Let oversized questions scroll vertically inside the card rather than shrinking,
-  truncating, or joining them with punctuation.
+  Let the card grow with the question from its compact minimum to a viewport-bound maximum
+  that preserves breathing room around review context, hints, and navigation. Only then let
+  the question scroll vertically instead of shrinking, truncating, or joining meanings with
+  punctuation.
 - Keep revealed review cards in a stable reading order regardless of question direction:
   learning language, known-language meanings, then the optional comment. Present multiple
   meanings as a quiet numbered list and omit numbering for a single meaning. Preserve the
@@ -130,6 +132,12 @@ the same design questions again.
 - The Learn shell stays fixed, including review context and mobile navigation. The card owns
   vertical overflow on both the question and revealed sides, starts each new presentation at
   the top, and keeps short content vertically balanced.
+- Before reveal, the whole visible card is the reveal target except for the pronunciation
+  control. Scrolling must not reveal it, and the pronunciation control must not propagate a
+  reveal action.
+- Keep the card frame separate from its scrolling content. The frame owns borders, shadows,
+  transforms, and answer feedback so red or green tint always covers the complete visible
+  card regardless of its scroll position.
 - Resolve gesture intent from a clear dominant axis rather than whether the card currently
   overflows. Horizontal intent answers; vertical intent scrolls long content or does nothing
   on a short card; an ambiguous diagonal gesture waits without moving the card.

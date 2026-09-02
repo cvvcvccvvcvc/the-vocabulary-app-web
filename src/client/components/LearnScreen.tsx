@@ -162,44 +162,44 @@ function ReviewCard({
       onPointerCancel={onPointerCancel}
     >
       {revealed ? (
-        <div className="card-reveal">
-          <div className="card-reveal-side">
-            <span className="card-side-label">{learningLanguage}</span>
-            <div className="card-learning-row">
-              <span className="card-side-value learning" lang={settings.learningLanguage}>
-                {word.learningText}
-              </span>
-              <SpeakerButton onSpeak={onSpeak} />
+        <div className="review-card-scroll review-card-revealed-scroll">
+          <div className="card-reveal">
+            <div className="card-reveal-side">
+              <span className="card-side-label">{learningLanguage}</span>
+              <div className="card-learning-row">
+                <span className="card-side-value learning" lang={settings.learningLanguage}>
+                  {word.learningText}
+                </span>
+                <SpeakerButton onSpeak={onSpeak} />
+              </div>
             </div>
+            <span className="card-reveal-divider" aria-hidden="true" />
+            <div className="card-reveal-side">
+              <span className="card-side-label">{knownLanguage}</span>
+              <ol
+                className={multipleMeanings ? "card-meaning-list" : "card-meaning-list single"}
+                aria-label={`${knownLanguage} meanings`}
+                role="list"
+              >
+                {word.meanings.map((meaning, index) => (
+                  <li key={`${meaning}-${index}`} role="listitem">
+                    {multipleMeanings && (
+                      <span className="card-meaning-number" aria-hidden="true">{index + 1}</span>
+                    )}
+                    <span className="card-meaning-text" lang={settings.knownLanguage}>{meaning}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {word.comment !== "" && <p className="card-reveal-comment">{word.comment}</p>}
           </div>
-          <span className="card-reveal-divider" aria-hidden="true" />
-          <div className="card-reveal-side">
-            <span className="card-side-label">{knownLanguage}</span>
-            <ol
-              className={multipleMeanings ? "card-meaning-list" : "card-meaning-list single"}
-              aria-label={`${knownLanguage} meanings`}
-              role="list"
-            >
-              {word.meanings.map((meaning, index) => (
-                <li key={`${meaning}-${index}`} role="listitem">
-                  {multipleMeanings && (
-                    <span className="card-meaning-number" aria-hidden="true">{index + 1}</span>
-                  )}
-                  <span className="card-meaning-text" lang={settings.knownLanguage}>{meaning}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          {word.comment !== "" && <p className="card-reveal-comment">{word.comment}</p>}
         </div>
       ) : (
-        <div
-          className={questionIsLearning
-            ? "review-card-question-layout learning-question-layout"
-            : "review-card-question-layout"}
-        >
+        <>
           <button
-            className="review-card-reveal"
+            className={questionIsLearning
+              ? "review-card-scroll review-card-reveal learning-question-surface"
+              : "review-card-scroll review-card-reveal"}
             type="button"
             aria-label={questionIsLearning ? word.learningText : word.meanings.join(", ")}
             lang={questionIsLearning ? settings.learningLanguage : settings.knownLanguage}
@@ -207,8 +207,12 @@ function ReviewCard({
           >
             <CardQuestion direction={card.direction} word={word} settings={settings} />
           </button>
-          {questionIsLearning && <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />}
-        </div>
+          {questionIsLearning && (
+            <div className="review-card-audio-dock">
+              <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -223,11 +227,13 @@ function ReviewCardPreview({ snapshot, settings }: ReviewCardPreviewProps) {
   return (
     <div className="review-card-preview-layer" aria-hidden="true">
       <div className="review-card review-card-preview">
-        {snapshot === null ? (
-          <span className="review-card-preview-placeholder" />
-        ) : (
-          <CardQuestion direction={snapshot.card.direction} word={snapshot.word} settings={settings} />
-        )}
+        <div className="review-card-scroll review-card-preview-scroll">
+          {snapshot === null ? (
+            <span className="review-card-preview-placeholder" />
+          ) : (
+            <CardQuestion direction={snapshot.card.direction} word={snapshot.word} settings={settings} />
+          )}
+        </div>
       </div>
     </div>
   );
