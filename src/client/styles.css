@@ -892,7 +892,7 @@ button.titlebar-icon.active {
 }
 
 .review-card-reveal.learning-question-surface {
-  padding-bottom: 104px;
+  padding-block: 64px;
 }
 
 .review-card-audio-dock {
@@ -900,7 +900,7 @@ button.titlebar-icon.active {
   z-index: 2;
   inset: auto 0 0;
   display: grid;
-  height: 82px;
+  height: 64px;
   background: linear-gradient(to bottom, transparent, var(--card) 28px);
   pointer-events: none;
   place-items: center;
@@ -2695,11 +2695,11 @@ button.titlebar-icon.active {
   }
 
   .review-card-reveal.learning-question-surface {
-    padding-bottom: 88px;
+    padding-block: 56px;
   }
 
   .review-card-audio-dock {
-    height: 70px;
+    height: 56px;
   }
 
   .card-question {

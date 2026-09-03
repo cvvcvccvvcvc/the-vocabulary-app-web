@@ -140,6 +140,10 @@ the same design questions again.
 - Before reveal, the whole visible card is the reveal target except for the pronunciation
   control. Scrolling must not reveal it, and the pronunciation control must not propagate a
   reveal action.
+- When the learning-language question has pronunciation, reserve matching compact space above
+  and below the centered question. Put the 44-pixel pronunciation target in the lower space;
+  do not push short text upward or let long text pass beneath the control. Let the card grow
+  before its question begins to scroll so the reserved space does not waste reading area.
 - Keep the card frame separate from its scrolling content. The frame owns borders, shadows,
   transforms, and answer feedback so red or green tint always covers the complete visible
   card regardless of its scroll position.
