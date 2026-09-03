@@ -197,24 +197,34 @@ function ReviewCard({
           </div>
         </div>
       ) : (
-        <>
+        questionIsLearning ? (
+          <div
+            className="review-card-scroll review-card-reveal learning-question-surface"
+            onClick={onReveal}
+          >
+            <div className="learning-question-anchor">
+              <button
+                className="review-question-action"
+                type="button"
+                aria-label={word.learningText}
+                lang={settings.learningLanguage}
+              >
+                <CardQuestion direction={card.direction} word={word} settings={settings} />
+              </button>
+              <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />
+            </div>
+          </div>
+        ) : (
           <button
-            className={questionIsLearning
-              ? "review-card-scroll review-card-reveal learning-question-surface"
-              : "review-card-scroll review-card-reveal"}
+            className="review-card-scroll review-card-reveal"
             type="button"
-            aria-label={questionIsLearning ? word.learningText : word.meanings.join(", ")}
-            lang={questionIsLearning ? settings.learningLanguage : settings.knownLanguage}
+            aria-label={word.meanings.join(", ")}
+            lang={settings.knownLanguage}
             onClick={onReveal}
           >
             <CardQuestion direction={card.direction} word={word} settings={settings} />
           </button>
-          {questionIsLearning && (
-            <div className="review-card-audio-dock">
-              <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />
-            </div>
-          )}
-        </>
+        )
       )}
     </div>
   );

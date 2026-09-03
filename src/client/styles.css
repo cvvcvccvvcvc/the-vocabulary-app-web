@@ -876,23 +876,25 @@ button.titlebar-icon.active {
   flex: 0 0 auto;
 }
 
-.review-card-reveal.learning-question-surface {
-  padding-block: 64px;
-}
-
-.review-card-audio-dock {
-  position: absolute;
-  z-index: 2;
-  inset: auto 0 0;
+.learning-question-anchor {
+  position: relative;
   display: grid;
-  height: 64px;
-  background: linear-gradient(to bottom, transparent, var(--card) 28px);
-  pointer-events: none;
-  place-items: center;
+  width: 100%;
+  max-width: 100%;
+  margin-block: auto;
+  flex: 0 0 auto;
+  justify-items: center;
 }
 
-.review-card-audio-dock .speaker-button {
-  pointer-events: auto;
+.review-question-action {
+  display: grid;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  place-items: center;
 }
 
 .card-question {
@@ -974,7 +976,10 @@ button.titlebar-icon.active {
 }
 
 .review-card-speaker {
-  position: relative;
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .card-reveal {
@@ -2767,14 +2772,6 @@ button.titlebar-icon.active {
 
   .review-card-scroll {
     padding: 26px 24px;
-  }
-
-  .review-card-reveal.learning-question-surface {
-    padding-block: 56px;
-  }
-
-  .review-card-audio-dock {
-    height: 56px;
   }
 
   .card-question {
