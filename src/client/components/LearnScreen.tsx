@@ -220,23 +220,10 @@ function ReviewCard({
   );
 }
 
-interface ReviewCardPreviewProps {
-  snapshot: ReviewCardSnapshot | null;
-  settings: LanguageSettings;
-}
-
-function ReviewCardPreview({ snapshot, settings }: ReviewCardPreviewProps) {
+function ReviewCardPreview() {
   return (
     <div className="review-card-preview-layer" aria-hidden="true">
-      <div className="review-card review-card-preview">
-        <div className="review-card-scroll review-card-preview-scroll">
-          {snapshot === null ? (
-            <span className="review-card-preview-placeholder" />
-          ) : (
-            <CardQuestion direction={snapshot.card.direction} word={snapshot.word} settings={settings} />
-          )}
-        </div>
-      </div>
+      <div className="review-card review-card-preview" />
     </div>
   );
 }
@@ -605,7 +592,6 @@ export function LearnScreen({
   }
 
   const displayedCard = outgoingCard ?? { card, word: currentWord };
-  const incomingCard = outgoingCard === null ? null : { card, word: currentWord };
   const scheduledDueCount = words.filter((word) => isScheduledReviewCandidate(word, new Date())).length;
   const swipeDirection = dragX > 0 ? "swiping-right" : dragX < 0 ? "swiping-left" : "";
   const swipeProgress = Math.min(Math.abs(dragX) / swipeThreshold.current, 1);
@@ -661,7 +647,7 @@ export function LearnScreen({
 
       <div className="review-stage">
         <div className={`review-card-shell ${swipePhase}`} style={stackStyle}>
-          <ReviewCardPreview snapshot={incomingCard} settings={settings} />
+          <ReviewCardPreview />
           <div
             ref={reviewDragLayer}
             className={`review-card-drag-layer ${swipePhase} ${swipeDirection}`}

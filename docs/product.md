@@ -19,7 +19,7 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
 - The active review-mode badge opens a short contextual explanation. The whole Level card opens an explanation of level progress; neither control relies on a tiny question-mark target.
-- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; the card fills softly with the corresponding color as the gesture progresses, while a quiet card stack appears underneath. Once the gesture is accepted, the actual next question waits blurred below the outgoing card and comes into focus when that card leaves the screen. Desktop keyboard arrows use the same transition. Learn does not scroll as a page; only oversized card content scrolls vertically. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
+- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; the card fills softly with the corresponding color as the gesture progresses, while a quiet contentless card stack appears underneath. Once the gesture is accepted, the next question stays hidden until the outgoing card is fully off-screen, then fades and focuses into place. Desktop keyboard arrows use the same transition. Learn does not scroll as a page; only oversized card content scrolls vertically. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
 - Words can be searched and sorted by date added, A–Z, or learning level from a compact custom menu. Swiping a row left progressively reveals a rounded Delete action without opening the word. A medium swipe leaves it available to tap; a deep swipe expands the action and opens confirmation directly. Deletion always requires confirmation.
 - Adding an already saved word is a neutral result with a direct link to the existing card; View after a successful add opens the new card directly.
 - Browser speech synthesis for the learning-language side.
@@ -80,7 +80,7 @@ Free Review starts only when Scheduled Review is empty. It draws from all active
 
 Moving to another tab and back keeps the current review card, its direction and reveal state, and the remaining in-memory queue. A full application reload deliberately starts a fresh queue from server data.
 
-An accepted answer immediately projects the next card from the in-memory queue. It waits blurred beneath the outgoing card, becomes readable when that card leaves the screen, and does not wait for the server response. It can then be revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
+An accepted answer immediately projects the next card from the in-memory queue, but its content is not rendered beneath the outgoing card. When that card is fully off-screen, the exact next question fades and focuses into place without waiting for the server response. It can then be revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
 
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
 

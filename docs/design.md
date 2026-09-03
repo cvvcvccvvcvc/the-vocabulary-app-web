@@ -158,14 +158,16 @@ the same design questions again.
   animation state. Favor native vertical movement until horizontal intent is deliberate, and
   do not chain or rubber-band the card's boundary into the fixed Learn shell.
 
-- Keep the card stack shallow and aligned: one quiet rear edge and one blurred incoming
-  surface are enough to communicate continuity without turning review into a game effect.
+- Keep the card stack shallow and aligned: one quiet rear edge and one contentless incoming
+  surface communicate continuity without pretending that the next question is already known.
 - Tie the stack's depth response directly to horizontal drag progress. A cancelled gesture
-  returns every layer with the card; an accepted gesture promotes the real next card.
+  returns every layer with the card. Do not replace a word-like placeholder with real content
+  during the accepted exit: keep the incoming surface empty until the outgoing card is fully
+  off-screen, then mount the real next question at zero opacity and bring it into focus.
 - After an accepted gesture, continue from the release position and speed only to the nearest
   off-screen boundary. The visible card must fly out quickly without disappearing in one frame.
-- Remove the incoming blur when the outgoing card leaves the screen, independently of the
-  server response. Saving controls whether another answer is allowed, not visual focus.
+- Reveal and focus the next question independently of the server response. Saving controls
+  whether another answer is allowed, not the visual handoff.
 - Animate only the card transforms, opacity, and the small question surface. Decorative
   layers stay outside the accessibility tree, and reduced-motion mode removes depth and
   blur transitions.
