@@ -325,6 +325,7 @@ function WordDetail({
   }
 
   function cancelEditing(): void {
+    if (saving) return;
     setLearningText(word.learningText);
     dispatchMeaning({ type: "reset", values: word.meanings });
     setComment(word.comment);
@@ -370,7 +371,14 @@ function WordDetail({
     <section className={editing ? "word-detail editing" : "word-detail"}>
       <header className={editing ? "detail-toolbar editing" : "detail-toolbar"}>
         {editing ? (
-          <button className="toolbar-button cancel-button" type="button" onClick={cancelEditing}>Cancel</button>
+          <button
+            className="toolbar-button cancel-button"
+            type="button"
+            aria-disabled={saving}
+            onClick={cancelEditing}
+          >
+            Cancel
+          </button>
         ) : (
           <button className="toolbar-button back-button" type="button" aria-label="Back to words" onClick={onBack}>
             <Icon name="back" /> <span>Back</span>
@@ -378,8 +386,14 @@ function WordDetail({
         )}
         <div className="detail-toolbar-actions">
           {editing ? (
-            <button className="toolbar-button primary save-button" type="submit" form="word-edit-form" disabled={!canSave || saving}>
-              {saving ? "Saving…" : "Save"}
+            <button
+              className="toolbar-button primary save-button"
+              type="submit"
+              form="word-edit-form"
+              aria-busy={saving}
+              disabled={!canSave || saving}
+            >
+              Save
             </button>
           ) : (
             <>
@@ -413,6 +427,7 @@ function WordDetail({
           <form
             id="word-edit-form"
             className="detail-edit-form"
+            aria-busy={saving}
             onSubmit={(event) => {
               event.preventDefault();
               void save();
@@ -424,6 +439,7 @@ function WordDetail({
                 className="detail-learning-input"
                 value={learningText}
                 maxLength={300}
+                readOnly={saving}
                 onChange={(event) => setLearningText(event.target.value)}
               />
             </label>
@@ -442,6 +458,7 @@ function WordDetail({
                 maxLength={12_000}
                 placeholder="Add an example or a note…"
                 value={comment}
+                readOnly={saving}
                 onChange={(event) => setComment(event.target.value)}
               />
             </label>

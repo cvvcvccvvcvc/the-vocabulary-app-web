@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 interface DeleteConfirmationDialogProps {
   onCancel(): void;
@@ -10,14 +10,14 @@ export function DeleteConfirmationDialog({
   onConfirm,
 }: DeleteConfirmationDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const cancelButton = useRef<HTMLButtonElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = dialog.current;
     if (element === null) return;
     if (typeof element.showModal === "function") element.showModal();
     else element.setAttribute("open", "");
-    cancelButton.current?.focus({ preventScroll: true });
+    title.current?.focus({ preventScroll: true });
     return () => {
       if (typeof element.close === "function") element.close();
       else element.removeAttribute("open");
@@ -40,13 +40,13 @@ export function DeleteConfirmationDialog({
     >
       <div className="delete-confirmation-surface">
         <div className="delete-confirmation-copy">
-          <h2 id="delete-confirmation-title">Delete card?</h2>
+          <h2 ref={title} id="delete-confirmation-title" tabIndex={-1}>Delete card?</h2>
           <p id="delete-confirmation-message">
             It will be removed from Words and future reviews.
           </p>
         </div>
         <div className="delete-confirmation-actions">
-          <button ref={cancelButton} type="button" onClick={onCancel}>Cancel</button>
+          <button type="button" onClick={onCancel}>Cancel</button>
           <button className="destructive" type="button" onClick={onConfirm}>Delete</button>
         </div>
       </div>

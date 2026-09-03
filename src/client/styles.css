@@ -1572,6 +1572,10 @@ button.titlebar-icon.active {
   letter-spacing: -0.025em;
 }
 
+.delete-confirmation-copy h2:focus {
+  outline: 0;
+}
+
 .delete-confirmation-copy p {
   margin-top: 8px;
   color: var(--secondary);

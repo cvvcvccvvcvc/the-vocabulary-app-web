@@ -70,9 +70,14 @@ the same design questions again.
 
 - Keep Edit and Delete as separate actions on the word screen. Delete remains directly
   available and asks for confirmation; it does not require entering the editor first.
+- Keep the Save label and button geometry stable while a request is pending. Disable further
+  edits and expose the busy state semantically; do not flash a wider `Saving…` label for a
+  request that commonly finishes in a fraction of a second.
 - In Telegram, use its native popup with Cancel and a destructive Delete action. Elsewhere,
   use the app's compact dialog with the same wording. Explain the effect without placing an
   arbitrarily long saved word in the title, and never use a generic `OK` label for deletion.
+  Focus the dialog heading initially instead of visually preselecting either action; retain
+  visible focus when a keyboard user moves to the buttons.
 - Treat editing as a focused mode: show Cancel on the leading side and the blue Save action
   on the trailing side. Hide Back, Delete, pronunciation, Level, and bottom navigation until
   editing ends.
