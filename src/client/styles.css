@@ -823,12 +823,18 @@ button.titlebar-icon.active {
   opacity: var(--swipe-progress);
 }
 
-.review-card:hover {
-  box-shadow: 0 8px 32px rgb(0 0 0 / 6%);
-}
+@media (hover: hover) and (pointer: fine) {
+  .review-card:hover {
+    box-shadow: 0 8px 32px rgb(0 0 0 / 6%);
+  }
 
-.review-card:active {
-  transform: scale(0.996);
+  .review-card:active {
+    transform: scale(0.996);
+  }
+
+  .review-card-drag-layer.dragging .review-card:active {
+    transform: none;
+  }
 }
 
 .review-card.revealed {
@@ -838,10 +844,6 @@ button.titlebar-icon.active {
 
 .review-card-drag-layer.dragging .review-card.revealed {
   cursor: grabbing;
-}
-
-.review-card-drag-layer.dragging .review-card:active {
-  transform: none;
 }
 
 .review-card-scroll {
