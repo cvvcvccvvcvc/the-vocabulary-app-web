@@ -6,12 +6,14 @@ import {
   type PointerGestureAxis,
 } from "../lib/pointerGesture.js";
 import {
-  shouldRevealSwipeAction,
+  settleSwipeAction,
   swipeActionOffset,
+  swipeActionPresentation,
 } from "../lib/swipeAction.js";
 import { Icon } from "./Icons.js";
 
-const DELETE_ACTION_WIDTH = 72;
+const DELETE_REVEALED_OFFSET = 124;
+const DEEP_SETTLE_MS = 180;
 const CLICK_SUPPRESSION_MS = 400;
 const SWIPE_AXIS_LOCK_DISTANCE = 8;
 const SWIPE_AXIS_DOMINANCE_RATIO = 1.2;
@@ -37,7 +39,7 @@ interface SwipeableWordRowProps {
   removing: boolean;
   onSetRevealed(revealed: boolean): void;
   onOpen(): void;
-  onDelete(): void;
+  onDelete(): Promise<boolean>;
 }
 
 export function SwipeableWordRow({
@@ -53,10 +55,13 @@ export function SwipeableWordRow({
   const rowButton = useRef<HTMLButtonElement>(null);
   const deleteButton = useRef<HTMLButtonElement>(null);
   const swipeSession = useRef<SwipeSession | null>(null);
+  const returnTimer = useRef<number | null>(null);
   const suppressClickUntil = useRef(Number.NEGATIVE_INFINITY);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
-  const offset = dragOffset ?? (revealed ? -DELETE_ACTION_WIDTH : 0);
+  const [confirming, setConfirming] = useState(false);
+  const offset = dragOffset ?? (revealed ? -DELETE_REVEALED_OFFSET : 0);
+  const action = swipeActionPresentation(offset);
   const deleteActionId = `word-delete-${word.id}`;
 
   useEffect(() => () => {
@@ -65,6 +70,7 @@ export function SwipeableWordRow({
     if (session?.target.hasPointerCapture(session.pointerId)) {
       session.target.releasePointerCapture(session.pointerId);
     }
+    if (returnTimer.current !== null) window.clearTimeout(returnTimer.current);
   }, []);
 
   useEffect(() => {
@@ -113,12 +119,16 @@ export function SwipeableWordRow({
     session.velocityX = (event.clientX - session.lastX) / elapsed;
     session.lastX = event.clientX;
     session.lastAt = now;
-    const nextOffset = swipeActionOffset(session.startOffset, deltaX, DELETE_ACTION_WIDTH);
+    const nextOffset = swipeActionOffset(
+      session.startOffset,
+      deltaX,
+      session.target.getBoundingClientRect().width,
+    );
     setDragOffset(nextOffset);
     return nextOffset;
   }
 
-  function finishGesture(event: PointerEvent): void {
+  async function finishGesture(event: PointerEvent): Promise<void> {
     const session = swipeSession.current;
     if (session === null || session.pointerId !== event.pointerId) return;
 
@@ -126,16 +136,42 @@ export function SwipeableWordRow({
     if (swipeSession.current !== session) return;
     releasePointer(session);
     swipeSession.current = null;
-    setDragOffset(null);
     setDragging(false);
 
-    if (session.axis !== "horizontal") return;
+    if (session.axis !== "horizontal") {
+      setDragOffset(null);
+      return;
+    }
     suppressClickUntil.current = performance.now() + CLICK_SUPPRESSION_MS;
-    onSetRevealed(shouldRevealSwipeAction(
+    const rowWidth = session.target.getBoundingClientRect().width;
+    const settlement = settleSwipeAction(
       finalOffset,
       session.velocityX,
-      DELETE_ACTION_WIDTH,
-    ));
+      rowWidth,
+      DELETE_REVEALED_OFFSET,
+    );
+
+    if (settlement === "confirm") {
+      setConfirming(true);
+      setDragOffset(-rowWidth);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, DEEP_SETTLE_MS));
+      }
+      const deleted = await onDelete();
+      if (!deleted) {
+        onSetRevealed(false);
+        setDragOffset(0);
+        returnTimer.current = window.setTimeout(() => {
+          returnTimer.current = null;
+          setDragOffset(null);
+          setConfirming(false);
+        }, DEEP_SETTLE_MS);
+      }
+      return;
+    }
+
+    setDragOffset(null);
+    onSetRevealed(settlement === "revealed");
   }
 
   function cancelGesture(): void {
@@ -153,6 +189,7 @@ export function SwipeableWordRow({
       || event.button !== 0
       || deleting
       || removing
+      || confirming
       || swipeSession.current !== null
     ) return;
 
@@ -163,7 +200,7 @@ export function SwipeableWordRow({
       target: event.currentTarget,
       startX: event.clientX,
       startY: event.clientY,
-      startOffset: revealed ? -DELETE_ACTION_WIDTH : 0,
+      startOffset: revealed ? -DELETE_REVEALED_OFFSET : 0,
       lastX: event.clientX,
       lastAt: now,
       velocityX: 0,
@@ -181,7 +218,7 @@ export function SwipeableWordRow({
   }
 
   function handleRowClick(): void {
-    if (deleting || removing || performance.now() < suppressClickUntil.current) return;
+    if (deleting || removing || confirming || performance.now() < suppressClickUntil.current) return;
     if (revealed) {
       onSetRevealed(false);
       return;
@@ -192,6 +229,7 @@ export function SwipeableWordRow({
   const shellClassName = [
     "word-row-shell",
     revealed ? "revealed" : "",
+    confirming ? "confirming" : "",
     removing ? "removing" : "",
   ].filter(Boolean).join(" ");
   const rowClassName = [
@@ -207,8 +245,8 @@ export function SwipeableWordRow({
         className={rowClassName}
         type="button"
         aria-controls={deleteActionId}
-        aria-expanded={revealed}
-        aria-disabled={deleting || removing}
+        aria-expanded={revealed || confirming}
+        aria-disabled={deleting || removing || confirming}
         style={{ transform: `translate3d(${offset}px, 0, 0)` }}
         onClick={handleRowClick}
         onKeyDown={(event) => {
@@ -234,10 +272,23 @@ export function SwipeableWordRow({
         className="word-row-delete"
         type="button"
         aria-label={`Delete “${word.learningText}”`}
-        aria-hidden={!revealed}
-        tabIndex={revealed ? 0 : -1}
-        disabled={deleting || removing}
-        onClick={onDelete}
+        aria-hidden={!revealed || confirming}
+        tabIndex={revealed && !confirming ? 0 : -1}
+        disabled={deleting || removing || confirming}
+        style={{
+          width: `${action.width}px`,
+          opacity: action.progress,
+          transform: `scale(${0.86 + action.progress * 0.14})`,
+        }}
+        onClick={() => {
+          setConfirming(true);
+          void onDelete().then((deleted) => {
+            if (!deleted) {
+              setConfirming(false);
+              onSetRevealed(false);
+            }
+          });
+        }}
         onKeyDown={(event) => {
           if (event.key !== "Escape") return;
           event.preventDefault();
@@ -246,6 +297,7 @@ export function SwipeableWordRow({
         }}
       >
         <Icon name="delete" />
+        <span>Delete</span>
       </button>
     </div>
   );

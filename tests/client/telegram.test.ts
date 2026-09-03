@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   initializeTelegram,
   openTelegramLink,
+  requestTelegramDeleteConfirmation,
   requestTelegramWriteAccess,
   setTelegramVerticalSwipesEnabled,
   telegramImpact,
@@ -134,6 +135,31 @@ describe("openTelegramLink", () => {
     webApp.openTelegramLink = vi.fn();
     expect(openTelegramLink(url)).toBe(false);
     expect(webApp.openTelegramLink).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestTelegramDeleteConfirmation", () => {
+  it("uses a native destructive popup inside Telegram", async () => {
+    installTelegram("ios");
+    const webApp = window.Telegram!.WebApp!;
+    webApp.initData = "telegram-launch-data";
+    webApp.showPopup = vi.fn((_params, callback) => callback?.("delete"));
+
+    await expect(requestTelegramDeleteConfirmation()).resolves.toBe(true);
+    expect(webApp.showPopup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Delete card?",
+        buttons: expect.arrayContaining([
+          expect.objectContaining({ id: "delete", type: "destructive" }),
+        ]),
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("lets the app render its own dialog outside Telegram", async () => {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+    await expect(requestTelegramDeleteConfirmation()).resolves.toBeNull();
   });
 });
 

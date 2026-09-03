@@ -56,19 +56,23 @@ the same design questions again.
 
 ## Word list actions
 
-- Drag a Words row toward the leading edge to reveal one 72-pixel trailing Delete action.
-  Use the solid danger color with a white trash icon; the action appears progressively as
-  the row moves, without a second border, shadow, label, or decorative container.
+- Drag a Words row toward the leading edge to reveal one trailing Delete action. Keep the
+  first short distance visually quiet, then grow a rounded danger-colored button with a white
+  trash icon and `Delete` label into the revealed space. A partial drag returns the row; a
+  medium drag settles with the button visible; a deep drag expands it across the row and opens
+  the same confirmation as tapping Delete.
 - Keep only one action open. Clear horizontal intent owns the row while vertical intent keeps
   scrolling native; scrolling, opening another word, or moving the row back closes it. A full
-  swipe never deletes by itself: Delete remains a separate tap and uses the same confirmation
-  as the word detail screen. Remove the row only after the server accepts the deletion, and
-  leave it available with an error message when the request fails.
+  swipe never deletes without confirmation. Remove the row only after the server accepts the
+  deletion, and leave it available with an error message when the request fails.
 
 ## Word detail and editing
 
 - Keep Edit and Delete as separate actions on the word screen. Delete remains directly
   available and asks for confirmation; it does not require entering the editor first.
+- In Telegram, use its native popup with Cancel and a destructive Delete action. Elsewhere,
+  use the app's compact dialog with the same wording. Explain the effect without placing an
+  arbitrarily long saved word in the title, and never use a generic `OK` label for deletion.
 - Treat editing as a focused mode: show Cancel on the leading side and the blue Save action
   on the trailing side. Hide Back, Delete, pronunciation, Level, and bottom navigation until
   editing ends.

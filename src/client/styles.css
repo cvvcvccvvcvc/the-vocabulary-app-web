@@ -1442,22 +1442,41 @@ button.titlebar-icon.active {
 .word-row-delete {
   position: absolute;
   z-index: 0;
-  top: 0;
-  right: 0;
-  display: grid;
-  width: 72px;
-  height: 100%;
-  padding: 0;
+  top: 4px;
+  right: 6px;
+  bottom: 4px;
+  display: flex;
+  width: 0;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 14px;
   border: 0;
-  border-radius: 0 8px 8px 0;
+  border-radius: 999px;
   color: #fff;
   background: var(--danger);
+  gap: 7px;
+  opacity: 0;
   pointer-events: none;
-  place-items: center;
+  transform-origin: right center;
+  transition:
+    width 190ms cubic-bezier(.22, 1, .36, 1),
+    opacity 120ms ease,
+    transform 190ms cubic-bezier(.22, 1, .36, 1);
+  white-space: nowrap;
+}
+
+.word-row.dragging + .word-row-delete {
+  transition: none;
 }
 
 .word-row-shell.revealed .word-row-delete {
   pointer-events: auto;
+}
+
+.word-row-shell.confirming .word-row-delete {
+  pointer-events: none;
 }
 
 .word-row-delete:active {
@@ -1474,8 +1493,16 @@ button.titlebar-icon.active {
 }
 
 .word-row-delete svg {
-  width: 21px;
-  height: 21px;
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+
+.word-row-delete span {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: clip;
 }
 
 .word-row-copy {
@@ -1534,6 +1561,74 @@ button.titlebar-icon.active {
   width: calc(100% - 20px);
   max-width: 860px;
   margin: 8px auto 0;
+}
+
+.delete-confirmation {
+  width: min(calc(100% - 32px), 360px);
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  color: var(--text);
+  background: transparent;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
+}
+
+.delete-confirmation::backdrop {
+  background: rgb(0 0 0 / 38%);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.delete-confirmation-surface {
+  padding: 22px;
+  border-radius: inherit;
+  background: var(--card);
+}
+
+.delete-confirmation-copy h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.025em;
+}
+
+.delete-confirmation-copy p {
+  margin-top: 8px;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.delete-confirmation-actions {
+  display: grid;
+  margin-top: 22px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.delete-confirmation-actions button {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--badge);
+  font-weight: 600;
+}
+
+.delete-confirmation-actions button.destructive {
+  color: #fff;
+  background: var(--danger);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .delete-confirmation-actions button:hover {
+    background: var(--selection);
+  }
+
+  .delete-confirmation-actions button.destructive:hover {
+    background: color-mix(in srgb, var(--danger) 88%, #000);
+  }
 }
 
 .words-footer {

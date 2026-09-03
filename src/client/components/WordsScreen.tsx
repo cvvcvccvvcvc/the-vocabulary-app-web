@@ -3,6 +3,8 @@ import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
 import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../lib/meaningDraft.js";
+import { requestTelegramDeleteConfirmation } from "../lib/telegram.js";
+import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon, type IconName } from "./Icons.js";
 import { MeaningFields } from "./MeaningFields.js";
@@ -46,7 +48,10 @@ export function WordsScreen({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const deleteRequestId = useRef<string | null>(null);
+  const deleteConfirmationPending = useRef(false);
+  const deleteConfirmationResolve = useRef<((confirmed: boolean) => void) | null>(null);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
   const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
@@ -79,13 +84,44 @@ export function WordsScreen({
     }
   }, [filtered, revealedId]);
 
-  async function deleteFromList(word: VocabularyWord): Promise<void> {
-    if (deleteRequestId.current !== null || !window.confirm(`Delete “${word.learningText}”?`)) return;
+  useEffect(() => () => {
+    deleteConfirmationResolve.current?.(false);
+    deleteConfirmationResolve.current = null;
+    deleteConfirmationPending.current = false;
+  }, []);
+
+  async function confirmDeletion(): Promise<boolean> {
+    if (deleteConfirmationPending.current) return false;
+    deleteConfirmationPending.current = true;
+
+    const telegramResult = await requestTelegramDeleteConfirmation();
+    if (telegramResult !== null) {
+      deleteConfirmationPending.current = false;
+      return telegramResult;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      deleteConfirmationResolve.current = resolve;
+      setDeleteConfirmationOpen(true);
+    });
+  }
+
+  function finishDeleteConfirmation(confirmed: boolean): void {
+    const resolve = deleteConfirmationResolve.current;
+    deleteConfirmationResolve.current = null;
+    deleteConfirmationPending.current = false;
+    setDeleteConfirmationOpen(false);
+    resolve?.(confirmed);
+  }
+
+  async function deleteFromList(word: VocabularyWord): Promise<boolean> {
+    if (deleteRequestId.current !== null) return false;
 
     deleteRequestId.current = word.id;
-    setDeletingId(word.id);
     setDeleteMessage(null);
     try {
+      if (!(await confirmDeletion())) return false;
+      setDeletingId(word.id);
       try {
         await api.deleteWord(word.id);
       } catch (error) {
@@ -98,8 +134,10 @@ export function WordsScreen({
       }
       setRevealedId(null);
       onDeleted(word.id);
+      return true;
     } catch (error) {
       setDeleteMessage(error instanceof ApiError ? error.message : "Could not delete the word");
+      return false;
     } finally {
       if (deleteRequestId.current === word.id) deleteRequestId.current = null;
       setDeletingId(null);
@@ -206,7 +244,7 @@ export function WordsScreen({
                 setRevealedId(null);
                 setSelectedId(word.id);
               }}
-              onDelete={() => void deleteFromList(word)}
+              onDelete={() => deleteFromList(word)}
             />
           ))}
         </div>
@@ -222,11 +260,18 @@ export function WordsScreen({
           word={selected}
           settings={settings}
           onBack={() => setSelectedId(null)}
+          onConfirmDelete={confirmDeletion}
           onUpdated={onUpdated}
           onDeleted={(wordId) => {
             setSelectedId(null);
             onDeleted(wordId);
           }}
+        />
+      )}
+      {deleteConfirmationOpen && (
+        <DeleteConfirmationDialog
+          onCancel={() => finishDeleteConfirmation(false)}
+          onConfirm={() => finishDeleteConfirmation(true)}
         />
       )}
     </section>
@@ -237,11 +282,19 @@ interface WordDetailProps {
   word: VocabularyWord;
   settings: LanguageSettings;
   onBack(): void;
+  onConfirmDelete(): Promise<boolean>;
   onUpdated(word: VocabularyWord): void;
   onDeleted(wordId: string): void;
 }
 
-function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetailProps) {
+function WordDetail({
+  word,
+  settings,
+  onBack,
+  onConfirmDelete,
+  onUpdated,
+  onDeleted,
+}: WordDetailProps) {
   const editStartedAt = useRef(Number.NEGATIVE_INFINITY);
   const commentInput = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState(false);
@@ -251,6 +304,7 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   const [comment, setComment] = useState(word.comment);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [levelHelpOpen, setLevelHelpOpen] = useState(false);
   const levelHelp = useDismissiblePopover<HTMLDivElement>(levelHelpOpen, setLevelHelpOpen);
   const canSave = learningText.trim() !== "" && meanings.length > 0;
@@ -299,12 +353,16 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   }
 
   async function remove(): Promise<void> {
-    if (!window.confirm(`Delete “${word.learningText}”?`)) return;
+    if (deleting) return;
+    setDeleting(true);
     try {
+      if (!(await onConfirmDelete())) return;
       await api.deleteWord(word.id);
       onDeleted(word.id);
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Could not delete the word");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -325,7 +383,13 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
             </button>
           ) : (
             <>
-              <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
+              <button
+                className="toolbar-button delete-button"
+                type="button"
+                aria-label="Delete word"
+                disabled={deleting}
+                onClick={() => void remove()}
+              >
                 <Icon name="delete" /> <span>Delete</span>
               </button>
               <button
