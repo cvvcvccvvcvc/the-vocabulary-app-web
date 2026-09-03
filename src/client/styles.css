@@ -243,8 +243,10 @@ button.titlebar-icon.active {
   height: 22px;
 }
 
-.support-link:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .support-link:hover {
+    background: var(--hover);
+  }
 }
 
 .desktop-titlebar > .support-link {
@@ -1392,7 +1394,7 @@ button.titlebar-icon.active {
   height: 62px;
   overflow: hidden;
   border-radius: 8px;
-  background: var(--danger);
+  background: transparent;
   transition: height 180ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease;
 }
 
@@ -1449,7 +1451,7 @@ button.titlebar-icon.active {
   border: 0;
   border-radius: 0 8px 8px 0;
   color: #fff;
-  background: transparent;
+  background: var(--danger);
   pointer-events: none;
   place-items: center;
 }
@@ -1459,7 +1461,7 @@ button.titlebar-icon.active {
 }
 
 .word-row-delete:active {
-  background: rgb(0 0 0 / 12%);
+  background: color-mix(in srgb, var(--danger) 88%, #000);
 }
 
 .word-row-delete:focus-visible {
@@ -1575,8 +1577,10 @@ button.titlebar-icon.active {
   gap: 6px;
 }
 
-.toolbar-button:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .toolbar-button:hover {
+    background: var(--hover);
+  }
 }
 
 .toolbar-button.primary {
@@ -2916,10 +2920,6 @@ button.titlebar-icon.active {
     box-shadow: none;
   }
 
-  .toolbar-button:hover {
-    background: transparent;
-  }
-
   .back-button span,
   .delete-button span {
     display: none;
@@ -3053,7 +3053,6 @@ button.titlebar-icon.active {
     flex: 0 0 auto;
   }
 
-  .progress-settings-button:hover,
   .progress-settings-button:active {
     color: var(--text);
     background: var(--hover);
@@ -3212,6 +3211,13 @@ button.titlebar-icon.active {
 
   .account-card .secondary-button {
     width: 100%;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 850px) {
+  .progress-settings-button:hover {
+    color: var(--text);
+    background: var(--hover);
   }
 }
 
