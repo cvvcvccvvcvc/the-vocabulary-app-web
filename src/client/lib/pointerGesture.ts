@@ -10,14 +10,15 @@ export function resolvePointerGestureAxis(
   deltaX: number,
   deltaY: number,
   lockDistance: number,
-  dominanceRatio: number,
+  horizontalDominanceRatio: number,
+  verticalDominanceRatio = horizontalDominanceRatio,
 ): PointerGestureAxis {
   if (Math.hypot(deltaX, deltaY) < lockDistance) return null;
 
   const distanceX = Math.abs(deltaX);
   const distanceY = Math.abs(deltaY);
-  if (distanceX > distanceY * dominanceRatio) return "horizontal";
-  if (distanceY > distanceX * dominanceRatio) return "vertical";
+  if (distanceX > distanceY * horizontalDominanceRatio) return "horizontal";
+  if (distanceY > distanceX * verticalDominanceRatio) return "vertical";
   return null;
 }
 

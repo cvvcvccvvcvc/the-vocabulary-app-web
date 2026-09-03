@@ -92,4 +92,10 @@ describe("pointer gesture axis", () => {
     expect(resolvePointerGestureAxis(20, 18, 8, 1.2)).toBeNull();
     expect(resolvePointerGestureAxis(-18, -20, 8, 1.2)).toBeNull();
   });
+
+  it("can favor native vertical scrolling until horizontal intent is deliberate", () => {
+    expect(resolvePointerGestureAxis(10, 12, 12, 1.45, 1.05)).toBe("vertical");
+    expect(resolvePointerGestureAxis(14, 10, 12, 1.45, 1.05)).toBeNull();
+    expect(resolvePointerGestureAxis(16, 10, 12, 1.45, 1.05)).toBe("horizontal");
+  });
 });

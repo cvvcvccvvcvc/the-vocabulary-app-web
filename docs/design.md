@@ -147,12 +147,15 @@ the same design questions again.
   overflows. Horizontal intent answers; vertical intent scrolls long content or does nothing
   on a short card; an ambiguous diagonal gesture waits without moving the card. Once vertical
   intent wins, leave the complete gesture to native scrolling without updating card layout or
-  animation state. Do not chain or rubber-band the card's boundary into the fixed Learn shell.
+  animation state. Favor native vertical movement until horizontal intent is deliberate, and
+  do not chain or rubber-band the card's boundary into the fixed Learn shell.
 
 - Keep the card stack shallow and aligned: one quiet rear edge and one blurred incoming
   surface are enough to communicate continuity without turning review into a game effect.
 - Tie the stack's depth response directly to horizontal drag progress. A cancelled gesture
   returns every layer with the card; an accepted gesture promotes the real next card.
+- After an accepted gesture, continue from the release position and speed only to the nearest
+  off-screen boundary. The visible card must fly out quickly without disappearing in one frame.
 - Remove the incoming blur when the outgoing card leaves the screen, independently of the
   server response. Saving controls whether another answer is allowed, not visual focus.
 - Animate only the card transforms, opacity, and the small question surface. Decorative

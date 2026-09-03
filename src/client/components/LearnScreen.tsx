@@ -24,6 +24,7 @@ import {
   trackPointerGesture,
   type PointerGestureAxis,
 } from "../lib/pointerGesture.js";
+import { reviewSwipeExitDuration, reviewSwipeExitOffset } from "../lib/reviewSwipe.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
@@ -50,6 +51,8 @@ interface SwipeSession {
   axis: PointerGestureAxis;
   threshold: number;
   thresholdDirection: -1 | 0 | 1;
+  startLeft: number;
+  width: number;
   cleanup(): void;
 }
 
@@ -58,8 +61,9 @@ interface ReviewCardSnapshot {
   word: VocabularyWord;
 }
 
-const SWIPE_AXIS_LOCK_DISTANCE = 8;
-const SWIPE_AXIS_DOMINANCE_RATIO = 1.2;
+const SWIPE_AXIS_LOCK_DISTANCE = 12;
+const SWIPE_HORIZONTAL_DOMINANCE_RATIO = 1.45;
+const SWIPE_VERTICAL_DOMINANCE_RATIO = 1.05;
 const SWIPE_DISTANCE_RATIO = 0.27;
 const SWIPE_MIN_FAST_DISTANCE = 36;
 const SWIPE_VELOCITY_THRESHOLD = 0.65;
@@ -246,8 +250,10 @@ export function LearnScreen({
   onUpdated,
 }: LearnScreenProps) {
   const [error, setError] = useState<string | null>(null);
+  const reviewDragLayer = useRef<HTMLDivElement>(null);
   const swipeSession = useRef<SwipeSession | null>(null);
   const swipeThreshold = useRef(90);
+  const swipeExitDuration = useRef(190);
   const [dragX, setDragX] = useState(0);
   const [swipePhase, setSwipePhase] = useState<SwipePhase>("idle");
   const [outgoingCard, setOutgoingCard] = useState<ReviewCardSnapshot | null>(null);
@@ -330,9 +336,9 @@ export function LearnScreen({
           onSessionChanged();
         }
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowLeft") {
-        startAnswer(false, window.innerWidth + 620);
+        startAnswer(false, getSwipeExitOffset(-1), 0, 0);
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowRight") {
-        startAnswer(true, window.innerWidth + 620);
+        startAnswer(true, getSwipeExitOffset(1), 0, 0);
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -359,7 +365,19 @@ export function LearnScreen({
     }
   }
 
-  function startAnswer(correct: boolean, exitDistance: number): void {
+  function getSwipeExitOffset(direction: -1 | 1): number {
+    const target = reviewDragLayer.current;
+    if (target === null) return direction * (window.innerWidth + 620);
+    const bounds = target.getBoundingClientRect();
+    return reviewSwipeExitOffset(bounds, window.innerWidth, direction);
+  }
+
+  function startAnswer(
+    correct: boolean,
+    exitDistance: number,
+    currentOffset: number,
+    releaseVelocity: number,
+  ): void {
     if (
       card === null
       || currentWord === null
@@ -377,8 +395,13 @@ export function LearnScreen({
     if (operation === null) return;
 
     setOutgoingCard({ card: { ...card }, word: currentWord });
+    swipeExitDuration.current = reviewSwipeExitDuration(
+      currentOffset,
+      exitDistance,
+      releaseVelocity,
+    );
     setSwipePhase("exiting");
-    setDragX((correct ? 1 : -1) * exitDistance);
+    setDragX(exitDistance);
     onSessionChanged();
     setError(null);
     void saveTransition(operation);
@@ -412,7 +435,8 @@ export function LearnScreen({
       || swipeSession.current !== null
     ) return;
     const now = performance.now();
-    const threshold = event.currentTarget.getBoundingClientRect().width * SWIPE_DISTANCE_RATIO;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const threshold = bounds.width * SWIPE_DISTANCE_RATIO;
     const gesture: SwipeSession = {
       pointerId: event.pointerId,
       target: event.currentTarget,
@@ -424,6 +448,8 @@ export function LearnScreen({
       axis: null,
       threshold,
       thresholdDirection: 0,
+      startLeft: bounds.left,
+      width: bounds.width,
       cleanup: () => undefined,
     };
     swipeThreshold.current = threshold;
@@ -445,7 +471,8 @@ export function LearnScreen({
         deltaX,
         deltaY,
         SWIPE_AXIS_LOCK_DISTANCE,
-        SWIPE_AXIS_DOMINANCE_RATIO,
+        SWIPE_HORIZONTAL_DOMINANCE_RATIO,
+        SWIPE_VERTICAL_DOMINANCE_RATIO,
       );
       if (session.axis === null) return;
       if (session.axis === "vertical") {
@@ -493,7 +520,8 @@ export function LearnScreen({
         deltaX,
         event.clientY - session.startY,
         SWIPE_AXIS_LOCK_DISTANCE,
-        SWIPE_AXIS_DOMINANCE_RATIO,
+        SWIPE_HORIZONTAL_DOMINANCE_RATIO,
+        SWIPE_VERTICAL_DOMINANCE_RATIO,
       );
     }
 
@@ -511,7 +539,13 @@ export function LearnScreen({
     }
 
     const correct = deltaX > 0;
-    startAnswer(correct, window.innerWidth + session.target.offsetWidth);
+    const direction = correct ? 1 : -1;
+    const exitOffset = reviewSwipeExitOffset(
+      { left: session.startLeft, width: session.width },
+      window.innerWidth,
+      direction,
+    );
+    startAnswer(correct, exitOffset, deltaX, recentVelocity);
   }
 
   function cancelSwipe(): void {
@@ -582,12 +616,14 @@ export function LearnScreen({
     "--stack-offset": string;
     "--rear-scale": number;
     "--rear-offset": string;
+    "--swipe-exit-duration": string;
   } = {
     "--swipe-progress": swipeProgress,
     "--stack-scale": 0.985 + swipeProgress * 0.015,
     "--stack-offset": `${6 * (1 - swipeProgress)}px`,
     "--rear-scale": 0.97 + swipeProgress * 0.015,
     "--rear-offset": `${12 - swipeProgress * 6}px`,
+    "--swipe-exit-duration": `${swipeExitDuration.current}ms`,
   };
   const swipeStyle: CSSProperties | undefined = swipePhase === "dragging"
     || swipePhase === "returning"
@@ -627,6 +663,7 @@ export function LearnScreen({
         <div className={`review-card-shell ${swipePhase}`} style={stackStyle}>
           <ReviewCardPreview snapshot={incomingCard} settings={settings} />
           <div
+            ref={reviewDragLayer}
             className={`review-card-drag-layer ${swipePhase} ${swipeDirection}`}
             style={swipeStyle}
             onTransitionEnd={handleSwipeTransitionEnd}

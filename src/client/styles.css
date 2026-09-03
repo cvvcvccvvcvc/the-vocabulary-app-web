@@ -765,6 +765,11 @@ button.titlebar-icon.active {
   transition: transform 190ms cubic-bezier(0.22, 0.72, 0.24, 1);
 }
 
+.review-card-drag-layer.exiting {
+  transition-duration: var(--swipe-exit-duration);
+  transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
 .review-card-drag-layer.exiting,
 .review-card-drag-layer.focusing {
   pointer-events: none;
@@ -862,7 +867,7 @@ button.titlebar-icon.active {
   max-height: var(--review-card-max-height);
   padding: 42px;
   overflow-y: auto;
-  overscroll-behavior: none;
+  overscroll-behavior: contain;
   touch-action: pan-y;
   align-items: center;
   justify-content: flex-start;
