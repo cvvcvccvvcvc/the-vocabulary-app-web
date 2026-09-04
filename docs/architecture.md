@@ -1,5 +1,10 @@
 # Architecture
 
+This document owns component boundaries and runtime flows. The user-data inventory,
+security controls, and limits on public claims are owned by
+[`security.md`](security.md); deployment procedures are owned by
+[`deployment.md`](deployment.md).
+
 The Vocabulary App is a single TypeScript project with four explicit layers:
 
 ```text
@@ -76,6 +81,9 @@ disables the internal endpoints and hides the client setting without affecting `
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in
 SQLite. Expired session rows are removed opportunistically when a new session is created.
+
+The complete inventory of stored user data, externally granted capabilities, and known
+privacy gaps is deliberately not duplicated here; see [`security.md`](security.md).
 
 ## Owner analytics
 

@@ -20,6 +20,9 @@ Validation is proportional to the affected layer:
 - Deployment changes require configuration validation before they reach the server.
 - Reminder changes require milestone-boundary, opt-in, deduplication, delivery-result, and
   Worker transport tests.
+- Documentation changes require checking local links and named paths. When a document changes
+  a behavior or operational claim, verify it against the owning code, test, or tracked
+  configuration rather than another summary document.
 
 Before a release, run:
 

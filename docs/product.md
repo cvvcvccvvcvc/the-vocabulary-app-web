@@ -1,10 +1,11 @@
 # Product
 
-The Vocabulary App is a vocabulary trainer that follows the user across iPhone, Mac, browsers, and Telegram. The server stores the canonical profile and vocabulary; the native Swift application is not part of the new product.
+The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegram Mini Apps. This repository contains the responsive client, API, Telegram integration, and production assets; it does not contain a native Swift application.
 
-## First release
+## Current product
 
 - Telegram identity shared by the website and Telegram Mini App.
+- Distinct learning and known languages stored with the profile. They control card labels and the browser speech voice; changing devices does not create separate settings.
 - The bot's `/start` and `/help` commands return a compact launch menu for Learn, Add Word, and Words. Each button opens the Mini App directly on that section.
 - Responsive Learn, Add Word, Words, and Progress sections. They form the four primary destinations on mobile and desktop. Settings is a secondary destination opened from a gear button and returns to the section that opened it. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
 - Centered review cards. Before reveal they show only the question. A known-language
