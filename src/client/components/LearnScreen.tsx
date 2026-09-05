@@ -12,12 +12,19 @@ import {
   type LanguageSettings,
   type ReviewMode,
   type ReviewSession,
+  type ReviewSessionCard,
   type VocabularyWord,
 } from "../../domain/index.js";
 import type { ReviewTransitionRequest } from "../../shared/contracts.js";
 import { api, ApiError } from "../lib/api.js";
 import type { ReviewTransitionTracker } from "../lib/identifier.js";
 import { languageName } from "../lib/languages.js";
+import {
+  resolvePointerGestureAxis,
+  trackPointerGesture,
+  type PointerGestureAxis,
+} from "../lib/pointerGesture.js";
+import { reviewSwipeExitDuration, reviewSwipeExitOffset } from "../lib/reviewSwipe.js";
 import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
@@ -31,21 +38,32 @@ interface LearnScreenProps {
   onUpdated(word: VocabularyWord): void;
 }
 
-type SwipeAxis = "horizontal" | "vertical" | null;
-type SwipePhase = "idle" | "dragging" | "returning" | "exiting";
+type SwipePhase = "idle" | "dragging" | "returning" | "exiting" | "focusing";
 
 interface SwipeSession {
   pointerId: number;
+  target: HTMLDivElement;
   startX: number;
   startY: number;
   lastX: number;
   lastAt: number;
   velocityX: number;
-  axis: SwipeAxis;
+  axis: PointerGestureAxis;
+  threshold: number;
   thresholdDirection: -1 | 0 | 1;
+  startLeft: number;
+  width: number;
+  cleanup(): void;
 }
 
-const SWIPE_AXIS_LOCK_DISTANCE = 8;
+interface ReviewCardSnapshot {
+  card: ReviewSessionCard;
+  word: VocabularyWord;
+}
+
+const SWIPE_AXIS_LOCK_DISTANCE = 12;
+const SWIPE_HORIZONTAL_DOMINANCE_RATIO = 1.45;
+const SWIPE_VERTICAL_DOMINANCE_RATIO = 1.05;
 const SWIPE_DISTANCE_RATIO = 0.27;
 const SWIPE_MIN_FAST_DISTANCE = 36;
 const SWIPE_VELOCITY_THRESHOLD = 0.65;
@@ -85,6 +103,141 @@ function SpeakerButton({ className = "", onSpeak }: SpeakerButtonProps) {
   );
 }
 
+interface CardQuestionProps {
+  direction: ReviewSessionCard["direction"];
+  word: VocabularyWord;
+  settings: LanguageSettings;
+}
+
+function CardQuestion({ direction, word, settings }: CardQuestionProps) {
+  if (direction === "learning-to-known") {
+    return (
+      <span className="card-question" lang={settings.learningLanguage}>
+        {word.learningText}
+      </span>
+    );
+  }
+
+  const className = word.meanings.length > 1
+    ? "card-question known-question multiple"
+    : "card-question known-question";
+
+  return (
+    <span className={className} lang={settings.knownLanguage}>
+      {word.meanings.map((meaning, index) => (
+        <span className="card-question-meaning" key={`${meaning}-${index}`}>
+          {meaning}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+interface ReviewCardProps {
+  card: ReviewSessionCard;
+  word: VocabularyWord;
+  settings: LanguageSettings;
+  revealed: boolean;
+  onReveal?: (() => void) | undefined;
+  onSpeak(): void;
+  onPointerDown?: ((event: ReactPointerEvent<HTMLDivElement>) => void) | undefined;
+}
+
+function ReviewCard({
+  card,
+  word,
+  settings,
+  revealed,
+  onReveal,
+  onSpeak,
+  onPointerDown,
+}: ReviewCardProps) {
+  const questionIsLearning = card.direction === "learning-to-known";
+  const learningLanguage = languageName(settings.learningLanguage);
+  const knownLanguage = languageName(settings.knownLanguage);
+  const multipleMeanings = word.meanings.length > 1;
+
+  return (
+    <div
+      className={revealed ? "review-card revealed" : "review-card"}
+      draggable={false}
+      onPointerDown={onPointerDown}
+    >
+      {revealed ? (
+        <div className="review-card-scroll review-card-revealed-scroll">
+          <div className="card-reveal">
+            <div className="card-reveal-side">
+              <span className="card-side-label">{learningLanguage}</span>
+              <div className="card-learning-row">
+                <span className="card-side-value learning" lang={settings.learningLanguage}>
+                  {word.learningText}
+                </span>
+                <SpeakerButton onSpeak={onSpeak} />
+              </div>
+            </div>
+            <span className="card-reveal-divider" aria-hidden="true" />
+            <div className="card-reveal-side">
+              <span className="card-side-label">{knownLanguage}</span>
+              <ol
+                className={multipleMeanings ? "card-meaning-list" : "card-meaning-list single"}
+                aria-label={`${knownLanguage} meanings`}
+                role="list"
+              >
+                {word.meanings.map((meaning, index) => (
+                  <li key={`${meaning}-${index}`} role="listitem">
+                    {multipleMeanings && (
+                      <span className="card-meaning-number" aria-hidden="true">{index + 1}</span>
+                    )}
+                    <span className="card-meaning-text" lang={settings.knownLanguage}>{meaning}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {word.comment !== "" && <p className="card-reveal-comment">{word.comment}</p>}
+          </div>
+        </div>
+      ) : (
+        questionIsLearning ? (
+          <div
+            className="review-card-scroll review-card-reveal learning-question-surface"
+            onClick={onReveal}
+          >
+            <div className="learning-question-anchor">
+              <button
+                className="review-question-action"
+                type="button"
+                aria-label={word.learningText}
+                lang={settings.learningLanguage}
+              >
+                <CardQuestion direction={card.direction} word={word} settings={settings} />
+              </button>
+              <SpeakerButton className="review-card-speaker" onSpeak={onSpeak} />
+            </div>
+          </div>
+        ) : (
+          <button
+            className="review-card-scroll review-card-reveal"
+            type="button"
+            aria-label={word.meanings.join(", ")}
+            lang={settings.knownLanguage}
+            onClick={onReveal}
+          >
+            <CardQuestion direction={card.direction} word={word} settings={settings} />
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
+function ReviewCardPreview() {
+  return (
+    <div className="review-card-preview-layer" aria-hidden="true">
+      <div className="review-card review-card-preview" />
+    </div>
+  );
+}
+
 export function LearnScreen({
   words,
   settings,
@@ -94,11 +247,13 @@ export function LearnScreen({
   onUpdated,
 }: LearnScreenProps) {
   const [error, setError] = useState<string | null>(null);
+  const reviewDragLayer = useRef<HTMLDivElement>(null);
   const swipeSession = useRef<SwipeSession | null>(null);
+  const swipeThreshold = useRef(90);
+  const swipeExitDuration = useRef(190);
   const [dragX, setDragX] = useState(0);
-  const [swipeThreshold, setSwipeThreshold] = useState(90);
   const [swipePhase, setSwipePhase] = useState<SwipePhase>("idle");
-  const [pendingAnswer, setPendingAnswer] = useState<boolean | null>(null);
+  const [outgoingCard, setOutgoingCard] = useState<ReviewCardSnapshot | null>(null);
   const [modeHelpOpen, setModeHelpOpen] = useState(false);
   const modeHelp = useDismissiblePopover<HTMLElement>(modeHelpOpen, setModeHelpOpen);
   const { card, revealed, phase } = session.snapshot;
@@ -106,15 +261,35 @@ export function LearnScreen({
   const currentWord = words.find((word) => word.id === card?.wordId) ?? null;
 
   useEffect(() => {
+    document.documentElement.classList.add("review-scroll-locked");
     setTelegramVerticalSwipesEnabled(false);
-    return () => setTelegramVerticalSwipesEnabled(true);
+    return () => {
+      const activeSession = swipeSession.current;
+      activeSession?.cleanup();
+      if (activeSession?.target.hasPointerCapture(activeSession.pointerId)) {
+        activeSession.target.releasePointerCapture(activeSession.pointerId);
+      }
+      document.documentElement.classList.remove("review-scroll-locked");
+      setTelegramVerticalSwipesEnabled(true);
+    };
   }, []);
 
+  useEffect(() => {
+    if (swipePhase !== "focusing") return;
+    const frame = window.requestAnimationFrame(() => setSwipePhase("idle"));
+    return () => window.cancelAnimationFrame(frame);
+  }, [swipePhase]);
+
   const resetSwipe = useCallback(() => {
+    const activeSession = swipeSession.current;
+    activeSession?.cleanup();
+    if (activeSession?.target.hasPointerCapture(activeSession.pointerId)) {
+      activeSession.target.releasePointerCapture(activeSession.pointerId);
+    }
     swipeSession.current = null;
     setDragX(0);
     setSwipePhase("idle");
-    setPendingAnswer(null);
+    setOutgoingCard(null);
   }, []);
 
   const chooseNext = useCallback(async (latestWords: VocabularyWord[]) => {
@@ -152,15 +327,15 @@ export function LearnScreen({
   useEffect(() => {
     function handleKey(event: KeyboardEvent): void {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      if (event.code === "Space" && currentWord !== null) {
+      if (event.code === "Space" && currentWord !== null && swipePhase === "idle") {
         event.preventDefault();
         if (session.reveal()) {
           onSessionChanged();
         }
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowLeft") {
-        void answer(false);
+        startAnswer(false, getSwipeExitOffset(-1), 0, 0);
       } else if (revealed && swipePhase === "idle" && event.key === "ArrowRight") {
-        void answer(true);
+        startAnswer(true, getSwipeExitOffset(1), 0, 0);
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -187,7 +362,19 @@ export function LearnScreen({
     }
   }
 
-  async function answer(correct: boolean): Promise<void> {
+  function getSwipeExitOffset(direction: -1 | 1): number {
+    const target = reviewDragLayer.current;
+    if (target === null) return direction * (window.innerWidth + 620);
+    const bounds = target.getBoundingClientRect();
+    return reviewSwipeExitOffset(bounds, window.innerWidth, direction);
+  }
+
+  function startAnswer(
+    correct: boolean,
+    exitDistance: number,
+    currentOffset: number,
+    releaseVelocity: number,
+  ): void {
     if (
       card === null
       || currentWord === null
@@ -195,15 +382,26 @@ export function LearnScreen({
     ) return;
 
     const transition = session.beginTransition(words, currentWord.id, correct);
-    if (transition === null) return;
+    if (transition === null) {
+      setDragX(0);
+      setSwipePhase(Math.abs(dragX) > 1 ? "returning" : "idle");
+      return;
+    }
 
     const operation = reviewTransitions.begin(transition);
     if (operation === null) return;
 
-    resetSwipe();
+    setOutgoingCard({ card: { ...card }, word: currentWord });
+    swipeExitDuration.current = reviewSwipeExitDuration(
+      currentOffset,
+      exitDistance,
+      releaseVelocity,
+    );
+    setSwipePhase("exiting");
+    setDragX(exitDistance);
     onSessionChanged();
     setError(null);
-    await saveTransition(operation);
+    void saveTransition(operation);
   }
 
   async function retryTransition(): Promise<void> {
@@ -215,50 +413,72 @@ export function LearnScreen({
     await saveTransition(operation);
   }
 
-  function speak(): void {
-    if (currentWord === null || !("speechSynthesis" in window)) return;
+  function speak(word: VocabularyWord): void {
+    if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(currentWord.learningText);
+    const utterance = new SpeechSynthesisUtterance(word.learningText);
     utterance.lang = settings.learningLanguage;
     window.speechSynthesis.speak(utterance);
     telegramImpact();
   }
 
   function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>): void {
-    if (!event.isPrimary || event.button !== 0 || !revealed || !canAnswer || swipePhase !== "idle") return;
+    if (
+      !event.isPrimary
+      || event.button !== 0
+      || !revealed
+      || !canAnswer
+      || swipePhase !== "idle"
+      || swipeSession.current !== null
+    ) return;
     const now = performance.now();
-    swipeSession.current = {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const threshold = bounds.width * SWIPE_DISTANCE_RATIO;
+    const gesture: SwipeSession = {
       pointerId: event.pointerId,
+      target: event.currentTarget,
       startX: event.clientX,
       startY: event.clientY,
       lastX: event.clientX,
       lastAt: now,
       velocityX: 0,
       axis: null,
+      threshold,
       thresholdDirection: 0,
+      startLeft: bounds.left,
+      width: bounds.width,
+      cleanup: () => undefined,
     };
-    setSwipeThreshold(event.currentTarget.getBoundingClientRect().width * SWIPE_DISTANCE_RATIO);
-    setSwipePhase("dragging");
+    swipeThreshold.current = threshold;
+    gesture.cleanup = trackPointerGesture(window, event.pointerId, {
+      move: (pointerEvent) => {
+        if (swipeSession.current === gesture) updateSwipeGesture(gesture, pointerEvent);
+      },
+      end: finishSwipe,
+      cancel: cancelSwipe,
+    });
+    swipeSession.current = gesture;
   }
 
-  function handleSwipeMove(event: ReactPointerEvent<HTMLDivElement>): void {
-    const session = swipeSession.current;
-    if (session === null || session.pointerId !== event.pointerId) return;
-
+  function updateSwipeGesture(session: SwipeSession, event: PointerEvent): void {
     const deltaX = event.clientX - session.startX;
     const deltaY = event.clientY - session.startY;
     if (session.axis === null) {
-      if (Math.hypot(deltaX, deltaY) < SWIPE_AXIS_LOCK_DISTANCE) return;
-      const canScrollVertically = event.currentTarget.scrollHeight > event.currentTarget.clientHeight + 1;
-      session.axis = !canScrollVertically || Math.abs(deltaX) > Math.abs(deltaY)
-        ? "horizontal"
-        : "vertical";
+      session.axis = resolvePointerGestureAxis(
+        deltaX,
+        deltaY,
+        SWIPE_AXIS_LOCK_DISTANCE,
+        SWIPE_HORIZONTAL_DOMINANCE_RATIO,
+        SWIPE_VERTICAL_DOMINANCE_RATIO,
+      );
+      if (session.axis === null) return;
       if (session.axis === "vertical") {
+        session.cleanup();
         swipeSession.current = null;
-        setSwipePhase("idle");
         return;
       }
-      event.currentTarget.setPointerCapture(event.pointerId);
+      session.target.setPointerCapture(session.pointerId);
+      setSwipePhase("dragging");
     }
 
     event.preventDefault();
@@ -269,53 +489,80 @@ export function LearnScreen({
     session.lastAt = now;
     setDragX(deltaX);
 
-    const threshold = event.currentTarget.getBoundingClientRect().width * SWIPE_DISTANCE_RATIO;
-    const direction = Math.abs(deltaX) >= threshold ? (deltaX > 0 ? 1 : -1) : 0;
+    const direction = Math.abs(deltaX) >= session.threshold ? (deltaX > 0 ? 1 : -1) : 0;
     if (direction !== 0 && direction !== session.thresholdDirection) {
       telegramImpact("medium");
       session.thresholdDirection = direction;
-    } else if (Math.abs(deltaX) < threshold * 0.7) {
+    } else if (Math.abs(deltaX) < session.threshold * 0.7) {
       session.thresholdDirection = 0;
     }
   }
 
-  function finishSwipe(event: ReactPointerEvent<HTMLDivElement>, cancelled = false): void {
+  function releaseSwipePointer(session: SwipeSession): void {
+    if (session.target.hasPointerCapture(session.pointerId)) {
+      session.target.releasePointerCapture(session.pointerId);
+    }
+  }
+
+  function finishSwipe(event: PointerEvent): void {
     const session = swipeSession.current;
     if (session === null || session.pointerId !== event.pointerId) return;
+    session.cleanup();
     swipeSession.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    releaseSwipePointer(session);
 
     const deltaX = event.clientX - session.startX;
-    const threshold = event.currentTarget.getBoundingClientRect().width * SWIPE_DISTANCE_RATIO;
+    if (session.axis === null) {
+      session.axis = resolvePointerGestureAxis(
+        deltaX,
+        event.clientY - session.startY,
+        SWIPE_AXIS_LOCK_DISTANCE,
+        SWIPE_HORIZONTAL_DOMINANCE_RATIO,
+        SWIPE_VERTICAL_DOMINANCE_RATIO,
+      );
+    }
+
     const recentVelocity = performance.now() - session.lastAt <= 120 ? session.velocityX : 0;
     const fastEnough = Math.abs(deltaX) >= SWIPE_MIN_FAST_DISTANCE
       && Math.abs(recentVelocity) >= SWIPE_VELOCITY_THRESHOLD;
-    const accepted = !cancelled
-      && session.axis === "horizontal"
-      && (Math.abs(deltaX) >= threshold || fastEnough);
+    const accepted = session.axis === "horizontal"
+      && (Math.abs(deltaX) >= session.threshold || fastEnough);
 
     if (!accepted) {
+      if (session.axis !== "horizontal") return;
       setDragX(0);
       setSwipePhase(Math.abs(deltaX) > 1 ? "returning" : "idle");
       return;
     }
 
     const correct = deltaX > 0;
-    setPendingAnswer(correct);
-    setSwipePhase("exiting");
-    setDragX((correct ? 1 : -1) * (window.innerWidth + event.currentTarget.offsetWidth));
+    const direction = correct ? 1 : -1;
+    const exitOffset = reviewSwipeExitOffset(
+      { left: session.startLeft, width: session.width },
+      window.innerWidth,
+      direction,
+    );
+    startAnswer(correct, exitOffset, deltaX, recentVelocity);
+  }
+
+  function cancelSwipe(): void {
+    const session = swipeSession.current;
+    if (session === null) return;
+    releaseSwipePointer(session);
+    swipeSession.current = null;
+    if (session.axis !== "horizontal") return;
+    setDragX(0);
+    setSwipePhase(Math.abs(session.lastX - session.startX) > 1 ? "returning" : "idle");
   }
 
   function handleSwipeTransitionEnd(event: ReactTransitionEvent<HTMLDivElement>): void {
-    if (event.propertyName !== "transform") return;
+    if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
     if (swipePhase === "returning") {
       setSwipePhase("idle");
-    } else if (swipePhase === "exiting" && pendingAnswer !== null) {
-      const correct = pendingAnswer;
-      setPendingAnswer(null);
-      void answer(correct);
+    } else if (swipePhase === "exiting" && outgoingCard !== null) {
+      setOutgoingCard(null);
+      setDragX(0);
+      setSwipePhase("focusing");
     }
   }
 
@@ -354,18 +601,31 @@ export function LearnScreen({
     );
   }
 
-  const question = card.direction === "learning-to-known" ? currentWord.learningText : currentWord.meanings.join(" · ");
-  const questionIsLearning = card.direction === "learning-to-known";
-  const questionLanguage = languageName(questionIsLearning ? settings.learningLanguage : settings.knownLanguage);
-  const answerLanguage = languageName(questionIsLearning ? settings.knownLanguage : settings.learningLanguage);
+  const displayedCard = outgoingCard ?? { card, word: currentWord };
   const scheduledDueCount = words.filter((word) => isScheduledReviewCandidate(word, new Date())).length;
   const swipeDirection = dragX > 0 ? "swiping-right" : dragX < 0 ? "swiping-left" : "";
-  const swipeProgress = Math.min(Math.abs(dragX) / swipeThreshold, 1);
+  const swipeProgress = Math.min(Math.abs(dragX) / swipeThreshold.current, 1);
   const swipeRotation = Math.max(-7, Math.min(7, dragX / 24));
-  const swipeStyle: CSSProperties & { "--swipe-progress": number } = {
+  const stackStyle: CSSProperties & {
+    "--swipe-progress": number;
+    "--stack-scale": number;
+    "--stack-offset": string;
+    "--rear-scale": number;
+    "--rear-offset": string;
+    "--swipe-exit-duration": string;
+  } = {
     "--swipe-progress": swipeProgress,
-    transform: `translate3d(${dragX}px, 0, 0) rotate(${swipeRotation}deg)`,
+    "--stack-scale": 0.985 + swipeProgress * 0.015,
+    "--stack-offset": `${6 * (1 - swipeProgress)}px`,
+    "--rear-scale": 0.97 + swipeProgress * 0.015,
+    "--rear-offset": `${12 - swipeProgress * 6}px`,
+    "--swipe-exit-duration": `${swipeExitDuration.current}ms`,
   };
+  const swipeStyle: CSSProperties | undefined = swipePhase === "dragging"
+    || swipePhase === "returning"
+    || swipePhase === "exiting"
+    ? { transform: `translate3d(${dragX}px, 0, 0) rotate(${swipeRotation}deg)` }
+    : undefined;
 
   return (
     <section className="screen learn-screen">
@@ -374,7 +634,7 @@ export function LearnScreen({
         className="review-mode-header"
       >
         <button
-          className={card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}
+          className={displayedCard.card.mode === "scheduled" ? "review-mode-badge scheduled" : "review-mode-badge"}
           type="button"
           aria-haspopup="dialog"
           aria-expanded={modeHelpOpen}
@@ -382,93 +642,45 @@ export function LearnScreen({
           onClick={() => setModeHelpOpen((open) => !open)}
         >
           <span aria-hidden="true" />
-          {card.mode === "scheduled" ? "Scheduled Review" : "Free Review"}
+          {displayedCard.card.mode === "scheduled" ? "Scheduled Review" : "Free Review"}
         </button>
-        {card.mode === "scheduled" && <small>{scheduledDueCount} left</small>}
+        {displayedCard.card.mode === "scheduled" && <small>{scheduledDueCount} left</small>}
         {modeHelpOpen && (
           <HelpPopover
             id="review-mode-help"
-            label={`${card.mode === "scheduled" ? "Scheduled" : "Free"} Review details`}
-            items={REVIEW_HELP_ITEMS[card.mode]}
+            label={`${displayedCard.card.mode === "scheduled" ? "Scheduled" : "Free"} Review details`}
+            items={REVIEW_HELP_ITEMS[displayedCard.card.mode]}
             className="review-mode-help"
           />
         )}
       </header>
 
       <div className="review-stage">
-        <div className="review-card-shell">
+        <div className={`review-card-shell ${swipePhase}`} style={stackStyle}>
+          <ReviewCardPreview />
           <div
+            ref={reviewDragLayer}
             className={`review-card-drag-layer ${swipePhase} ${swipeDirection}`}
             style={swipeStyle}
             onTransitionEnd={handleSwipeTransitionEnd}
           >
-            <div
-              className={revealed ? "review-card revealed" : "review-card"}
-              draggable={false}
-              onPointerDown={handleSwipeStart}
-              onPointerMove={handleSwipeMove}
-              onPointerUp={(event) => finishSwipe(event)}
-              onPointerCancel={(event) => finishSwipe(event, true)}
-            >
-              {revealed ? (
-                <span className="card-reveal">
-                  <span className="card-reveal-side">
-                    <span className="card-side-label">{questionLanguage}</span>
-                    {questionIsLearning ? (
-                      <span className="card-learning-row">
-                        <span className="card-side-value learning">{question}</span>
-                        <SpeakerButton onSpeak={speak} />
-                      </span>
-                    ) : (
-                      <span className="card-side-value known">{question}</span>
-                    )}
-                  </span>
-                  <span className="card-reveal-divider" aria-hidden="true" />
-                  <span className="card-reveal-side">
-                    <span className="card-side-label">{answerLanguage}</span>
-                    {questionIsLearning ? (
-                      <span className="card-side-values">
-                        {currentWord.meanings.map((meaning, index) => (
-                          <strong className="card-side-value known" key={`${meaning}-${index}`}>
-                            {meaning}
-                          </strong>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="card-learning-row">
-                        <strong className="card-side-value learning">
-                          {currentWord.learningText}
-                        </strong>
-                        <SpeakerButton onSpeak={speak} />
-                      </span>
-                    )}
-                    {currentWord.comment !== "" && <small className="card-reveal-comment">“{currentWord.comment}”</small>}
-                  </span>
-                </span>
-              ) : (
-                <>
-                  <button
-                    className="review-card-reveal"
-                    type="button"
-                    onClick={() => {
-                      if (session.reveal()) {
-                        onSessionChanged();
-                        telegramImpact();
-                      }
-                    }}
-                  >
-                    <span className={questionIsLearning ? "card-question" : "card-question known-question"}>
-                      {question}
-                    </span>
-                  </button>
-                  {questionIsLearning && (
-                    <SpeakerButton className="review-card-speaker" onSpeak={speak} />
-                  )}
-                </>
-              )}
-            </div>
+            <ReviewCard
+              key={`${displayedCard.card.wordId}:${displayedCard.card.direction}:${displayedCard.card.mode}`}
+              card={displayedCard.card}
+              word={displayedCard.word}
+              settings={settings}
+              revealed={outgoingCard === null ? revealed : true}
+              onReveal={outgoingCard === null ? () => {
+                if (session.reveal()) {
+                  onSessionChanged();
+                  telegramImpact();
+                }
+              } : undefined}
+              onSpeak={() => speak(displayedCard.word)}
+              onPointerDown={outgoingCard === null ? handleSwipeStart : undefined}
+            />
           </div>
-          {phase === "transition-failed" ? (
+          {outgoingCard !== null || swipePhase === "focusing" ? null : phase === "transition-failed" ? (
             <div className="review-transition-failure">
               <p className="notice notice-error">{error ?? "Could not save the answer"}</p>
               <button

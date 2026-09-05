@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./Icons.js";
+import { SupportLink } from "./SupportLink.js";
 
 export type PrimarySection = "learn" | "add" | "words" | "progress";
 export type Section = PrimarySection | "settings";
@@ -55,6 +56,7 @@ export function Shell({
         <button className="appearance-toggle" type="button" aria-label="Toggle appearance" onClick={onThemeToggle}>
           <Icon name={theme === "dark" ? "sun" : "moon"} />
         </button>
+        {activeSection === "settings" && <SupportLink />}
       </header>
 
       <aside className="sidebar">

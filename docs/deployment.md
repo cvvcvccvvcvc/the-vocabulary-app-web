@@ -34,7 +34,9 @@ Database migrations run automatically when the new application container starts.
 
 ## Automatic deployment
 
-<code>.github/workflows/deploy.yml</code> runs for every push to <code>main</code>:
+<code>.github/workflows/deploy.yml</code> verifies pushes and pull requests targeting
+<code>dev</code> or <code>main</code>, and can also be started manually. The deployment job runs
+only for the resulting commit on <code>main</code>:
 
 1. Install locked dependencies.
 2. Run tests, type checking, and the production build.

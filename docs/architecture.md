@@ -1,5 +1,10 @@
 # Architecture
 
+This document owns component boundaries and runtime flows. The user-data inventory,
+security controls, and limits on public claims are owned by
+[`security.md`](security.md); deployment procedures are owned by
+[`deployment.md`](deployment.md).
+
 The Vocabulary App is a single TypeScript project with four explicit layers:
 
 ```text
@@ -19,9 +24,9 @@ src/client  -> src/shared <- src/server
 
 The browser loads the user's active vocabulary into memory. This keeps review selection immediate and preserves the Free Review invariant that scoring does not query persistence.
 
-The in-memory `ReviewSession` is owned above the navigation tabs. It keeps ID-only Scheduled and Free queues together with the current card, direction, reveal state, and in-flight review phase, so visiting another tab does not restart review. After a swipe it projects the answer only far enough to choose and display the next local card; it does not publish projected progress as canonical application data. Word additions and deletions reconcile only affected IDs, while newly due cards remain ahead of the next Free Review selection. The session is reset at bootstrap and logout and is deliberately not written to browser storage; a full reload starts again from canonical server data.
+The in-memory `ReviewSession` is owned above the navigation tabs. It keeps ID-only Scheduled and Free queues together with the current card, direction, reveal state, and in-flight review phase, so visiting another tab does not restart review. Once a swipe is accepted it projects the answer only far enough to choose the next local card; presentation keeps a snapshot of the outgoing card until its animation completes and does not publish projected progress as canonical application data. Word additions and deletions reconcile only affected IDs, while newly due cards remain ahead of the next Free Review selection. The session is reset at bootstrap and logout and is deliberately not written to browser storage; a full reload starts again from canonical server data.
 
-The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. After the initial presentation, one review-transition request atomically applies the answer and records the next card's direction. The next card remains readable while that request is in flight, but it cannot be answered until the server confirms the transition. An ambiguous retry reuses the same operation ID and exact payload, so the server returns the stored response without applying either mutation twice. Exact retry responses are retained for seven days; the permanent event ID still rejects a later replay after that response expires. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
+The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. After the initial presentation, one review-transition request atomically applies the answer and records the next card's direction. Its local projection begins when the swipe is accepted, while the next card becomes readable only after the outgoing animation; neither visual event waits for the request to finish. The next card cannot be answered until the server confirms the transition. An ambiguous retry reuses the same operation ID and exact payload, so the server returns the stored response without applying either mutation twice. Exact retry responses are retained for seven days; the permanent event ID still rejects a later replay after that response expires. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
 
 ## User progress
 
@@ -76,6 +81,9 @@ disables the internal endpoints and hides the client setting without affecting `
 
 Session cookies are HTTP-only, secure in production, and backed by hashed random tokens in
 SQLite. Expired session rows are removed opportunistically when a new session is created.
+
+The complete inventory of stored user data, externally granted capabilities, and known
+privacy gaps is deliberately not duplicated here; see [`security.md`](security.md).
 
 ## Owner analytics
 

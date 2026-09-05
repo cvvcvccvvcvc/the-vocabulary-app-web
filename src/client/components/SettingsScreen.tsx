@@ -8,6 +8,7 @@ import { api, ApiError } from "../lib/api.js";
 import { languages } from "../lib/languages.js";
 import { requestTelegramWriteAccess } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
+import { SupportLink } from "./SupportLink.js";
 
 interface SettingsScreenProps {
   settings: LanguageSettings;
@@ -97,7 +98,7 @@ export function SettingsScreen({
           <Icon name="back" />
         </button>
         <h1>Settings</h1>
-        <span className="mobile-header-spacer" aria-hidden="true" />
+        <SupportLink />
       </header>
       <div className="settings-stack">
         <section className="settings-card">

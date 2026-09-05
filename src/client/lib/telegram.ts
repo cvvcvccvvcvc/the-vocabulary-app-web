@@ -8,6 +8,19 @@ interface TelegramWebApp {
   isVersionAtLeast?(version: string): boolean;
   requestFullscreen?(): void;
   requestWriteAccess?(callback: (granted: boolean) => void): void;
+  openTelegramLink?(url: string): void;
+  showPopup?(
+    params: {
+      title?: string;
+      message: string;
+      buttons?: Array<{
+        id?: string;
+        type?: "ok" | "close" | "cancel" | "default" | "destructive";
+        text?: string;
+      }>;
+    },
+    callback?: (buttonId: string) => void,
+  ): void;
   enableVerticalSwipes?(): void;
   disableVerticalSwipes?(): void;
   setBackgroundColor?(color: string): void;
@@ -70,6 +83,39 @@ export function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
   } else {
     webApp.disableVerticalSwipes?.();
   }
+}
+
+export function openTelegramLink(url: string): boolean {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.initData
+    || webApp.openTelegramLink === undefined
+    || webApp.isVersionAtLeast?.("6.1") === false) {
+    return false;
+  }
+  webApp.openTelegramLink(url);
+  return true;
+}
+
+export function requestTelegramDeleteConfirmation(): Promise<boolean | null> {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.initData
+    || webApp.showPopup === undefined
+    || webApp.isVersionAtLeast?.("6.2") === false) {
+    return Promise.resolve(null);
+  }
+
+  const showPopup = webApp.showPopup.bind(webApp);
+  return new Promise((resolve) => showPopup(
+    {
+      title: "Delete card?",
+      message: "It will be removed from Words and future reviews.",
+      buttons: [
+        { id: "cancel", type: "cancel", text: "Cancel" },
+        { id: "delete", type: "destructive", text: "Delete" },
+      ],
+    },
+    (buttonId) => resolve(buttonId === "delete"),
+  ));
 }
 
 export function telegramImpact(style: "light" | "medium" | "heavy" = "light"): void {

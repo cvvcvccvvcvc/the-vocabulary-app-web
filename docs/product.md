@@ -1,20 +1,28 @@
 # Product
 
-The Vocabulary App is a vocabulary trainer that follows the user across iPhone, Mac, browsers, and Telegram. The server stores the canonical profile and vocabulary; the native Swift application is not part of the new product.
+The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegram Mini Apps. This repository contains the responsive client, API, Telegram integration, and production assets; it does not contain a native Swift application.
 
-## First release
+## Current product
 
 - Telegram identity shared by the website and Telegram Mini App.
+- Distinct learning and known languages stored with the profile. They control card labels and the browser speech voice; changing devices does not create separate settings.
 - The bot's `/start` and `/help` commands return a compact launch menu for Learn, Add Word, and Words. Each button opens the Mini App directly on that section.
 - Responsive Learn, Add Word, Words, and Progress sections. They form the four primary destinations on mobile and desktop. Settings is a secondary destination opened from a gear button and returns to the section that opened it. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
-- Centered review cards with compact labeled question and answer sides.
+- Centered review cards. Before reveal they show only the question. A known-language
+  question presents multiple meanings as an unnumbered vertical group instead of joining
+  them with punctuation. After reveal, cards use one stable reading order: learning
+  language, ordered known-language meanings, then the optional comment. Multiple meanings
+  are individually numbered there; a single meaning is not.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
-- Focused word editing with separate Save and Cancel actions; review level remains read-only.
+- Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered by dragging its handle. While dragging, neighboring meanings shift to show the exact resulting order before release; moving beyond the populated rows keeps the first or last position selected, and releasing settles into that order without an intermediate return to the old layout. The empty field is optional, does not participate in reordering, and is never saved.
+- Focused word editing with separate Save and Cancel actions; review level remains read-only
+  and is hidden while editing. Edit and Delete remain separate actions on the word screen.
 - Optional comment for examples, nuance, and notes.
 - Scheduled Review followed by infinite Free Review.
 - The active review-mode badge opens a short contextual explanation. The whole Level card opens an explanation of level progress; neither control relies on a tiny question-mark target.
-- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; the card fills softly with the corresponding color as the gesture progresses, and desktop keyboard arrows remain available. Learn does not scroll as a page; only oversized card content scrolls vertically. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
-- Words can be searched and sorted by date added, A–Z, or learning level from a compact custom menu.
+- A learning-language question is centered against the full review card, with pronunciation attached directly below it. Oversized questions and their pronunciation control scroll together.
+- Swipe or drag a revealed review card left for a wrong answer and right for a correct answer; the card fills softly with the corresponding color as the gesture progresses, while a quiet contentless card stack appears underneath. Once the gesture is accepted, the next question stays hidden until the outgoing card is fully off-screen, then fades and focuses into place. Desktop keyboard arrows use the same transition. Learn does not scroll as a page; only oversized card content scrolls vertically. Mobile Telegram's vertical close gesture is disabled while Learn is open so it cannot interrupt card swipes.
+- Words can be searched and sorted by date added, A–Z, or learning level from a compact custom menu. Swiping a row left progressively reveals a rounded Delete action without opening the word. A medium swipe leaves it available to tap; a deep swipe expands the action and opens confirmation directly. Deletion always requires confirmation.
 - Adding an already saved word is a neutral result with a direct link to the existing card; View after a successful add opens the new card directly.
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
@@ -25,6 +33,9 @@ The Vocabulary App is a vocabulary trainer that follows the user across iPhone, 
   vertical close gesture is disabled while the interactive calendar is present. A
   brand-new account sees one Add Word action instead of empty analytics.
 - Opt-in Telegram reminders when Scheduled Review cards are ready.
+- A Contact Support headset icon appears only in Settings: in the mobile heading or
+  the desktop titlebar. It opens private messages to `@thevocabularyapp`, without
+  a support form, an extra settings row, or changes to the bot.
 - Server-side persistence and user isolation.
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
@@ -71,7 +82,7 @@ Free Review starts only when Scheduled Review is empty. It draws from all active
 
 Moving to another tab and back keeps the current review card, its direction and reveal state, and the remaining in-memory queue. A full application reload deliberately starts a fresh queue from server data.
 
-After an answered card leaves the screen, the next card appears immediately from the in-memory queue. It can be read and revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
+An accepted answer immediately projects the next card from the in-memory queue, but its content is not rendered beneath the outgoing card. When that card is fully off-screen, the exact next question fades and focuses into place without waiting for the server response. It can then be revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
 
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
 

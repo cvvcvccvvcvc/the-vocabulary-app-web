@@ -17,6 +17,78 @@ the same design questions again.
   semantic color only when it has a stable meaning across the product. Never rely on color
   alone to distinguish a state; pair it with text, shape, or an icon.
 - Check contrast for icons, chart marks, and other meaningful graphics as well as text.
+- On mobile, the Words sort button and the Progress settings gear share a borderless
+  floating surface, a 54-by-48-pixel hit area, a 24-pixel corner radius, and a soft shadow.
+  Use the secondary neutral color and a 22-pixel glyph for the gear; retain the sort
+  icon's 24-pixel size. Preserve a visible keyboard focus indicator. The Settings back
+  button and desktop toolbar keep their existing styles.
+- Contact Support is a quiet headset icon at the top right of Settings. Use the
+  primary neutral text color, a 22-pixel glyph, a 44-pixel hit area,
+  keyboard focus, and a Contact Support tooltip. Do not add a support card or blue accent.
+
+## Meaning fields
+
+- Add and Edit use the same meaning-field behavior. Keep one optional empty field after
+  the populated meanings; at eight meanings, replace it with a quiet limit label.
+- Never transfer focus to an automatically created field. If a user clears an existing
+  field, keep it in place and remove the other empty slot. Once focus leaves, the empty
+  slot returns to the end. Defer structural changes during IME composition.
+- Give rows stable local identities across edits and moves. Preserve the user's order
+  and exclude the empty slot from saved content; the server still validates uniqueness.
+- Put the reorder handle, input, and remove button in separate columns with 44-pixel
+  control targets. Start dragging only from the handle; text selection and scrolling
+  remain native. The handle is direct manipulation, not a button, and does not open a
+  secondary action menu. Keep the dragged row within the populated rows: moving beyond
+  either end selects the first or last position, while the optional empty field is never
+  a destination. Only an explicit cancellation such as Escape or a system pointer cancel
+  leaves the order unchanged. Track the active gesture on the window so releasing above
+  another field still finishes it, even when pointer capture is unavailable.
+- During dragging, lift the selected row and shift neighboring rows into their prospective
+  positions. The visible order before release must equal the committed order; do not add a
+  separate insertion line. Calculate destinations from fixed slot midpoints captured before rows move,
+  commit the displayed order in the same render that clears the preview, and settle every
+  row from its release position into the new layout so the old order is never painted between
+  them. Remove nonessential transitions when reduced motion is requested.
+- Disable Telegram's vertical close gesture while reorder controls are available and
+  restore it when leaving the editor. Scroll the visible card or screen at its edges during
+  dragging, including when the software keyboard reduces the visual viewport. Stop scrolling
+  once the populated track is fully visible; do not scroll toward Comment after its last row.
+
+## Word list actions
+
+- Drag a Words row toward the leading edge to reveal one trailing Delete action. Keep the
+  first short distance visually quiet, then grow a rounded danger-colored button with a white
+  trash icon and `Delete` label into the revealed space. A partial drag returns the row; a
+  medium drag settles with the button visible; a deep drag expands it across the row and opens
+  the same confirmation as tapping Delete.
+- Keep only one action open. Clear horizontal intent owns the row while vertical intent keeps
+  scrolling native; scrolling, opening another word, or moving the row back closes it. A full
+  swipe never deletes without confirmation. Remove the row only after the server accepts the
+  deletion, and leave it available with an error message when the request fails.
+
+## Word detail and editing
+
+- Keep Edit and Delete as separate actions on the word screen. Delete remains directly
+  available and asks for confirmation; it does not require entering the editor first.
+- Keep the Save label and button geometry stable while a request is pending. Disable further
+  edits and expose the busy state semantically; do not flash a wider `Saving…` label for a
+  request that commonly finishes in a fraction of a second.
+- In Telegram, use its native popup with Cancel and a destructive Delete action. Elsewhere,
+  use the app's compact dialog with the same wording. Explain the effect without placing an
+  arbitrarily long saved word in the title, and never use a generic `OK` label for deletion.
+  Focus the dialog heading initially instead of visually preselecting either action; retain
+  visible focus when a keyboard user moves to the buttons.
+- Treat editing as a focused mode: show Cancel on the leading side and the blue Save action
+  on the trailing side. Hide Back, Delete, pronunciation, Level, and bottom navigation until
+  editing ends.
+- Preserve the reading view's typography while editing. Fields have no persistent borders,
+  fills, or underlines; the selected field alone shows a blue line along its bottom edge.
+  Entering edit mode does not choose a field or open the keyboard automatically.
+- Start Comment at one line and grow it with its content. Its active line follows the bottom
+  of the text until eight lines, after which the field scrolls internally.
+- In reading mode, wrap saved text at the available content width, including uninterrupted
+  strings. Keep pronunciation at its full tap-target size and never introduce horizontal page
+  scrolling to accommodate word, meaning, or comment content.
 
 ## Data visualization
 
@@ -52,6 +124,59 @@ the same design questions again.
   reflecting useful study behavior.
 - Empty states should give one relevant next action instead of presenting several empty
   analytical charts.
+
+## Review motion
+
+- Before reveal, keep a single question visually quiet. When the known-language question
+  contains multiple meanings, preserve their order in an unnumbered vertical group. Center
+  the group and each meaning horizontally within the card, and wrap each meaning independently.
+  Let the card grow with the question from its compact minimum to a viewport-bound maximum
+  that preserves breathing room around review context, hints, and navigation. Only then let
+  the question scroll vertically instead of shrinking, truncating, or joining meanings with
+  punctuation.
+- Keep revealed review cards in a stable reading order regardless of question direction:
+  learning language, known-language meanings, then the optional comment. Present multiple
+  meanings as a quiet numbered list and omit numbering for a single meaning. Preserve the
+  saved order and wrap each meaning independently.
+- Treat the comment as secondary prose rather than a quotation. Preserve its line breaks,
+  omit quotation marks, italics, and a visible `Comment` heading, and separate it from the
+  meanings with spacing and a neutral rule. Keep it readable in both themes.
+- The Learn shell stays fixed, including review context and mobile navigation. Keep review
+  context in the layout flow and center the card in the remaining space above navigation, so
+  both Free Review and the taller Scheduled Review header determine the card position. The card
+  owns vertical overflow on both the question and revealed sides, starts each new presentation
+  at the top, and keeps short content vertically balanced.
+- Before reveal, the whole visible card is the reveal target except for the pronunciation
+  control. Scrolling must not reveal it, and the pronunciation control must not propagate a
+  reveal action.
+- Center the learning-language question against the complete card rather than a reserved safe
+  area. Anchor the 44-pixel pronunciation target directly below the question so it does not
+  affect that center, and scroll it together with the text. Symmetric ordinary card padding
+  remains: auto margins center content that fits and collapse when content overflows, keeping
+  the beginning reachable without a separate measured layout mode.
+- Keep the card frame separate from its scrolling content. The frame owns borders, shadows,
+  transforms, and answer feedback so red or green tint always covers the complete visible
+  card regardless of its scroll position.
+- Resolve gesture intent from a clear dominant axis rather than whether the card currently
+  overflows. Horizontal intent answers; vertical intent scrolls long content or does nothing
+  on a short card; an ambiguous diagonal gesture waits without moving the card. Once vertical
+  intent wins, leave the complete gesture to native scrolling without updating card layout or
+  animation state. Favor native vertical movement until horizontal intent is deliberate, and
+  do not chain or rubber-band the card's boundary into the fixed Learn shell.
+
+- Keep the card stack shallow and aligned: one quiet rear edge and one contentless incoming
+  surface communicate continuity without pretending that the next question is already known.
+- Tie the stack's depth response directly to horizontal drag progress. A cancelled gesture
+  returns every layer with the card. Do not replace a word-like placeholder with real content
+  during the accepted exit: keep the incoming surface empty until the outgoing card is fully
+  off-screen, then mount the real next question at zero opacity and bring it into focus.
+- After an accepted gesture, continue from the release position and speed only to the nearest
+  off-screen boundary. The visible card must fly out quickly without disappearing in one frame.
+- Reveal and focus the next question independently of the server response. Saving controls
+  whether another answer is allowed, not the visual handoff.
+- Animate only the card transforms, opacity, and the small question surface. Decorative
+  layers stay outside the accessibility tree, and reduced-motion mode removes depth and
+  blur transitions.
 
 ## Progress screen
 
@@ -96,6 +221,9 @@ completion message.
 
 ## Sources
 
+- [Apple Human Interface Guidelines: Motion](https://developer.apple.com/design/human-interface-guidelines/motion)
+- [Apple: Build powerful drag and drop in SwiftUI](https://developer.apple.com/videos/play/wwdc2026/271/)
+- [Apple Human Interface Guidelines: Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
 - [Apple Human Interface Guidelines: Color](https://developer.apple.com/design/human-interface-guidelines/color)
 - [Apple Human Interface Guidelines: Charts](https://developer.apple.com/design/human-interface-guidelines/charts)
 - [Android design guidance: Color](https://developer.android.com/design/ui/mobile/guides/styles/color)
@@ -105,7 +233,12 @@ completion message.
 - [W3C: Understanding non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast)
 - [W3C: Understanding use of color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)
 - [W3C: Understanding target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)
+- [W3C: Understanding dragging movements](https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html)
+- [W3C: Using `prefers-reduced-motion`](https://www.w3.org/WAI/WCAG21/Techniques/css/C39.html)
+- [MDN: Visual Viewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)
+- [MDN: `requestAnimationFrame`](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
 - [US Web Design System: Data visualizations](https://designsystem.digital.gov/components/data-visualizations/)
+- [web.dev: High-performance CSS animations](https://web.dev/articles/animations-guide)
 - [GitHub Docs: Viewing contributions on your profile](https://docs.github.com/en/account-and-profile/concepts/contributions-visible-on-your-profile)
 - [Journal of Consumer Research: The Motivating-Uncertainty Effect of Streaks](https://academic.oup.com/jcr/article/49/6/1095/6623414)
 - [Nature Reviews Psychology: Making memories last using the science of effective learning](https://doi.org/10.1038/s44159-022-00089-1)

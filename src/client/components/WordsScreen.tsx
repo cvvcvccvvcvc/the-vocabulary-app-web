@@ -1,12 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
+import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../lib/meaningDraft.js";
+import { requestTelegramDeleteConfirmation } from "../lib/telegram.js";
+import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon, type IconName } from "./Icons.js";
+import { MeaningFields } from "./MeaningFields.js";
+import { SwipeableWordRow } from "./SwipeableWordRow.js";
 
 type WordsSort = "recent" | "alphabetical" | "level";
 const EDIT_SAVE_GUARD_MS = 400;
+const WORD_ROW_EXIT_MS = 180;
 const LEVEL_HELP_ITEMS = [
   { marker: "✓", tone: "success", title: "Correct answer", detail: "Moves this word up one level." },
   { marker: "×", tone: "danger", title: "Wrong answer", detail: "Moves this word down one level." },
@@ -38,6 +44,15 @@ export function WordsScreen({
   const [sort, setSort] = useState<WordsSort>("recent");
   const [sortOpen, setSortOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const deleteRequestId = useRef<string | null>(null);
+  const deleteConfirmationPending = useRef(false);
+  const deleteConfirmationResolve = useRef<((confirmed: boolean) => void) | null>(null);
+  const deleteConfirmationReturnFocus = useRef<HTMLElement | null>(null);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
   const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
@@ -64,17 +79,103 @@ export function WordsScreen({
     }
   }, [selectedId, words]);
 
+  useEffect(() => {
+    if (revealedId !== null && !filtered.some((word) => word.id === revealedId)) {
+      setRevealedId(null);
+    }
+  }, [filtered, revealedId]);
+
+  useEffect(() => () => {
+    deleteConfirmationResolve.current?.(false);
+    deleteConfirmationResolve.current = null;
+    deleteConfirmationPending.current = false;
+    deleteConfirmationReturnFocus.current = null;
+  }, []);
+
+  async function confirmDeletion(returnFocusTo: HTMLElement | null = null): Promise<boolean> {
+    if (deleteConfirmationPending.current) return false;
+    deleteConfirmationPending.current = true;
+
+    const telegramResult = await requestTelegramDeleteConfirmation();
+    if (telegramResult !== null) {
+      deleteConfirmationPending.current = false;
+      return telegramResult;
+    }
+
+    return new Promise<boolean>((resolve) => {
+      deleteConfirmationResolve.current = resolve;
+      deleteConfirmationReturnFocus.current = returnFocusTo;
+      setDeleteConfirmationOpen(true);
+    });
+  }
+
+  function finishDeleteConfirmation(confirmed: boolean): void {
+    const resolve = deleteConfirmationResolve.current;
+    const returnFocusTo = deleteConfirmationReturnFocus.current;
+    deleteConfirmationResolve.current = null;
+    deleteConfirmationReturnFocus.current = null;
+    deleteConfirmationPending.current = false;
+    setDeleteConfirmationOpen(false);
+    resolve?.(confirmed);
+    if (!confirmed && returnFocusTo !== null) {
+      window.requestAnimationFrame(() => {
+        if (returnFocusTo.isConnected) returnFocusTo.focus({ preventScroll: true });
+      });
+    }
+  }
+
+  async function deleteFromList(
+    word: VocabularyWord,
+    returnFocusTo: HTMLButtonElement | null,
+  ): Promise<boolean> {
+    if (deleteRequestId.current !== null) return false;
+
+    deleteRequestId.current = word.id;
+    setDeleteMessage(null);
+    try {
+      if (!(await confirmDeletion(returnFocusTo))) return false;
+      setDeletingId(word.id);
+      try {
+        await api.deleteWord(word.id);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      }
+
+      setRemovingId(word.id);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, WORD_ROW_EXIT_MS));
+      }
+      setRevealedId(null);
+      onDeleted(word.id);
+      return true;
+    } catch (error) {
+      setDeleteMessage(error instanceof ApiError ? error.message : "Could not delete the word");
+      return false;
+    } finally {
+      if (deleteRequestId.current === word.id) deleteRequestId.current = null;
+      setDeletingId(null);
+      setRemovingId(null);
+    }
+  }
+
   return (
     <section className={selected === null ? "screen words-screen" : "screen words-screen detail-open"}>
       <div className="words-list-pane">
-        <div className="words-controls">
+        <div
+          className="words-controls"
+          onFocusCapture={() => setRevealedId(null)}
+          onPointerDown={() => setRevealedId(null)}
+        >
           <label className="search-control">
             <Icon name="search" />
             <input
               type="search"
               placeholder="Search words"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setRevealedId(null);
+              }}
             />
           </label>
           <div
@@ -113,6 +214,7 @@ export function WordsScreen({
                     onClick={() => {
                       setSort(option.value);
                       setSortOpen(false);
+                      setRevealedId(null);
                       sortTrigger.current?.focus();
                     }}
                   >
@@ -126,21 +228,37 @@ export function WordsScreen({
           </div>
         </div>
 
-        <div className="words-list">
+        {deleteMessage !== null && (
+          <p className="notice notice-error words-delete-error" role="alert">{deleteMessage}</p>
+        )}
+
+        <div
+          className="words-list"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setRevealedId(null);
+          }}
+          onScroll={() => setRevealedId(null)}
+        >
           {filtered.length === 0 && <p className="empty-list">No matching words</p>}
           {filtered.map((word) => (
-            <button
+            <SwipeableWordRow
               key={word.id}
-              className={word.id === selectedId ? "word-row selected" : "word-row"}
-              type="button"
-              onClick={() => setSelectedId(word.id)}
-            >
-              <span className="word-row-copy">
-                <strong>{word.learningText}</strong>
-                <small>{word.meanings.join(", ")}</small>
-              </span>
-              <span className={word.level === 0 ? "level-badge zero" : "level-badge"}>{word.level}</span>
-            </button>
+              word={word}
+              selected={word.id === selectedId}
+              revealed={word.id === revealedId}
+              deleting={word.id === deletingId}
+              removing={word.id === removingId}
+              onSetRevealed={(revealed) => {
+                setDeleteMessage(null);
+                setRevealedId(revealed ? word.id : null);
+              }}
+              onOpen={() => {
+                setDeleteMessage(null);
+                setRevealedId(null);
+                setSelectedId(word.id);
+              }}
+              onDelete={(returnFocusTo) => deleteFromList(word, returnFocusTo)}
+            />
           ))}
         </div>
 
@@ -155,11 +273,18 @@ export function WordsScreen({
           word={selected}
           settings={settings}
           onBack={() => setSelectedId(null)}
+          onConfirmDelete={confirmDeletion}
           onUpdated={onUpdated}
           onDeleted={(wordId) => {
             setSelectedId(null);
             onDeleted(wordId);
           }}
+        />
+      )}
+      {deleteConfirmationOpen && (
+        <DeleteConfirmationDialog
+          onCancel={() => finishDeleteConfirmation(false)}
+          onConfirm={() => finishDeleteConfirmation(true)}
         />
       )}
     </section>
@@ -170,21 +295,39 @@ interface WordDetailProps {
   word: VocabularyWord;
   settings: LanguageSettings;
   onBack(): void;
+  onConfirmDelete(returnFocusTo?: HTMLElement | null): Promise<boolean>;
   onUpdated(word: VocabularyWord): void;
   onDeleted(wordId: string): void;
 }
 
-function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetailProps) {
+function WordDetail({
+  word,
+  settings,
+  onBack,
+  onConfirmDelete,
+  onUpdated,
+  onDeleted,
+}: WordDetailProps) {
   const editStartedAt = useRef(Number.NEGATIVE_INFINITY);
+  const commentInput = useRef<HTMLTextAreaElement>(null);
   const [editing, setEditing] = useState(false);
   const [learningText, setLearningText] = useState(word.learningText);
-  const [meanings, setMeanings] = useState(word.meanings);
+  const [meaningDraft, dispatchMeaning] = useReducer(meaningDraftReducer, word.meanings, createMeaningDraft);
+  const meanings = getMeaningValues(meaningDraft);
   const [comment, setComment] = useState(word.comment);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [levelHelpOpen, setLevelHelpOpen] = useState(false);
   const levelHelp = useDismissiblePopover<HTMLDivElement>(levelHelpOpen, setLevelHelpOpen);
-  const canSave = learningText.trim() !== "" && meanings.some((meaning) => meaning.trim() !== "");
+  const canSave = learningText.trim() !== "" && meanings.length > 0;
+
+  useLayoutEffect(() => {
+    const field = commentInput.current;
+    if (!editing || field === null) return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  }, [comment, editing]);
 
   function speak(): void {
     if (!("speechSynthesis" in window)) return;
@@ -195,8 +338,9 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
   }
 
   function cancelEditing(): void {
+    if (saving) return;
     setLearningText(word.learningText);
-    setMeanings(word.meanings);
+    dispatchMeaning({ type: "reset", values: word.meanings });
     setComment(word.comment);
     setEditing(false);
     setMessage(null);
@@ -209,7 +353,7 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
     try {
       const updated = await api.updateWord(word.id, {
         learningText,
-        meanings: meanings.filter((meaning) => meaning.trim() !== ""),
+        meanings,
         comment,
         version: word.version,
       });
@@ -222,44 +366,69 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
     }
   }
 
-  async function remove(): Promise<void> {
-    if (!window.confirm(`Delete “${word.learningText}”?`)) return;
+  async function remove(returnFocusTo: HTMLButtonElement): Promise<void> {
+    if (deleting) return;
+    setDeleting(true);
     try {
+      if (!(await onConfirmDelete(returnFocusTo))) return;
       await api.deleteWord(word.id);
       onDeleted(word.id);
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Could not delete the word");
+    } finally {
+      setDeleting(false);
     }
   }
 
   return (
     <section className={editing ? "word-detail editing" : "word-detail"}>
       <header className={editing ? "detail-toolbar editing" : "detail-toolbar"}>
-        <button className="toolbar-button back-button" type="button" aria-label="Back to words" onClick={onBack}>
-          <Icon name="back" /> <span>Back</span>
-        </button>
-        {editing && (
-          <button className="toolbar-button cancel-button" type="button" onClick={cancelEditing}>Cancel</button>
+        {editing ? (
+          <button
+            className="toolbar-button cancel-button"
+            type="button"
+            aria-disabled={saving}
+            onClick={cancelEditing}
+          >
+            Cancel
+          </button>
+        ) : (
+          <button className="toolbar-button back-button" type="button" aria-label="Back to words" onClick={onBack}>
+            <Icon name="back" /> <span>Back</span>
+          </button>
         )}
         <div className="detail-toolbar-actions">
           {editing ? (
-            <button className="toolbar-button primary" type="submit" form="word-edit-form" disabled={!canSave || saving}>
-              {saving ? "Saving…" : "Save"}
+            <button
+              className="toolbar-button primary save-button"
+              type="submit"
+              form="word-edit-form"
+              aria-busy={saving}
+              disabled={!canSave || saving}
+            >
+              Save
             </button>
           ) : (
             <>
               <button
-                className="toolbar-button primary"
+                className="toolbar-button delete-button"
+                type="button"
+                aria-label="Delete word"
+                disabled={deleting}
+                onClick={(event) => void remove(event.currentTarget)}
+              >
+                <Icon name="delete" /> <span>Delete</span>
+              </button>
+              <button
+                className="toolbar-button edit-button"
                 type="button"
                 onClick={() => {
                   editStartedAt.current = performance.now();
+                  setLevelHelpOpen(false);
                   setEditing(true);
                 }}
               >
-                <Icon name="edit" /> <span>Edit</span>
-              </button>
-              <button className="toolbar-button delete-button" type="button" aria-label="Delete word" onClick={() => void remove()}>
-                <Icon name="delete" /> <span>Delete</span>
+                Edit
               </button>
             </>
           )}
@@ -271,6 +440,7 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
           <form
             id="word-edit-form"
             className="detail-edit-form"
+            aria-busy={saving}
             onSubmit={(event) => {
               event.preventDefault();
               void save();
@@ -282,43 +452,28 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
                 className="detail-learning-input"
                 value={learningText}
                 maxLength={300}
-                autoFocus
+                readOnly={saving}
                 onChange={(event) => setLearningText(event.target.value)}
               />
             </label>
-            <fieldset className="detail-edit-meanings">
-              <legend>{languageName(settings.knownLanguage)}</legend>
-              {meanings.length < 8 && (
-                <button
-                  className="add-meaning-button"
-                  type="button"
-                  aria-label="Add meaning"
-                  onClick={() => setMeanings((current) => [...current, ""])}
-                >
-                  <Icon name="add" />
-                </button>
-              )}
-              {meanings.map((meaning, index) => (
-                <div className="detail-meaning-row" key={index}>
-                  <input
-                    aria-label={`Meaning ${index + 1}`}
-                    value={meaning}
-                    maxLength={600}
-                    onChange={(event) =>
-                      setMeanings((current) => current.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))
-                    }
-                  />
-                  {meanings.length > 1 && (
-                    <button className="remove-meaning-button" type="button" aria-label={`Remove meaning ${index + 1}`} onClick={() => setMeanings((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
-                      −
-                    </button>
-                  )}
-                </div>
-              ))}
-            </fieldset>
+            <MeaningFields
+              label={languageName(settings.knownLanguage)}
+              rows={meaningDraft.rows}
+              onAction={dispatchMeaning}
+              variant="edit"
+              disabled={saving}
+            />
             <label className="detail-edit-field detail-comment-field">
               <span>Comment</span>
-              <textarea rows={5} maxLength={12_000} value={comment} onChange={(event) => setComment(event.target.value)} />
+              <textarea
+                ref={commentInput}
+                rows={1}
+                maxLength={12_000}
+                placeholder="Add an example or a note…"
+                value={comment}
+                readOnly={saving}
+                onChange={(event) => setComment(event.target.value)}
+              />
             </label>
           </form>
         ) : (
@@ -345,35 +500,37 @@ function WordDetail({ word, settings, onBack, onUpdated, onDeleted }: WordDetail
           </div>
         )}
 
-        <div
-          ref={levelHelp}
-          className="level-help"
-        >
-          <button
-            className="level-card"
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={levelHelpOpen}
-            aria-controls="level-help-popover"
-            onClick={() => setLevelHelpOpen((open) => !open)}
+        {!editing && (
+          <div
+            ref={levelHelp}
+            className="level-help"
           >
-            <span>
-              <span className="detail-label">Level</span>
-              <span className="level-value">Level {word.level} <small>of 9</small></span>
-            </span>
-            <span className="level-progress" aria-label={`Level ${word.level} of 9`}>
-              <span style={{ width: `${(word.level / 9) * 100}%` }} />
-            </span>
-          </button>
-          {levelHelpOpen && (
-            <HelpPopover
-              id="level-help-popover"
-              label="Level details"
-              items={LEVEL_HELP_ITEMS}
-              className="level-help-popover"
-            />
-          )}
-        </div>
+            <button
+              className="level-card"
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={levelHelpOpen}
+              aria-controls="level-help-popover"
+              onClick={() => setLevelHelpOpen((open) => !open)}
+            >
+              <span>
+                <span className="detail-label">Level</span>
+                <span className="level-value">Level {word.level} <small>of 9</small></span>
+              </span>
+              <span className="level-progress" aria-label={`Level ${word.level} of 9`}>
+                <span style={{ width: `${(word.level / 9) * 100}%` }} />
+              </span>
+            </button>
+            {levelHelpOpen && (
+              <HelpPopover
+                id="level-help-popover"
+                label="Level details"
+                items={LEVEL_HELP_ITEMS}
+                className="level-help-popover"
+              />
+            )}
+          </div>
+        )}
 
         {message !== null && <p className="notice notice-error">{message}</p>}
       </div>

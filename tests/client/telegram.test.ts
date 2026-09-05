@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   initializeTelegram,
+  openTelegramLink,
+  requestTelegramDeleteConfirmation,
   requestTelegramWriteAccess,
   setTelegramVerticalSwipesEnabled,
   telegramImpact,
@@ -97,6 +99,67 @@ describe("requestTelegramWriteAccess", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
 
     await expect(requestTelegramWriteAccess()).resolves.toBe(false);
+  });
+});
+
+describe("openTelegramLink", () => {
+  const url = "https://t.me/thevocabularyapp?direct";
+
+  it("opens a channel's private messages through the Mini App SDK", () => {
+    installTelegram("ios");
+    const webApp = window.Telegram!.WebApp!;
+    webApp.initData = "telegram-launch-data";
+    webApp.openTelegramLink = vi.fn();
+
+    expect(openTelegramLink(url)).toBe(true);
+    expect(webApp.openTelegramLink).toHaveBeenCalledExactlyOnceWith(url);
+  });
+
+  it("leaves browser navigation alone even when the Telegram SDK is loaded", () => {
+    installTelegram("unknown");
+    const nativeOpen = vi.fn();
+    window.Telegram!.WebApp!.openTelegramLink = nativeOpen;
+
+    expect(openTelegramLink(url)).toBe(false);
+    expect(nativeOpen).not.toHaveBeenCalled();
+  });
+
+  it("leaves a normal link available when the native method is unavailable", () => {
+    installTelegram("ios");
+    window.Telegram!.WebApp!.initData = "telegram-launch-data";
+    expect(openTelegramLink(url)).toBe(false);
+
+    installTelegram("ios", false);
+    const webApp = window.Telegram!.WebApp!;
+    webApp.initData = "telegram-launch-data";
+    webApp.openTelegramLink = vi.fn();
+    expect(openTelegramLink(url)).toBe(false);
+    expect(webApp.openTelegramLink).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestTelegramDeleteConfirmation", () => {
+  it("uses a native destructive popup inside Telegram", async () => {
+    installTelegram("ios");
+    const webApp = window.Telegram!.WebApp!;
+    webApp.initData = "telegram-launch-data";
+    webApp.showPopup = vi.fn((_params, callback) => callback?.("delete"));
+
+    await expect(requestTelegramDeleteConfirmation()).resolves.toBe(true);
+    expect(webApp.showPopup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Delete card?",
+        buttons: expect.arrayContaining([
+          expect.objectContaining({ id: "delete", type: "destructive" }),
+        ]),
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("lets the app render its own dialog outside Telegram", async () => {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+    await expect(requestTelegramDeleteConfirmation()).resolves.toBeNull();
   });
 });
 
