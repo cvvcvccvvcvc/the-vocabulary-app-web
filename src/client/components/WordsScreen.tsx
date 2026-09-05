@@ -52,6 +52,7 @@ export function WordsScreen({
   const deleteRequestId = useRef<string | null>(null);
   const deleteConfirmationPending = useRef(false);
   const deleteConfirmationResolve = useRef<((confirmed: boolean) => void) | null>(null);
+  const deleteConfirmationReturnFocus = useRef<HTMLElement | null>(null);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
   const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
@@ -88,9 +89,10 @@ export function WordsScreen({
     deleteConfirmationResolve.current?.(false);
     deleteConfirmationResolve.current = null;
     deleteConfirmationPending.current = false;
+    deleteConfirmationReturnFocus.current = null;
   }, []);
 
-  async function confirmDeletion(): Promise<boolean> {
+  async function confirmDeletion(returnFocusTo: HTMLElement | null = null): Promise<boolean> {
     if (deleteConfirmationPending.current) return false;
     deleteConfirmationPending.current = true;
 
@@ -102,25 +104,36 @@ export function WordsScreen({
 
     return new Promise<boolean>((resolve) => {
       deleteConfirmationResolve.current = resolve;
+      deleteConfirmationReturnFocus.current = returnFocusTo;
       setDeleteConfirmationOpen(true);
     });
   }
 
   function finishDeleteConfirmation(confirmed: boolean): void {
     const resolve = deleteConfirmationResolve.current;
+    const returnFocusTo = deleteConfirmationReturnFocus.current;
     deleteConfirmationResolve.current = null;
+    deleteConfirmationReturnFocus.current = null;
     deleteConfirmationPending.current = false;
     setDeleteConfirmationOpen(false);
     resolve?.(confirmed);
+    if (!confirmed && returnFocusTo !== null) {
+      window.requestAnimationFrame(() => {
+        if (returnFocusTo.isConnected) returnFocusTo.focus({ preventScroll: true });
+      });
+    }
   }
 
-  async function deleteFromList(word: VocabularyWord): Promise<boolean> {
+  async function deleteFromList(
+    word: VocabularyWord,
+    returnFocusTo: HTMLButtonElement | null,
+  ): Promise<boolean> {
     if (deleteRequestId.current !== null) return false;
 
     deleteRequestId.current = word.id;
     setDeleteMessage(null);
     try {
-      if (!(await confirmDeletion())) return false;
+      if (!(await confirmDeletion(returnFocusTo))) return false;
       setDeletingId(word.id);
       try {
         await api.deleteWord(word.id);
@@ -244,7 +257,7 @@ export function WordsScreen({
                 setRevealedId(null);
                 setSelectedId(word.id);
               }}
-              onDelete={() => deleteFromList(word)}
+              onDelete={(returnFocusTo) => deleteFromList(word, returnFocusTo)}
             />
           ))}
         </div>
@@ -282,7 +295,7 @@ interface WordDetailProps {
   word: VocabularyWord;
   settings: LanguageSettings;
   onBack(): void;
-  onConfirmDelete(): Promise<boolean>;
+  onConfirmDelete(returnFocusTo?: HTMLElement | null): Promise<boolean>;
   onUpdated(word: VocabularyWord): void;
   onDeleted(wordId: string): void;
 }
@@ -353,11 +366,11 @@ function WordDetail({
     }
   }
 
-  async function remove(): Promise<void> {
+  async function remove(returnFocusTo: HTMLButtonElement): Promise<void> {
     if (deleting) return;
     setDeleting(true);
     try {
-      if (!(await onConfirmDelete())) return;
+      if (!(await onConfirmDelete(returnFocusTo))) return;
       await api.deleteWord(word.id);
       onDeleted(word.id);
     } catch (error) {
@@ -402,7 +415,7 @@ function WordDetail({
                 type="button"
                 aria-label="Delete word"
                 disabled={deleting}
-                onClick={() => void remove()}
+                onClick={(event) => void remove(event.currentTarget)}
               >
                 <Icon name="delete" /> <span>Delete</span>
               </button>

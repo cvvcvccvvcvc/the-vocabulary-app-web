@@ -39,7 +39,7 @@ interface SwipeableWordRowProps {
   removing: boolean;
   onSetRevealed(revealed: boolean): void;
   onOpen(): void;
-  onDelete(): Promise<boolean>;
+  onDelete(returnFocusTo: HTMLButtonElement | null): Promise<boolean>;
 }
 
 export function SwipeableWordRow({
@@ -157,7 +157,7 @@ export function SwipeableWordRow({
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         await new Promise<void>((resolve) => window.setTimeout(resolve, DEEP_SETTLE_MS));
       }
-      const deleted = await onDelete();
+      const deleted = await onDelete(rowButton.current);
       if (!deleted) {
         onSetRevealed(false);
         setDragOffset(0);
@@ -282,7 +282,7 @@ export function SwipeableWordRow({
         }}
         onClick={() => {
           setConfirming(true);
-          void onDelete().then((deleted) => {
+          void onDelete(rowButton.current).then((deleted) => {
             if (!deleted) {
               setConfirming(false);
               onSetRevealed(false);
