@@ -62,9 +62,15 @@ the same design questions again.
   medium drag settles with the button visible; a deep drag expands it across the row and opens
   the same confirmation as tapping Delete.
 - Keep only one action open. Clear horizontal intent owns the row while vertical intent keeps
-  scrolling native; scrolling, opening another word, or moving the row back closes it. A full
-  swipe never deletes without confirmation. Remove the row only after the server accepts the
-  deletion, and leave it available with an error message when the request fails.
+  scrolling native; the revealed action stays attached to its row while the list scrolls.
+  Opening another word, interacting with another row, or moving the row back closes it. Disable
+  Telegram's vertical close gesture while Words is open so a diagonal row gesture cannot hide
+  the Mini App. A full swipe never deletes without confirmation. Remove the row only after the
+  server accepts the deletion, and leave it available with an error message when the request fails.
+- Each Words sort criterion has one default direction: newest first for date added, A–Z for
+  text, and level 0–9. Selecting the active criterion again reverses its direction; selecting a
+  different criterion restores that criterion's default. Show the effective direction in both
+  the trigger's accessible name and the active menu item.
 
 ## Word detail and editing
 

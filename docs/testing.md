@@ -7,6 +7,10 @@ Validation is proportional to the affected layer:
 - Authentication helpers require signature, expiry, malformed-input, and browser-bound
   OIDC state tests.
 - UI changes require a production build and focused manual checks at phone and desktop widths.
+- Words checks cover every sort criterion in its default and reversed directions, including
+  equal-value tie breakers and the compact mobile menu. On an actual mobile Telegram client,
+  verify diagonal row drags and list scrolling with Delete revealed: scrolling stays native,
+  the action remains attached to its row, and the Mini App does not hide.
 - Meaning-editor tests cover automatic empty slots, replacement without changing field
   identity, first/middle/last deletion, reordering, the eight-meaning limit, composition,
   reset, and serialization. Manual checks exercise both Add and Edit at 320/390 pixels

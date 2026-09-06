@@ -25,7 +25,7 @@ import {
   type PointerGestureAxis,
 } from "../lib/pointerGesture.js";
 import { reviewSwipeExitDuration, reviewSwipeExitOffset } from "../lib/reviewSwipe.js";
-import { setTelegramVerticalSwipesEnabled, telegramImpact, telegramNotification } from "../lib/telegram.js";
+import { acquireTelegramVerticalSwipeLock, telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
 
@@ -262,7 +262,7 @@ export function LearnScreen({
 
   useEffect(() => {
     document.documentElement.classList.add("review-scroll-locked");
-    setTelegramVerticalSwipesEnabled(false);
+    const releaseVerticalSwipeLock = acquireTelegramVerticalSwipeLock();
     return () => {
       const activeSession = swipeSession.current;
       activeSession?.cleanup();
@@ -270,7 +270,7 @@ export function LearnScreen({
         activeSession.target.releasePointerCapture(activeSession.pointerId);
       }
       document.documentElement.classList.remove("review-scroll-locked");
-      setTelegramVerticalSwipesEnabled(true);
+      releaseVerticalSwipeLock();
     };
   }, []);
 

@@ -41,6 +41,7 @@ const telegramColors = {
   light: "#fdfcf9",
   dark: "#1e1e1e",
 } as const;
+let verticalSwipeLockCount = 0;
 
 function isMobileTelegramPlatform(webApp: TelegramWebApp): boolean {
   return webApp.platform === "ios" || webApp.platform?.startsWith("android") === true;
@@ -73,7 +74,7 @@ export function initializeTelegram(): TelegramWebApp | null {
   return webApp;
 }
 
-export function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
+function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
   const webApp = window.Telegram?.WebApp;
   if (webApp === undefined
     || !isMobileTelegramPlatform(webApp)
@@ -83,6 +84,19 @@ export function setTelegramVerticalSwipesEnabled(enabled: boolean): void {
   } else {
     webApp.disableVerticalSwipes?.();
   }
+}
+
+export function acquireTelegramVerticalSwipeLock(): () => void {
+  verticalSwipeLockCount += 1;
+  if (verticalSwipeLockCount === 1) setTelegramVerticalSwipesEnabled(false);
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    verticalSwipeLockCount -= 1;
+    if (verticalSwipeLockCount === 0) setTelegramVerticalSwipesEnabled(true);
+  };
 }
 
 export function openTelegramLink(url: string): boolean {

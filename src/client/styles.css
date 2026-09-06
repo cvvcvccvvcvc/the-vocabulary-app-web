@@ -1354,13 +1354,13 @@ button.titlebar-icon.active {
   color: var(--accent);
 }
 
-.sort-option-check {
+.sort-option-direction {
   opacity: 0;
   font-size: 14px;
   font-weight: 700;
 }
 
-.sort-option.active .sort-option-check {
+.sort-option.active .sort-option-direction {
   opacity: 1;
 }
 
