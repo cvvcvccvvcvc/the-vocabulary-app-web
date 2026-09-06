@@ -3,14 +3,22 @@ import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
 import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../lib/meaningDraft.js";
-import { requestTelegramDeleteConfirmation } from "../lib/telegram.js";
+import { acquireTelegramVerticalSwipeLock, requestTelegramDeleteConfirmation } from "../lib/telegram.js";
+import {
+  DEFAULT_WORDS_SORT,
+  DEFAULT_WORDS_SORT_DIRECTIONS,
+  selectWordsSort,
+  sortWords,
+  type WordsSortDirection,
+  type WordsSortKey,
+  type WordsSortState,
+} from "../lib/wordSort.js";
 import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog.js";
 import { HelpPopover, useDismissiblePopover, type HelpPopoverItem } from "./HelpPopover.js";
 import { Icon, type IconName } from "./Icons.js";
 import { MeaningFields } from "./MeaningFields.js";
 import { SwipeableWordRow } from "./SwipeableWordRow.js";
 
-type WordsSort = "recent" | "alphabetical" | "level";
 const EDIT_SAVE_GUARD_MS = 400;
 const WORD_ROW_EXIT_MS = 180;
 const LEVEL_HELP_ITEMS = [
@@ -20,10 +28,30 @@ const LEVEL_HELP_ITEMS = [
 ] as const satisfies readonly HelpPopoverItem[];
 
 const sortOptions = [
-  { value: "recent", label: "Date added", shortLabel: "Added", icon: "clock" },
-  { value: "alphabetical", label: "A–Z", shortLabel: "A–Z", icon: "alphabetical" },
-  { value: "level", label: "Level 0–9", shortLabel: "Level", icon: "level" },
-] as const satisfies ReadonlyArray<{ value: WordsSort; label: string; shortLabel: string; icon: IconName }>;
+  {
+    value: "recent",
+    labels: { ascending: "Oldest first", descending: "Newest first" },
+    shortLabels: { ascending: "Oldest", descending: "Newest" },
+    icon: "clock",
+  },
+  {
+    value: "alphabetical",
+    labels: { ascending: "A–Z", descending: "Z–A" },
+    shortLabels: { ascending: "A–Z", descending: "Z–A" },
+    icon: "alphabetical",
+  },
+  {
+    value: "level",
+    labels: { ascending: "Level 0–9", descending: "Level 9–0" },
+    shortLabels: { ascending: "Level 0–9", descending: "Level 9–0" },
+    icon: "level",
+  },
+] as const satisfies ReadonlyArray<{
+  value: WordsSortKey;
+  labels: Readonly<Record<WordsSortDirection, string>>;
+  shortLabels: Readonly<Record<WordsSortDirection, string>>;
+  icon: IconName;
+}>;
 
 interface WordsScreenProps {
   words: VocabularyWord[];
@@ -41,7 +69,7 @@ export function WordsScreen({
   onDeleted,
 }: WordsScreenProps) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<WordsSort>("recent");
+  const [sort, setSort] = useState<WordsSortState>(DEFAULT_WORDS_SORT);
   const [sortOpen, setSortOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [revealedId, setRevealedId] = useState<string | null>(null);
@@ -55,7 +83,8 @@ export function WordsScreen({
   const deleteConfirmationReturnFocus = useRef<HTMLElement | null>(null);
   const sortTrigger = useRef<HTMLButtonElement>(null);
   const selected = words.find((word) => word.id === selectedId) ?? null;
-  const activeSort = sortOptions.find((option) => option.value === sort) ?? sortOptions[0];
+  const activeSort = sortOptions.find((option) => option.value === sort.key) ?? sortOptions[0];
+  const activeSortLabel = activeSort.labels[sort.direction];
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     const matches = normalized === ""
@@ -66,12 +95,10 @@ export function WordsScreen({
             word.meanings.some((meaning) => meaning.toLocaleLowerCase().includes(normalized)),
         );
 
-    return matches.sort((left, right) => {
-      if (sort === "alphabetical") return left.learningText.localeCompare(right.learningText);
-      if (sort === "level") return left.level - right.level || left.learningText.localeCompare(right.learningText);
-      return right.createdAt.localeCompare(left.createdAt);
-    });
+    return sortWords(matches, sort);
   }, [query, sort, words]);
+
+  useEffect(() => acquireTelegramVerticalSwipeLock(), []);
 
   useEffect(() => {
     if (selectedId !== null && !words.some((word) => word.id === selectedId)) {
@@ -193,36 +220,46 @@ export function WordsScreen({
               ref={sortTrigger}
               className={sortOpen ? "sort-trigger open" : "sort-trigger"}
               type="button"
-              aria-label={`Sort words: ${activeSort.label}`}
+              aria-label={`Sort words: ${activeSortLabel}`}
               aria-haspopup="menu"
               aria-expanded={sortOpen}
               onClick={() => setSortOpen((open) => !open)}
             >
               <Icon name="sort" />
-              <span className="sort-trigger-label">{activeSort.shortLabel}</span>
+              <span className="sort-trigger-label">{activeSort.shortLabels[sort.direction]}</span>
               <span className="sort-chevron" aria-hidden="true">⌄</span>
             </button>
             {sortOpen && (
               <div className="sort-popover" role="menu" aria-label="Sort words">
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    className={sort === option.value ? "sort-option active" : "sort-option"}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={sort === option.value}
-                    onClick={() => {
-                      setSort(option.value);
-                      setSortOpen(false);
-                      setRevealedId(null);
-                      sortTrigger.current?.focus();
-                    }}
-                  >
-                    <Icon name={option.icon} />
-                    <span>{option.label}</span>
-                    <span className="sort-option-check" aria-hidden="true">✓</span>
-                  </button>
-                ))}
+                {sortOptions.map((option) => {
+                  const active = sort.key === option.value;
+                  const direction = active
+                    ? sort.direction
+                    : DEFAULT_WORDS_SORT_DIRECTIONS[option.value];
+                  const label = option.labels[direction];
+                  return (
+                    <button
+                      key={option.value}
+                      className={active ? "sort-option active" : "sort-option"}
+                      type="button"
+                      role="menuitemradio"
+                      aria-label={active ? `${label}. Activate to reverse order.` : label}
+                      aria-checked={active}
+                      onClick={() => {
+                        setSort((current) => selectWordsSort(current, option.value));
+                        setSortOpen(false);
+                        setRevealedId(null);
+                        sortTrigger.current?.focus();
+                      }}
+                    >
+                      <Icon name={option.icon} />
+                      <span>{label}</span>
+                      <span className="sort-option-direction" aria-hidden="true">
+                        {active ? direction === "ascending" ? "↑" : "↓" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -232,13 +269,7 @@ export function WordsScreen({
           <p className="notice notice-error words-delete-error" role="alert">{deleteMessage}</p>
         )}
 
-        <div
-          className="words-list"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setRevealedId(null);
-          }}
-          onScroll={() => setRevealedId(null)}
-        >
+        <div className="words-list">
           {filtered.length === 0 && <p className="empty-list">No matching words</p>}
           {filtered.map((word) => (
             <SwipeableWordRow

@@ -7,7 +7,7 @@ import {
   type MeaningReorderLayout,
   type MeaningReorderShift,
 } from "../lib/meaningReorder.js";
-import { setTelegramVerticalSwipesEnabled } from "../lib/telegram.js";
+import { acquireTelegramVerticalSwipeLock } from "../lib/telegram.js";
 import { trackPointerGesture } from "../lib/pointerGesture.js";
 import { Icon } from "./Icons.js";
 
@@ -83,8 +83,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
 
   useEffect(() => {
     if (!canReorder) return;
-    setTelegramVerticalSwipesEnabled(false);
-    return () => setTelegramVerticalSwipesEnabled(true);
+    return acquireTelegramVerticalSwipeLock();
   }, [canReorder]);
 
   useEffect(() => {

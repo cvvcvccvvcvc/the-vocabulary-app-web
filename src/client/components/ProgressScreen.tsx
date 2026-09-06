@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { UserStatisticsDay, UserStatisticsResponse } from "../../shared/contracts.js";
-import { setTelegramVerticalSwipesEnabled } from "../lib/telegram.js";
+import { acquireTelegramVerticalSwipeLock } from "../lib/telegram.js";
 import { Icon } from "./Icons.js";
 
 interface ProgressScreenProps {
@@ -133,8 +133,7 @@ function ActivityCard({ activity }: { activity: UserStatisticsDay[] }) {
   const selectedDay = activity.find((day) => day.date === selectedDate) ?? activity.at(-1);
 
   useEffect(() => {
-    setTelegramVerticalSwipesEnabled(false);
-    return () => setTelegramVerticalSwipesEnabled(true);
+    return acquireTelegramVerticalSwipeLock();
   }, []);
 
   const selectPointerDay = (event: ReactPointerEvent<HTMLDivElement>) => {
