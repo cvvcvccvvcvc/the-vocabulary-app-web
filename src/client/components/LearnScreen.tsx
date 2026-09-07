@@ -39,6 +39,7 @@ interface LearnScreenProps {
 }
 
 type SwipePhase = "idle" | "dragging" | "returning" | "exiting" | "focusing";
+type RevealPhase = "idle" | "leaving" | "entering";
 
 interface SwipeSession {
   pointerId: number;
@@ -138,6 +139,7 @@ interface ReviewCardProps {
   word: VocabularyWord;
   settings: LanguageSettings;
   revealed: boolean;
+  revealPhase: RevealPhase;
   onReveal?: (() => void) | undefined;
   onSpeak(): void;
   onPointerDown?: ((event: ReactPointerEvent<HTMLDivElement>) => void) | undefined;
@@ -148,6 +150,7 @@ function ReviewCard({
   word,
   settings,
   revealed,
+  revealPhase,
   onReveal,
   onSpeak,
   onPointerDown,
@@ -159,7 +162,7 @@ function ReviewCard({
 
   return (
     <div
-      className={revealed ? "review-card revealed" : "review-card"}
+      className={`review-card${revealed ? " revealed" : ""}${revealPhase === "idle" ? "" : ` reveal-${revealPhase}`}`}
       draggable={false}
       onPointerDown={onPointerDown}
     >
@@ -249,10 +252,12 @@ export function LearnScreen({
   const [error, setError] = useState<string | null>(null);
   const reviewDragLayer = useRef<HTMLDivElement>(null);
   const swipeSession = useRef<SwipeSession | null>(null);
+  const revealTimer = useRef<number | null>(null);
   const swipeThreshold = useRef(90);
   const swipeExitDuration = useRef(190);
   const [dragX, setDragX] = useState(0);
   const [swipePhase, setSwipePhase] = useState<SwipePhase>("idle");
+  const [revealPhase, setRevealPhase] = useState<RevealPhase>("idle");
   const [outgoingCard, setOutgoingCard] = useState<ReviewCardSnapshot | null>(null);
   const [modeHelpOpen, setModeHelpOpen] = useState(false);
   const modeHelp = useDismissiblePopover<HTMLElement>(modeHelpOpen, setModeHelpOpen);
@@ -272,6 +277,12 @@ export function LearnScreen({
       document.documentElement.classList.remove("review-scroll-locked");
       releaseVerticalSwipeLock();
     };
+  }, []);
+
+  useEffect(() => () => {
+    if (revealTimer.current !== null) {
+      window.clearTimeout(revealTimer.current);
+    }
   }, []);
 
   useEffect(() => {
@@ -324,17 +335,51 @@ export function LearnScreen({
     }
   }, [chooseNext, onSessionChanged, session, words]);
 
+  const beginReveal = useCallback(() => {
+    if (
+      revealed
+      || revealPhase !== "idle"
+      || swipePhase !== "idle"
+      || currentWord === null
+    ) return;
+
+    const reveal = (): boolean => {
+      if (!session.reveal()) {
+        setRevealPhase("idle");
+        return false;
+      }
+      onSessionChanged();
+      telegramImpact();
+      return true;
+    };
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      reveal();
+      return;
+    }
+
+    setRevealPhase("leaving");
+    revealTimer.current = window.setTimeout(() => {
+      revealTimer.current = null;
+      if (!reveal()) return;
+
+      setRevealPhase("entering");
+      revealTimer.current = window.setTimeout(() => {
+        revealTimer.current = null;
+        setRevealPhase("idle");
+      }, 150);
+    }, 90);
+  }, [currentWord, onSessionChanged, revealPhase, revealed, session, swipePhase]);
+
   useEffect(() => {
     function handleKey(event: KeyboardEvent): void {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       if (event.code === "Space" && currentWord !== null && swipePhase === "idle") {
         event.preventDefault();
-        if (session.reveal()) {
-          onSessionChanged();
-        }
-      } else if (revealed && swipePhase === "idle" && event.key === "ArrowLeft") {
+        beginReveal();
+      } else if (revealed && revealPhase === "idle" && swipePhase === "idle" && event.key === "ArrowLeft") {
         startAnswer(false, getSwipeExitOffset(-1), 0, 0);
-      } else if (revealed && swipePhase === "idle" && event.key === "ArrowRight") {
+      } else if (revealed && revealPhase === "idle" && swipePhase === "idle" && event.key === "ArrowRight") {
         startAnswer(true, getSwipeExitOffset(1), 0, 0);
       }
     }
@@ -427,6 +472,7 @@ export function LearnScreen({
       !event.isPrimary
       || event.button !== 0
       || !revealed
+      || revealPhase !== "idle"
       || !canAnswer
       || swipePhase !== "idle"
       || swipeSession.current !== null
@@ -670,12 +716,8 @@ export function LearnScreen({
               word={displayedCard.word}
               settings={settings}
               revealed={outgoingCard === null ? revealed : true}
-              onReveal={outgoingCard === null ? () => {
-                if (session.reveal()) {
-                  onSessionChanged();
-                  telegramImpact();
-                }
-              } : undefined}
+              revealPhase={outgoingCard === null ? revealPhase : "idle"}
+              onReveal={outgoingCard === null ? beginReveal : undefined}
               onSpeak={() => speak(displayedCard.word)}
               onPointerDown={outgoingCard === null ? handleSwipeStart : undefined}
             />
