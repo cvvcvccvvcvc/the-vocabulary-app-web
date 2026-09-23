@@ -2,6 +2,7 @@ import type { VocabularyWord } from "./models.js";
 import type { RandomSource } from "./random.js";
 
 const ANSWER_WEIGHTS = [4, 3, 2, 1, 1, 1, 1] as const;
+const TOTAL_ANSWER_WEIGHT = ANSWER_WEIGHTS.reduce((sum, weight) => sum + weight, 0);
 
 function daysSince(value: string | null, now: Date): number {
   if (value === null) {
@@ -17,13 +18,11 @@ export function freeReviewWeight(word: VocabularyWord, now: Date): number {
   const ageBoost = 1 + 0.5 * Math.log2(1 + ageInDays);
   const answers = word.recentAnswers ?? (word.lastReviewedAt === null ? [] : [!word.lastAnswerWasWrong]);
   let missedWeight = 0;
-  let totalWeight = 0;
   for (const [index, correct] of answers.slice(0, ANSWER_WEIGHTS.length).entries()) {
     const weight = ANSWER_WEIGHTS[index] ?? 0;
-    totalWeight += weight;
     if (!correct) missedWeight += weight;
   }
-  const errorBoost = 1 + 5 * (totalWeight === 0 ? 0 : missedWeight / totalWeight);
+  const errorBoost = 1 + 5 * missedWeight / TOTAL_ANSWER_WEIGHT;
 
   return levelBoost * ageBoost * errorBoost;
 }

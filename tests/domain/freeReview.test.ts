@@ -22,7 +22,12 @@ describe("Free Review", () => {
 
     expect(recovering).toBeGreaterThan(easy);
     expect(difficult).toBeGreaterThan(recovering);
-    expect(freeReviewWeight(makeWord({ ...fresh, recentAnswers: [false] }), now)).toBe(6);
+    const oneMiss = freeReviewWeight(makeWord({ ...fresh, recentAnswers: [false] }), now);
+    expect(oneMiss).toBeCloseTo(1 + 20 / 13);
+    expect(oneMiss).toBeLessThan(freeReviewWeight(makeWord({
+      ...fresh,
+      recentAnswers: [false, false, false, false, false, false, false],
+    }), now));
   });
 
   it("caps age so a long-unseen high-level word does not outweigh a fresh low-level word", () => {
