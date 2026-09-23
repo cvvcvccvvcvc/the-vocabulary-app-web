@@ -58,9 +58,12 @@ export function applyReviewAnswer(
     correctCount: word.correctCount + (correct ? 1 : 0),
     wrongCount: word.wrongCount + (correct ? 0 : 1),
     lastAnswerWasWrong: !correct,
+    recentAnswers: [
+      correct,
+      ...(word.recentAnswers ?? (word.lastReviewedAt === null ? [] : [!word.lastAnswerWasWrong])),
+    ].slice(0, 7),
     lastReviewedAt: timestamp,
     progressUpdatedAt: timestamp,
     updatedAt: timestamp,
   };
 }
-

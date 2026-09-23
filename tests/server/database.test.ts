@@ -119,4 +119,64 @@ describe("database migrations", () => {
       database.close();
     }
   });
+
+  it("backfills recent answers from both review modes without changing progress", () => {
+    const database = new Database(":memory:");
+    database.pragma("foreign_keys = ON");
+    try {
+      for (const migration of [
+        "001_initial.sql",
+        "002_theme_preference.sql",
+        "003_telegram_reminders.sql",
+        "004_review_operation_requests.sql",
+        "005_user_statistics_indexes.sql",
+        "006_compact_review_events.sql",
+      ]) {
+        database.exec(fs.readFileSync(`${migrationsDirectory}/${migration}`, "utf8"));
+      }
+      database.exec(`
+        INSERT INTO users (id, telegram_user_id, created_at, updated_at)
+        VALUES ('user-1', '1001', '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z');
+        INSERT INTO words (
+          id, user_id, learning_text, normalized_learning_text, meanings_json,
+          level, next_review_at, last_reviewed_at, last_answer_was_wrong,
+          created_at, updated_at, content_updated_at, progress_updated_at
+        ) VALUES (
+          'word-1', 'user-1', 'memory', 'memory', '["память"]',
+          5, '2026-08-30T00:00:00.000Z', '2026-08-20T00:00:00.000Z', 1,
+          '2026-08-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z',
+          '2026-08-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z'
+        ), (
+          'word-2', 'user-1', 'fallback', 'fallback', '["запас"]',
+          2, NULL, '2026-08-20T00:00:00.000Z', 1,
+          '2026-08-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z',
+          '2026-08-01T00:00:00.000Z', '2026-08-20T00:00:00.000Z'
+        );
+      `);
+      const insert = database.prepare(`
+        INSERT INTO review_events (id, user_id, word_id, correct, mode, created_at)
+        VALUES (?, 'user-1', 'word-1', ?, ?, ?)
+      `);
+      for (let index = 1; index <= 8; index += 1) {
+        insert.run(`event-${index}`, index % 2, index % 2 ? "free" : "scheduled",
+          `2026-08-${String(index).padStart(2, "0")}T00:00:00.000Z`);
+      }
+      insert.run("event-null", null, null, "2026-08-09T00:00:00.000Z");
+
+      database.exec(fs.readFileSync(`${migrationsDirectory}/007_recent_review_answers.sql`, "utf8"));
+      expect(database.prepare(`
+        SELECT level, next_review_at, version, recent_answers_json
+        FROM words WHERE id = 'word-1'
+      `).get()).toEqual({
+        level: 5,
+        next_review_at: "2026-08-30T00:00:00.000Z",
+        version: 1,
+        recent_answers_json: "[0,1,0,1,0,1,0]",
+      });
+      expect(database.prepare("SELECT recent_answers_json FROM words WHERE id = 'word-2'")
+        .get()).toEqual({ recent_answers_json: "[0]" });
+    } finally {
+      database.close();
+    }
+  });
 });

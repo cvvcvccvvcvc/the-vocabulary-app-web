@@ -46,6 +46,7 @@ interface WordRow {
   correct_count: number;
   wrong_count: number;
   last_answer_was_wrong: number;
+  recent_answers_json: string;
   version: number;
 }
 
@@ -94,6 +95,7 @@ function mapWord(row: WordRow): VocabularyWord {
     correctCount: row.correct_count,
     wrongCount: row.wrong_count,
     lastAnswerWasWrong: row.last_answer_was_wrong === 1,
+    recentAnswers: (JSON.parse(row.recent_answers_json) as number[]).map((answer) => answer === 1),
     version: row.version,
   };
 }
@@ -622,7 +624,7 @@ export class VocabularyRepository {
       .prepare(`
         UPDATE words SET
           level = ?, next_review_at = ?, correct_count = ?, wrong_count = ?,
-          last_answer_was_wrong = ?, last_reviewed_at = ?, progress_updated_at = ?,
+          last_answer_was_wrong = ?, recent_answers_json = ?, last_reviewed_at = ?, progress_updated_at = ?,
           updated_at = ?
         WHERE id = ? AND user_id = ? AND is_deleted = 0
       `)
@@ -632,6 +634,7 @@ export class VocabularyRepository {
         after.correctCount,
         after.wrongCount,
         after.lastAnswerWasWrong ? 1 : 0,
+        JSON.stringify(after.recentAnswers.map((answer) => answer ? 1 : 0)),
         after.lastReviewedAt,
         after.progressUpdatedAt,
         after.updatedAt,

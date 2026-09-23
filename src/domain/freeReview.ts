@@ -1,9 +1,7 @@
 import type { VocabularyWord } from "./models.js";
 import type { RandomSource } from "./random.js";
-import { randomInRange } from "./random.js";
 
-const BATCH_SIZE = 20;
-const REFILL_THRESHOLD = 5;
+const ANSWER_WEIGHTS = [4, 3, 2, 1, 1, 1, 1] as const;
 
 function daysSince(value: string | null, now: Date): number {
   if (value === null) {
@@ -13,19 +11,21 @@ function daysSince(value: string | null, now: Date): number {
   return Math.max(0, now.getTime() - new Date(value).getTime()) / 86_400_000;
 }
 
-export function freeReviewWeight(
-  word: VocabularyWord,
-  now: Date,
-  random: RandomSource,
-  lastSeenAtOverride?: string | null,
-): number {
-  const ageInDays = daysSince(lastSeenAtOverride ?? word.lastSeenAt, now);
-  const levelBoost = 1 + 0.35 * (9 - word.level);
-  const ageBoost = 1 + Math.log2(1 + ageInDays);
-  const errorBoost = word.lastAnswerWasWrong ? 5 : 1;
-  const jitter = randomInRange(random, 0.85, 1.15);
+export function freeReviewWeight(word: VocabularyWord, now: Date): number {
+  const ageInDays = Math.min(30, daysSince(word.lastSeenAt, now));
+  const levelBoost = 1 + 0.5 * (9 - word.level);
+  const ageBoost = 1 + 0.5 * Math.log2(1 + ageInDays);
+  const answers = word.recentAnswers ?? (word.lastReviewedAt === null ? [] : [!word.lastAnswerWasWrong]);
+  let missedWeight = 0;
+  let totalWeight = 0;
+  for (const [index, correct] of answers.slice(0, ANSWER_WEIGHTS.length).entries()) {
+    const weight = ANSWER_WEIGHTS[index] ?? 0;
+    totalWeight += weight;
+    if (!correct) missedWeight += weight;
+  }
+  const errorBoost = 1 + 5 * (totalWeight === 0 ? 0 : missedWeight / totalWeight);
 
-  return Math.max(0.0001, levelBoost * ageBoost * errorBoost * jitter);
+  return levelBoost * ageBoost * errorBoost;
 }
 
 function weightedChoice(
@@ -50,15 +50,12 @@ function weightedChoice(
 }
 
 export class FreeReviewPicker {
-  private queue: string[] = [];
   private recent: string[] = [];
 
   remove(wordId: string): boolean {
-    const queue = this.queue.filter((id) => id !== wordId);
     const recent = this.recent.filter((id) => id !== wordId);
-    const changed = queue.length !== this.queue.length || recent.length !== this.recent.length;
+    const changed = recent.length !== this.recent.length;
 
-    this.queue = queue;
     this.recent = recent;
     return changed;
   }
@@ -67,11 +64,9 @@ export class FreeReviewPicker {
     const liveIds = new Set(
       allWords.filter((word) => !word.isDeleted).map((word) => word.id),
     );
-    const queue = this.queue.filter((id) => liveIds.has(id));
     const recent = this.recent.filter((id) => liveIds.has(id));
-    const changed = queue.length !== this.queue.length || recent.length !== this.recent.length;
+    const changed = recent.length !== this.recent.length;
 
-    this.queue = queue;
     this.recent = recent;
     return changed;
   }
@@ -83,74 +78,29 @@ export class FreeReviewPicker {
   ): VocabularyWord | null {
     const words = allWords.filter((word) => !word.isDeleted);
     if (words.length === 0) {
-      this.queue = [];
       this.recent = [];
       return null;
     }
 
     this.reconcile(words);
 
-    if (this.queue.length === 0) {
-      this.refill(words, now, random);
-    }
-
-    const selectedId = this.queue.shift();
-    if (selectedId === undefined) {
-      return null;
-    }
-
     const cooldownSize = Math.min(9, Math.max(0, words.length - 1));
-    this.recent.push(selectedId);
+    const blocked = new Set(this.recent.slice(-cooldownSize));
+    const candidates = words.filter((word) => !blocked.has(word.id));
+    const eligible = candidates.length > 0 ? candidates : words;
+    const selected = weightedChoice(
+      eligible,
+      eligible.map((word) => freeReviewWeight(word, now)),
+      random,
+    );
+    if (selected === null) return null;
+
+    this.recent.push(selected.id);
     this.recent = cooldownSize === 0 ? [] : this.recent.slice(-cooldownSize);
-
-    if (this.queue.length <= REFILL_THRESHOLD) {
-      this.refill(words, now, random);
-    }
-
-    return words.find((word) => word.id === selectedId) ?? null;
+    return selected;
   }
 
   reset(): void {
-    this.queue = [];
     this.recent = [];
-  }
-
-  private refill(
-    words: readonly VocabularyWord[],
-    now: Date,
-    random: RandomSource,
-  ): void {
-    const cooldownSize = Math.min(9, Math.max(0, words.length - 1));
-    const virtualRecent = [...this.recent];
-    const virtualSeenAt = new Map<string, string>();
-
-    for (const queuedId of this.queue) {
-      virtualRecent.push(queuedId);
-      virtualRecent.splice(0, Math.max(0, virtualRecent.length - cooldownSize));
-      virtualSeenAt.set(queuedId, now.toISOString());
-    }
-
-    const targetCount = Math.max(0, BATCH_SIZE - this.queue.length);
-    for (let index = 0; index < targetCount; index += 1) {
-      const blocked = new Set(virtualRecent.slice(-cooldownSize));
-      let candidates = words.filter((word) => !blocked.has(word.id));
-
-      if (candidates.length === 0) {
-        candidates = [...words];
-      }
-
-      const weights = candidates.map((word) =>
-        freeReviewWeight(word, now, random, virtualSeenAt.get(word.id)),
-      );
-      const selected = weightedChoice(candidates, weights, random);
-      if (selected === null) {
-        break;
-      }
-
-      this.queue.push(selected.id);
-      virtualRecent.push(selected.id);
-      virtualRecent.splice(0, Math.max(0, virtualRecent.length - cooldownSize));
-      virtualSeenAt.set(selected.id, now.toISOString());
-    }
   }
 }

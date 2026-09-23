@@ -21,6 +21,7 @@ export interface VocabularyWord {
   correctCount: number;
   wrongCount: number;
   lastAnswerWasWrong: boolean;
+  recentAnswers: boolean[];
   version: number;
 }
 

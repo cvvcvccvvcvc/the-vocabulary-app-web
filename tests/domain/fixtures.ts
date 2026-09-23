@@ -22,6 +22,7 @@ export function makeWord(overrides: Partial<VocabularyWord> = {}): VocabularyWor
     correctCount: 0,
     wrongCount: 0,
     lastAnswerWasWrong: false,
+    recentAnswers: [],
     version: 1,
     ...overrides,
   };
