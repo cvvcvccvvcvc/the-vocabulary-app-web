@@ -36,7 +36,7 @@ pnpm typecheck
 pnpm build
 ```
 
-The minimum scheduling suite covers level clamping, every interval, Scheduled versus Free mutation rules, direction alternation, Free Review cooldown and fresh weighting, and review-session continuity across navigation and vocabulary changes.
+The minimum scheduling suite covers level clamping, every interval, the 16-hour boundary, wrong-answer relearning, level-9 interval growth and cap, Scheduled versus Free mutation rules, direction alternation, Free Review cooldown and fresh weighting, and review-session continuity across navigation and vocabulary changes. Migration tests cover old due dates with later Free Review activity and missing Scheduled history.
 
 The progress suite additionally covers streak continuation through today or yesterday,
 reset after a fully missed day, duplicate activity days, both review modes and answer

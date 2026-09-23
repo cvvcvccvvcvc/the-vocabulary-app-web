@@ -15,6 +15,7 @@ export interface VocabularyWord {
   isDeleted: boolean;
   deletedAt: string | null;
   nextReviewAt: string | null;
+  scheduledIntervalHours: number | null;
   lastSeenAt: string | null;
   lastReviewedAt: string | null;
   lastDirection: ReviewDirection | null;

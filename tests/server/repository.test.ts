@@ -146,7 +146,7 @@ describe("Vocabulary repository", () => {
       direction: "known-to-learning",
       level_before: 0,
       level_after: 1,
-      next_review_at: "2026-08-27T10:01:00.000Z",
+      next_review_at: "2026-08-27T02:01:00.000Z",
       created_at: "2026-08-26T10:01:00.000Z",
     });
 

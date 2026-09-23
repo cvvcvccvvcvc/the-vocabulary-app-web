@@ -16,6 +16,7 @@ export function makeWord(overrides: Partial<VocabularyWord> = {}): VocabularyWor
     isDeleted: false,
     deletedAt: null,
     nextReviewAt: null,
+    scheduledIntervalHours: null,
     lastSeenAt: null,
     lastReviewedAt: null,
     lastDirection: null,

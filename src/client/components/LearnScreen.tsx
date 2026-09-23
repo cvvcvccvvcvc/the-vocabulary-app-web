@@ -72,7 +72,7 @@ const SWIPE_VELOCITY_THRESHOLD = 0.65;
 const REVIEW_HELP_ITEMS = {
   scheduled: [
     { marker: "↻", tone: "accent", title: "Due words first", detail: "Scheduled Review serves words when their learning interval is due." },
-    { marker: "↑", tone: "success", title: "Answers change the level", detail: "Correct moves up; wrong moves down to a shorter interval." },
+    { marker: "↑", tone: "success", title: "Answers change the level", detail: "Correct moves up; wrong returns to a short review." },
     { marker: "→", tone: "neutral", title: "Then Free Review", detail: "Free Review begins when no scheduled words remain." },
   ],
   free: [

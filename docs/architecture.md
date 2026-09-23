@@ -28,6 +28,8 @@ The in-memory `ReviewSession` is owned above the navigation tabs. It keeps an ID
 
 The server remains authoritative. The client submits semantic actions such as `correct` or `wrong`; it does not submit an arbitrary new level. After the initial presentation, one review-transition request atomically applies the answer and records the next card's direction. Its local projection begins when the swipe is accepted, while the next card becomes readable only after the outgoing animation; neither visual event waits for the request to finish. The next card cannot be answered until the server confirms the transition. An ambiguous retry reuses the same operation ID and exact payload, so the server returns the stored response without applying either mutation twice. Exact retry responses are retained for seven days; the permanent event ID still rejects a later replay after that response expires. Optimistic edit versions advance only for content changes, so review progress from another device does not invalidate an open edit draft.
 
+Only level-9 cards need stored interval state beyond their level. The initial scheduling migration extends existing dates from the last Scheduled Review event, with the first extension limited to 28 days. A later Free Review answer cannot move that anchor. Cards without a usable Scheduled event retain their assigned date until answered.
+
 ## User progress
 
 The authenticated `GET /api/statistics` endpoint calculates one user's progress on demand

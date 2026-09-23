@@ -179,4 +179,69 @@ describe("database migrations", () => {
       database.close();
     }
   });
+
+  it("extends existing dates from Scheduled history without using Free Review activity", () => {
+    const database = new Database(":memory:");
+    database.pragma("foreign_keys = ON");
+    try {
+      for (const migration of [
+        "001_initial.sql",
+        "002_theme_preference.sql",
+        "003_telegram_reminders.sql",
+        "004_review_operation_requests.sql",
+        "005_user_statistics_indexes.sql",
+        "006_compact_review_events.sql",
+        "007_recent_review_answers.sql",
+      ]) {
+        database.exec(fs.readFileSync(`${migrationsDirectory}/${migration}`, "utf8"));
+      }
+      database.exec(`
+        INSERT INTO users (id, telegram_user_id, created_at, updated_at)
+        VALUES ('user-1', '1001', '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z');
+      `);
+      const insertWord = database.prepare(`
+        INSERT INTO words (
+          id, user_id, learning_text, normalized_learning_text, meanings_json,
+          level, next_review_at, last_reviewed_at,
+          created_at, updated_at, content_updated_at, progress_updated_at
+        ) VALUES (?, 'user-1', ?, ?, '["значение"]', ?, ?, ?,
+          '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z',
+          '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z')
+      `);
+      insertWord.run("mature", "mature", "mature", 9,
+        "2026-08-15T00:00:00.000Z", "2026-08-10T00:00:00.000Z");
+      insertWord.run("middle", "middle", "middle", 5,
+        "2026-08-15T00:00:00.000Z", "2026-08-01T00:00:00.000Z");
+      insertWord.run("young", "young", "young", 1,
+        "2026-08-02T00:00:00.000Z", "2026-08-01T00:00:00.000Z");
+      insertWord.run("unknown", "unknown", "unknown", 9,
+        "2026-08-15T00:00:00.000Z", "2026-08-01T00:00:00.000Z");
+      insertWord.run("new", "new", "new", 0, null, null);
+      const insertEvent = database.prepare(`
+        INSERT INTO review_events (id, user_id, word_id, correct, mode, created_at)
+        VALUES (?, 'user-1', ?, 1, ?, ?)
+      `);
+      for (const wordId of ["mature", "middle", "young"]) {
+        insertEvent.run(`${wordId}-scheduled`, wordId, "scheduled", "2026-08-01T00:00:00.000Z");
+      }
+      insertEvent.run("mature-free", "mature", "free", "2026-08-10T00:00:00.000Z");
+
+      database.exec(fs.readFileSync(`${migrationsDirectory}/008_scheduled_review_intervals.sql`, "utf8"));
+      const rows = database.prepare(`
+        SELECT id, next_review_at, scheduled_interval_hours, version
+        FROM words ORDER BY id
+      `).all();
+      expect(rows).toEqual([
+        { id: "mature", next_review_at: "2026-08-29T00:00:00.000Z", scheduled_interval_hours: null, version: 1 },
+        { id: "middle", next_review_at: "2026-08-22T00:00:00.000Z", scheduled_interval_hours: null, version: 1 },
+        { id: "new", next_review_at: null, scheduled_interval_hours: null, version: 1 },
+        { id: "unknown", next_review_at: "2026-08-15T00:00:00.000Z", scheduled_interval_hours: null, version: 1 },
+        { id: "young", next_review_at: "2026-08-02T00:00:00.000Z", scheduled_interval_hours: null, version: 1 },
+      ]);
+      expect(database.prepare("SELECT COUNT(*) AS count FROM review_events").get())
+        .toEqual({ count: 4 });
+    } finally {
+      database.close();
+    }
+  });
 });

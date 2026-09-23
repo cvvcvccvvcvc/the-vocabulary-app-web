@@ -40,6 +40,7 @@ interface WordRow {
   is_deleted: number;
   deleted_at: string | null;
   next_review_at: string | null;
+  scheduled_interval_hours: number | null;
   last_seen_at: string | null;
   last_reviewed_at: string | null;
   last_direction: ReviewDirection | null;
@@ -89,6 +90,7 @@ function mapWord(row: WordRow): VocabularyWord {
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at,
     nextReviewAt: row.next_review_at,
+    scheduledIntervalHours: row.scheduled_interval_hours,
     lastSeenAt: row.last_seen_at,
     lastReviewedAt: row.last_reviewed_at,
     lastDirection: row.last_direction,
@@ -623,7 +625,7 @@ export class VocabularyRepository {
     this.database
       .prepare(`
         UPDATE words SET
-          level = ?, next_review_at = ?, correct_count = ?, wrong_count = ?,
+          level = ?, next_review_at = ?, scheduled_interval_hours = ?, correct_count = ?, wrong_count = ?,
           last_answer_was_wrong = ?, recent_answers_json = ?, last_reviewed_at = ?, progress_updated_at = ?,
           updated_at = ?
         WHERE id = ? AND user_id = ? AND is_deleted = 0
@@ -631,6 +633,7 @@ export class VocabularyRepository {
       .run(
         after.level,
         after.nextReviewAt,
+        after.scheduledIntervalHours,
         after.correctCount,
         after.wrongCount,
         after.lastAnswerWasWrong ? 1 : 0,

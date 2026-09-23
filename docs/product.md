@@ -67,16 +67,21 @@ travel follows the device currently in use.
 
 Levels are integers from 0 through 9. New words start at level 0.
 
-Scheduled Review serves new and due words. Correct answers raise the level by one and wrong answers lower it by one, clamped to the valid range. The interval after the resulting level is:
+Scheduled Review serves new and due words. New words are available immediately. A correct answer raises the level by one. A wrong answer on a new word leaves it at level 0; on an established word it returns the card to level 1. Either wrong answer schedules the next review in 16 hours. After a correct answer, the interval for the resulting level is:
 
-| Level | Days |
+| Level | Interval |
 | --- | ---: |
-| 0 | 0 |
-| 1 | 1 |
-| 2 | 2 |
-| 3 | 4 |
-| 4 | 7 |
-| 5–9 | 14 |
+| 1 | 16 hours |
+| 2 | 4 days |
+| 3 | 7 days |
+| 4 | 14 days |
+| 5 | 21 days |
+| 6 | 30 days |
+| 7 | 45 days |
+| 8 | 60 days |
+| 9 | 90 days |
+
+Further correct answers at level 9 extend its interval to 135 and then 180 days. The 180-day interval is the maximum. Free Review answers do not change this interval.
 
 Free Review starts only when Scheduled Review is empty. It draws from all active words and never changes `level` or `nextReviewAt`. The next word is selected from its current level, time since last shown, and seven most recent answers in either review mode. Recent mistakes carry more weight, while a long absence has a capped influence. The last nine shown words are held back when enough words exist.
 
