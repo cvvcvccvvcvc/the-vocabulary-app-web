@@ -40,12 +40,14 @@ interface WordRow {
   is_deleted: number;
   deleted_at: string | null;
   next_review_at: string | null;
+  scheduled_interval_hours: number | null;
   last_seen_at: string | null;
   last_reviewed_at: string | null;
   last_direction: ReviewDirection | null;
   correct_count: number;
   wrong_count: number;
   last_answer_was_wrong: number;
+  recent_answers_json: string;
   version: number;
 }
 
@@ -88,12 +90,14 @@ function mapWord(row: WordRow): VocabularyWord {
     isDeleted: row.is_deleted === 1,
     deletedAt: row.deleted_at,
     nextReviewAt: row.next_review_at,
+    scheduledIntervalHours: row.scheduled_interval_hours,
     lastSeenAt: row.last_seen_at,
     lastReviewedAt: row.last_reviewed_at,
     lastDirection: row.last_direction,
     correctCount: row.correct_count,
     wrongCount: row.wrong_count,
     lastAnswerWasWrong: row.last_answer_was_wrong === 1,
+    recentAnswers: (JSON.parse(row.recent_answers_json) as number[]).map((answer) => answer === 1),
     version: row.version,
   };
 }
@@ -621,17 +625,19 @@ export class VocabularyRepository {
     this.database
       .prepare(`
         UPDATE words SET
-          level = ?, next_review_at = ?, correct_count = ?, wrong_count = ?,
-          last_answer_was_wrong = ?, last_reviewed_at = ?, progress_updated_at = ?,
+          level = ?, next_review_at = ?, scheduled_interval_hours = ?, correct_count = ?, wrong_count = ?,
+          last_answer_was_wrong = ?, recent_answers_json = ?, last_reviewed_at = ?, progress_updated_at = ?,
           updated_at = ?
         WHERE id = ? AND user_id = ? AND is_deleted = 0
       `)
       .run(
         after.level,
         after.nextReviewAt,
+        after.scheduledIntervalHours,
         after.correctCount,
         after.wrongCount,
         after.lastAnswerWasWrong ? 1 : 0,
+        JSON.stringify(after.recentAnswers.map((answer) => answer ? 1 : 0)),
         after.lastReviewedAt,
         after.progressUpdatedAt,
         after.updatedAt,

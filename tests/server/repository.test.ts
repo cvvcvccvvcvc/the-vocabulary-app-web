@@ -102,6 +102,7 @@ describe("Vocabulary repository", () => {
     expect(first.shownWord).toMatchObject({
       level: 1,
       correctCount: 1,
+      recentAnswers: [true],
       lastDirection: "known-to-learning",
       lastSeenAt: "2026-08-26T10:01:00.000Z",
     });
@@ -145,7 +146,7 @@ describe("Vocabulary repository", () => {
       direction: "known-to-learning",
       level_before: 0,
       level_after: 1,
-      next_review_at: "2026-08-27T10:01:00.000Z",
+      next_review_at: "2026-08-27T02:01:00.000Z",
       created_at: "2026-08-26T10:01:00.000Z",
     });
 
@@ -166,6 +167,32 @@ describe("Vocabulary repository", () => {
       answer: { wordId: word.id, correct: true, mode: "scheduled" },
     });
     expect(JSON.parse(receipt.response_json)).toMatchObject({ id: word.id, level: 1 });
+  });
+
+  it("persists the seven latest answers without counting an operation retry twice", () => {
+    const word = repository.createWord(userId, {
+      learningText: "memory",
+      meanings: ["память"],
+      comment: "",
+    });
+    const answers = [true, false, true, false, true, false, true, false];
+    let lastOperationId = "";
+    for (const [index, correct] of answers.entries()) {
+      lastOperationId = randomUUID();
+      repository.answerWord(
+        userId, word.id, lastOperationId, correct, "free",
+        new Date(`2026-08-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`),
+      );
+    }
+
+    const retry = repository.answerWord(
+      userId, word.id, lastOperationId, false, "free",
+      new Date("2026-08-09T10:00:00.000Z"),
+    );
+    expect(retry.recentAnswers).toEqual([false, true, false, true, false, true, false]);
+    expect(repository.listWords(userId)[0]?.recentAnswers).toEqual(retry.recentAnswers);
+    expect(database.sqlite.prepare("SELECT COUNT(*) AS count FROM review_events WHERE word_id = ?")
+      .get(word.id)).toEqual({ count: 8 });
   });
 
   it("rejects an old retry after pruning its cached response", () => {

@@ -67,22 +67,27 @@ travel follows the device currently in use.
 
 Levels are integers from 0 through 9. New words start at level 0.
 
-Scheduled Review serves new and due words. Correct answers raise the level by one and wrong answers lower it by one, clamped to the valid range. The interval after the resulting level is:
+Scheduled Review serves new and due words. New words are available immediately. A correct answer raises the level by one. A wrong answer on a new word leaves it at level 0; on an established word it returns the card to level 1. Either wrong answer schedules the next review in 16 hours. After a correct answer, the interval for the resulting level is:
 
-| Level | Days |
+| Level | Interval |
 | --- | ---: |
-| 0 | 0 |
-| 1 | 1 |
-| 2 | 2 |
-| 3 | 4 |
-| 4 | 7 |
-| 5–9 | 14 |
+| 1 | 16 hours |
+| 2 | 4 days |
+| 3 | 7 days |
+| 4 | 14 days |
+| 5 | 21 days |
+| 6 | 30 days |
+| 7 | 45 days |
+| 8 | 60 days |
+| 9 | 90 days |
 
-Free Review starts only when Scheduled Review is empty. It draws from all active words and never changes `level` or `nextReviewAt`.
+Further correct answers at level 9 extend its interval to 135 and then 180 days. The 180-day interval is the maximum. Free Review answers do not change this interval.
 
-Moving to another tab and back keeps the current review card, its direction and reveal state, and the remaining in-memory queue. A full application reload deliberately starts a fresh queue from server data.
+Free Review starts only when Scheduled Review is empty. It draws from all active words and never changes `level` or `nextReviewAt`. The next word is selected from its current level, time since last shown, and seven most recent answers in either review mode. Recent mistakes carry more weight, while a long absence has a capped influence. The last nine shown words are held back when enough words exist.
 
-An accepted answer immediately projects the next card from the in-memory queue, but its content is not rendered beneath the outgoing card. When that card is fully off-screen, the exact next question fades and focuses into place without waiting for the server response. It can then be revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
+Moving to another tab and back keeps the current review card, its direction and reveal state, the scheduled queue, and the recent Free Review cooldown. A full application reload deliberately starts a fresh session from server data.
+
+An accepted answer immediately selects the next card locally, but its content is not rendered beneath the outgoing card. When that card is fully off-screen, the exact next question fades and focuses into place without waiting for the server response. It can then be revealed while the previous answer is being saved, but another answer waits for server confirmation. A failed save keeps the same card and offers an exact retry rather than selecting again.
 
 The first side is chosen randomly. Every subsequent presentation of the same word alternates direction.
 

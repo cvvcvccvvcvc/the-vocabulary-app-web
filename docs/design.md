@@ -144,6 +144,9 @@ the same design questions again.
   learning language, known-language meanings, then the optional comment. Present multiple
   meanings as a quiet numbered list and omit numbering for a single meaning. Preserve the
   saved order and wrap each meaning independently.
+- Reveal with a short fade-through: remove the centered question before fading in the complete
+  reading layout. Do not translate, scale, blur, or crossfade the same text between positions;
+  reduced-motion mode switches states without a perceptible delay.
 - Treat the comment as secondary prose rather than a quotation. Preserve its line breaks,
   omit quotation marks, italics, and a visible `Comment` heading, and separate it from the
   meanings with spacing and a neutral rule. Keep it readable in both themes.

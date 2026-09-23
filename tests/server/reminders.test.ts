@@ -59,9 +59,10 @@ describe("Telegram reminder repository", () => {
       new Date("2026-08-02T14:00:00.000Z"),
     );
     expect(reminders.claimDue(20, new Date("2026-08-03T14:00:00.000Z"))).toEqual([]);
-    expect(reminders.claimDue(20, new Date("2026-08-04T14:00:00.000Z"))).toMatchObject([{
+    expect(reminders.claimDue(20, new Date("2026-08-04T14:00:00.000Z"))).toEqual([]);
+    expect(reminders.claimDue(20, new Date("2026-08-06T14:00:00.000Z"))).toMatchObject([{
       dueCardCount: 1,
-      milestoneDays: 2,
+      milestoneDays: 4,
     }]);
   });
 
@@ -91,9 +92,10 @@ describe("Telegram reminder repository", () => {
 
     expect(reminders.claimDue(20, new Date("2026-08-03T12:00:00.000Z"))).toEqual([]);
     expect(reminders.claimDue(20, new Date("2026-08-03T18:00:00.000Z"))).toEqual([]);
-    expect(reminders.claimDue(20, new Date("2026-08-04T12:00:00.000Z"))).toMatchObject([{
+    expect(reminders.claimDue(20, new Date("2026-08-04T12:00:00.000Z"))).toEqual([]);
+    expect(reminders.claimDue(20, new Date("2026-08-06T12:00:00.000Z"))).toMatchObject([{
       dueCardCount: 1,
-      milestoneDays: 2,
+      milestoneDays: 4,
     }]);
 
     const events = database.sqlite
@@ -101,7 +103,8 @@ describe("Telegram reminder repository", () => {
       .all();
     expect(events).toEqual([
       { milestone_days: 1, status: "skipped_no_due" },
-      { milestone_days: 2, status: "claimed" },
+      { milestone_days: 2, status: "skipped_no_due" },
+      { milestone_days: 4, status: "claimed" },
     ]);
   });
 

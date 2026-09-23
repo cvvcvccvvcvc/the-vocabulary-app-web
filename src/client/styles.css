@@ -842,6 +842,29 @@ button.titlebar-icon.active {
   user-select: none;
 }
 
+.review-card.reveal-leaving,
+.review-card.reveal-entering {
+  pointer-events: none;
+}
+
+.review-card.reveal-leaving .review-card-scroll {
+  animation: review-reveal-fade-out 90ms ease-out both;
+}
+
+.review-card.reveal-entering .review-card-revealed-scroll {
+  animation: review-reveal-fade-in 150ms ease-out both;
+}
+
+@keyframes review-reveal-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes review-reveal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .review-card-drag-layer.dragging .review-card.revealed {
   cursor: grabbing;
 }
