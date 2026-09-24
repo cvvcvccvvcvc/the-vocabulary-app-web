@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
@@ -37,6 +37,8 @@ type AddNotice =
   | { kind: "missing" | "translation-error" | "error"; text: string };
 
 export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onViewWord, onOpenSettings }: AddWordScreenProps) {
+  const screenRef = useRef<HTMLElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const { learningText, meaningDraft, comment } = draft;
   const meanings = getMeaningValues(meaningDraft);
   const [notice, setNotice] = useState<AddNotice | null>(null);
@@ -45,6 +47,61 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
   const translationRequest = useRef(0);
   const translationAbort = useRef<AbortController | null>(null);
   const valid = learningText.trim() !== "" && meanings.length > 0;
+
+  useLayoutEffect(() => {
+    const screen = screenRef.current;
+    const card = cardRef.current;
+    const viewport = window.visualViewport;
+    if (screen === null || card === null || viewport === null) return;
+    const addScreen: HTMLElement = screen;
+    const addCard: HTMLDivElement = card;
+    const visibleViewport: VisualViewport = viewport;
+    const mobileQuery = window.matchMedia("(max-width: 850px)");
+
+    let frame = 0;
+
+    function update() {
+      frame = 0;
+      const visibleBottom = visibleViewport.offsetTop + visibleViewport.height;
+      const coveredHeight = Math.max(0, document.documentElement.clientHeight - visibleBottom);
+      addScreen.style.setProperty("--add-visible-top", `${visibleViewport.offsetTop}px`);
+      addScreen.style.setProperty("--add-visible-height", `${visibleViewport.height}px`);
+      addScreen.style.setProperty("--add-covered-height", `${coveredHeight}px`);
+      addScreen.toggleAttribute("data-keyboard-visible", coveredHeight > 80);
+
+      if (!mobileQuery.matches) return;
+      const focused = document.activeElement;
+      if (!(focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement)
+        || !addCard.contains(focused)) return;
+
+      const field = focused.closest(".add-field, .meaning-row") ?? focused;
+      const cardBounds = addCard.getBoundingClientRect();
+      const fieldBounds = field.getBoundingClientRect();
+      const margin = 12;
+      if (fieldBounds.bottom > cardBounds.bottom - margin) {
+        addCard.scrollTop += fieldBounds.bottom - (cardBounds.bottom - margin);
+      } else if (fieldBounds.top < cardBounds.top + margin) {
+        addCard.scrollTop += fieldBounds.top - (cardBounds.top + margin);
+      }
+    }
+
+    function scheduleUpdate() {
+      if (frame === 0) frame = window.requestAnimationFrame(update);
+    }
+
+    update();
+    visibleViewport.addEventListener("resize", scheduleUpdate);
+    visibleViewport.addEventListener("scroll", scheduleUpdate);
+    window.addEventListener("resize", scheduleUpdate);
+    addScreen.addEventListener("focusin", scheduleUpdate);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      visibleViewport.removeEventListener("resize", scheduleUpdate);
+      visibleViewport.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      addScreen.removeEventListener("focusin", scheduleUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     if (notice === null || notice.kind === "error") return;
@@ -144,7 +201,7 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
   }
 
   return (
-    <section className="screen add-screen">
+    <section className="screen add-screen" ref={screenRef}>
       <form
         className="add-form"
         onSubmit={(event) => {
@@ -152,7 +209,7 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
           void save();
         }}
       >
-        <div className="add-card">
+        <div className="add-card" ref={cardRef}>
           <label className="add-field learning-field">
             <span>{languageName(settings.learningLanguage)}</span>
             <input

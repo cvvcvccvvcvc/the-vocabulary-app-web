@@ -21,6 +21,10 @@ Validation is proportional to the affected layer:
   the previous layout between those states.
   Check the software keyboard, text selection, composition, and Telegram's vertical
   close gesture on an actual phone; desktop emulation does not prove those behaviors.
+  On mobile Add, tap the first meaning and Comment with the keyboard open: each field
+  should become visible on focus, before typing. The card should stay anchored, scroll only
+  inside itself, and leave Add Word visible. The bottom navigation should disappear during
+  touch input and return after the keyboard closes; at a narrow desktop width, it stays visible.
 - Translation checks cover per-user method persistence, authentication, Google and Yandex
   response parsing, deduplication and the selected one-to-eight-result cap, and appending
   suggestions without creating a card. Manually check Translate at phone and desktop widths,
