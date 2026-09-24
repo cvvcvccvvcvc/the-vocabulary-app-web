@@ -8,8 +8,9 @@ The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegr
 - Distinct learning and known languages stored with the profile. They control card labels and the browser speech voice; changing devices does not create separate settings.
 - The bot's `/start` and `/help` commands return a compact launch menu for Learn, Add Word, and Words. Each button opens the Mini App directly on that section.
 - Responsive Learn, Add Word, Words, and Progress sections. They form the four primary destinations on mobile and desktop. Settings is a secondary destination opened from a gear button and returns to the section that opened it. Mobile Telegram leaves room for its overlay controls without redundant page titles. Add Word keeps its primary action above the bottom navigation and scrolls the card only when its content exceeds the available space.
-- On mobile, focusing an Add Word field hides the bottom navigation. The card stays anchored
-  near the top and scrolls internally; Add Word remains reachable above the software keyboard.
+- On a touch phone, focusing an Add Word field hides the bottom navigation. The card stays
+  anchored near the top, scrolls the selected field into view, and keeps Add Word reachable
+  above the software keyboard. A narrow desktop window keeps its navigation while typing.
 - Centered review cards. Before reveal they show only the question. A known-language
   question presents multiple meanings as an unnumbered vertical group instead of joining
   them with punctuation. After reveal, cards use one stable reading order: learning

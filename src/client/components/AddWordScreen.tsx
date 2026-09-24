@@ -38,6 +38,7 @@ type AddNotice =
 
 export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onViewWord, onOpenSettings }: AddWordScreenProps) {
   const screenRef = useRef<HTMLElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const { learningText, meaningDraft, comment } = draft;
   const meanings = getMeaningValues(meaningDraft);
   const [notice, setNotice] = useState<AddNotice | null>(null);
@@ -49,10 +50,13 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
 
   useLayoutEffect(() => {
     const screen = screenRef.current;
+    const card = cardRef.current;
     const viewport = window.visualViewport;
-    if (screen === null || viewport === null) return;
+    if (screen === null || card === null || viewport === null) return;
     const addScreen: HTMLElement = screen;
+    const addCard: HTMLDivElement = card;
     const visibleViewport: VisualViewport = viewport;
+    const mobileQuery = window.matchMedia("(max-width: 850px)");
 
     let frame = 0;
 
@@ -64,6 +68,21 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
       addScreen.style.setProperty("--add-visible-height", `${visibleViewport.height}px`);
       addScreen.style.setProperty("--add-covered-height", `${coveredHeight}px`);
       addScreen.toggleAttribute("data-keyboard-visible", coveredHeight > 80);
+
+      if (!mobileQuery.matches) return;
+      const focused = document.activeElement;
+      if (!(focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement)
+        || !addCard.contains(focused)) return;
+
+      const field = focused.closest(".add-field, .meaning-row") ?? focused;
+      const cardBounds = addCard.getBoundingClientRect();
+      const fieldBounds = field.getBoundingClientRect();
+      const margin = 12;
+      if (fieldBounds.bottom > cardBounds.bottom - margin) {
+        addCard.scrollTop += fieldBounds.bottom - (cardBounds.bottom - margin);
+      } else if (fieldBounds.top < cardBounds.top + margin) {
+        addCard.scrollTop += fieldBounds.top - (cardBounds.top + margin);
+      }
     }
 
     function scheduleUpdate() {
@@ -74,11 +93,13 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
     visibleViewport.addEventListener("resize", scheduleUpdate);
     visibleViewport.addEventListener("scroll", scheduleUpdate);
     window.addEventListener("resize", scheduleUpdate);
+    addScreen.addEventListener("focusin", scheduleUpdate);
     return () => {
       window.cancelAnimationFrame(frame);
       visibleViewport.removeEventListener("resize", scheduleUpdate);
       visibleViewport.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
+      addScreen.removeEventListener("focusin", scheduleUpdate);
     };
   }, []);
 
@@ -188,7 +209,7 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
           void save();
         }}
       >
-        <div className="add-card">
+        <div className="add-card" ref={cardRef}>
           <label className="add-field learning-field">
             <span>{languageName(settings.learningLanguage)}</span>
             <input

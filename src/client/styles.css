@@ -2841,9 +2841,14 @@ button.titlebar-icon.active {
     overscroll-behavior: none;
   }
 
-  .app-shell:has(.add-screen:focus-within) .bottom-navigation,
   .app-shell:has(.add-screen[data-keyboard-visible]) .bottom-navigation {
     display: none;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .app-shell:has(.add-screen:focus-within) .bottom-navigation {
+      display: none;
+    }
   }
 
   .add-screen {

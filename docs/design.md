@@ -29,9 +29,11 @@ the same design questions again.
 ## Meaning fields
 
 - On mobile Add, anchor the card near the top instead of recentering it as the keyboard
-  changes the visible viewport. Keep the card as the scroll area and let the Add Word action
-  follow the visible bottom edge. Hide the main navigation while typing; restore it when
-  the keyboard closes. Do not add a timed transition that can lag behind the keyboard.
+  changes the visible viewport. Keep the card as the scroll area and reveal the focused
+  field on focus and viewport resize, moving only as far as needed. Let the Add Word action
+  follow the visible bottom edge. Hide the main navigation for touch input or a visible
+  software keyboard, but keep it in a narrow desktop window. Do not add a timed transition
+  that can lag behind the keyboard.
 - Keep the optional empty meaning field centered across the full card width. Overlay the
   blue Translate action at its right edge, using a white sparkles icon from the app's icon
   set. On narrow screens, hide only the text label and keep a 44-pixel icon target. When
