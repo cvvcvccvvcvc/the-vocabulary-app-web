@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
+import { addViewportCoverage } from "../lib/addViewport.js";
 import { languageName } from "../lib/languages.js";
 import {
   createMeaningDraft,
@@ -57,22 +58,27 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
     const addCard: HTMLDivElement = card;
     const visibleViewport: VisualViewport = viewport;
     const mobileQuery = window.matchMedia("(max-width: 850px)");
+    const touchQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
 
     let frame = 0;
+    let unobscuredBottom = visibleViewport.offsetTop + visibleViewport.height;
 
     function update() {
       frame = 0;
       const visibleBottom = visibleViewport.offsetTop + visibleViewport.height;
-      const coveredHeight = Math.max(0, document.documentElement.clientHeight - visibleBottom);
+      const focused = document.activeElement;
+      const editing = (focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement)
+        && addCard.contains(focused);
+      const touchEditing = mobileQuery.matches && touchQuery.matches && editing;
+      const coverage = addViewportCoverage(unobscuredBottom, visibleBottom, touchEditing);
+      unobscuredBottom = coverage.unobscuredBottom;
+      const { coveredHeight } = coverage;
       addScreen.style.setProperty("--add-visible-top", `${visibleViewport.offsetTop}px`);
       addScreen.style.setProperty("--add-visible-height", `${visibleViewport.height}px`);
       addScreen.style.setProperty("--add-covered-height", `${coveredHeight}px`);
       addScreen.toggleAttribute("data-keyboard-visible", coveredHeight > 80);
 
-      if (!mobileQuery.matches) return;
-      const focused = document.activeElement;
-      if (!(focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement)
-        || !addCard.contains(focused)) return;
+      if (!mobileQuery.matches || !editing) return;
 
       const field = focused.closest(".add-field, .meaning-row") ?? focused;
       const cardBounds = addCard.getBoundingClientRect();
@@ -94,12 +100,14 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
     visibleViewport.addEventListener("scroll", scheduleUpdate);
     window.addEventListener("resize", scheduleUpdate);
     addScreen.addEventListener("focusin", scheduleUpdate);
+    addScreen.addEventListener("focusout", scheduleUpdate);
     return () => {
       window.cancelAnimationFrame(frame);
       visibleViewport.removeEventListener("resize", scheduleUpdate);
       visibleViewport.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
       addScreen.removeEventListener("focusin", scheduleUpdate);
+      addScreen.removeEventListener("focusout", scheduleUpdate);
     };
   }, []);
 
