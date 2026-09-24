@@ -28,12 +28,13 @@ the same design questions again.
 
 ## Meaning fields
 
-- On mobile Add, anchor the card near the top instead of recentering it as the keyboard
-  changes the visible viewport. Keep the card as the scroll area and reveal the focused
-  field on focus and viewport resize, moving only as far as needed. Let the Add Word action
-  follow the visible bottom edge. Hide the main navigation for touch input or a visible
-  software keyboard, but keep it in a narrow desktop window. Do not add a timed transition
-  that can lag behind the keyboard.
+- On mobile Add, center the idle card in the space between the Telegram controls and the
+  Add Word action. As the visible viewport shrinks, keep the card within that space and
+  scroll only its contents to reveal the focused field. Let the action follow the visible
+  bottom edge; remove the navigation's reserved space as the keyboard covers it. Measure
+  that coverage against the last unobscured viewport, so it also works if the layout
+  viewport resizes. Keep the navigation visible in a narrow desktop window. Do not add a timed
+  transition that can lag behind the keyboard.
 - Keep the optional empty meaning field centered across the full card width. Overlay the
   blue Translate action at its right edge, using a white sparkles icon from the app's icon
   set. On narrow screens, hide only the text label and keep a 44-pixel icon target. When
