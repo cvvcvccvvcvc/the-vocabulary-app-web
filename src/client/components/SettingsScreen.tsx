@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { LanguageSettings, ThemePreference, TranslationMethod } from "../../domain/index.js";
 import type {
   TelegramReminderSettings,
@@ -59,21 +59,62 @@ export function SettingsScreen({
   const [draft, setDraft] = useState(settings);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(true);
   const [savingReminders, setSavingReminders] = useState(false);
+  const savingRef = useRef(false);
+  const onUpdatedRef = useRef(onUpdated);
 
   useEffect(() => setDraft(settings), [settings]);
+  useEffect(() => { onUpdatedRef.current = onUpdated; }, [onUpdated]);
 
-  async function save(next: LanguageSettings): Promise<void> {
+  useEffect(() => {
+    let active = true;
+    let requestId = 0;
+
+    async function refresh(): Promise<void> {
+      if (savingRef.current) return;
+      const currentRequest = ++requestId;
+      setRefreshing(true);
+      try {
+        const latest = await api.settings();
+        if (active && currentRequest === requestId && !savingRef.current) {
+          onUpdatedRef.current(latest);
+          setMessage(null);
+        }
+      } catch {
+        if (active && currentRequest === requestId) setMessage("Could not refresh settings");
+      } finally {
+        if (active && currentRequest === requestId) setRefreshing(false);
+      }
+    }
+
+    function refreshWhenVisible(): void {
+      if (document.visibilityState === "visible") void refresh();
+    }
+
+    void refresh();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
+
+  async function save(next: LanguageSettings, patch: Partial<LanguageSettings>): Promise<void> {
     setDraft(next);
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
     try {
-      const updated = await api.updateSettings(next);
+      const updated = await api.patchSettings(patch);
       onUpdated(updated);
     } catch (error) {
       setDraft(settings);
       setMessage(error instanceof ApiError ? error.message : "Could not save settings");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -84,22 +125,25 @@ export function SettingsScreen({
     if (next[field] === next[otherField]) {
       next[otherField] = draft[field];
     }
-    void save(next);
+    void save(next, {
+      learningLanguage: next.learningLanguage,
+      knownLanguage: next.knownLanguage,
+    });
   }
 
   function changeTheme(theme: ThemePreference): void {
     if (theme === draft.theme) return;
-    void save({ ...draft, theme });
+    void save({ ...draft, theme }, { theme });
   }
 
   function changeTranslationMethod(translationMethod: TranslationMethod): void {
     if (translationMethod === draft.translationMethod) return;
-    void save({ ...draft, translationMethod });
+    void save({ ...draft, translationMethod }, { translationMethod });
   }
 
   function changeTranslationMaxMeanings(translationMaxMeanings: number): void {
     if (translationMaxMeanings === draft.translationMaxMeanings) return;
-    void save({ ...draft, translationMaxMeanings });
+    void save({ ...draft, translationMaxMeanings }, { translationMaxMeanings });
   }
 
   async function changeTelegramReminders(): Promise<void> {
@@ -145,7 +189,7 @@ export function SettingsScreen({
             <span>I’m learning</span>
             <select
               value={draft.learningLanguage}
-              disabled={saving}
+              disabled={saving || refreshing}
               onChange={(event) => changeLanguage("learningLanguage", event.target.value)}
             >
               {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
@@ -155,7 +199,7 @@ export function SettingsScreen({
             <span>I know</span>
             <select
               value={draft.knownLanguage}
-              disabled={saving}
+              disabled={saving || refreshing}
               onChange={(event) => changeLanguage("knownLanguage", event.target.value)}
             >
               {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
@@ -174,7 +218,7 @@ export function SettingsScreen({
             <span>Method</span>
             <select
               value={draft.translationMethod}
-              disabled={saving}
+              disabled={saving || refreshing}
               onChange={(event) => changeTranslationMethod(event.target.value as TranslationMethod)}
             >
               <option value="google">Google</option>
@@ -185,7 +229,7 @@ export function SettingsScreen({
             <span>Max meanings</span>
             <select
               value={draft.translationMaxMeanings}
-              disabled={saving}
+              disabled={saving || refreshing}
               onChange={(event) => changeTranslationMaxMeanings(Number(event.target.value))}
             >
               {Array.from({ length: 8 }, (_, index) => (
@@ -209,7 +253,7 @@ export function SettingsScreen({
                 key={value}
                 className={draft.theme === value ? "theme-option active" : "theme-option"}
                 type="button"
-                disabled={saving}
+                disabled={saving || refreshing}
                 aria-pressed={draft.theme === value}
                 onClick={() => changeTheme(value)}
               >

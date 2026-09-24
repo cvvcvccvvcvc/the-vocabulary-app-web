@@ -76,17 +76,24 @@ export const telegramReminderResultsSchema = z.object({
   })).max(20),
 });
 
-export const settingsSchema = z
-  .object({
-    learningLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
-    knownLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
-    theme: z.enum(["system", "light", "dark"]),
-    translationMethod: z.enum(["google", "yandex"]).default("google"),
-    translationMaxMeanings: z.number().int().min(1).max(8).default(3),
+const settingsInputSchema = z.object({
+  learningLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
+  knownLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
+  theme: z.enum(["system", "light", "dark"]),
+  translationMethod: z.enum(["google", "yandex"]),
+  translationMaxMeanings: z.number().int().min(1).max(8),
+});
+
+export const settingsSchema = settingsInputSchema
+  .extend({
+    translationMethod: settingsInputSchema.shape.translationMethod.default("google"),
+    translationMaxMeanings: settingsInputSchema.shape.translationMaxMeanings.default(3),
   })
   .refine((value) => value.learningLanguage !== value.knownLanguage, {
     message: "Learning and known languages must be different",
   });
+
+export const settingsPatchSchema = settingsInputSchema.partial();
 
 export const translationSuggestionsSchema = z.object({
   text: trimmedText(300),

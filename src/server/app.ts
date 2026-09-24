@@ -43,6 +43,7 @@ import {
   answerWordSchema,
   reviewTransitionSchema,
   settingsSchema,
+  settingsPatchSchema,
   showWordSchema,
   statisticsQuerySchema,
   telegramReminderResultsSchema,
@@ -309,10 +310,26 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     );
   });
 
+  app.get("/api/settings", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    return repository.settings(user.id);
+  });
+
   app.put("/api/settings", async (request, reply) => {
     const user = requireUser(request, reply, repository);
     if (user === null) return;
     return repository.updateSettings(user.id, settingsSchema.parse(request.body));
+  });
+
+  app.patch("/api/settings", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    const patch = settingsPatchSchema.parse(request.body);
+    return repository.updateSettings(user.id, settingsSchema.parse({
+      ...repository.settings(user.id),
+      ...patch,
+    }));
   });
 
   app.post("/api/translation-suggestions", {

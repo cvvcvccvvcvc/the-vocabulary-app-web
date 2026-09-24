@@ -307,7 +307,7 @@ export function App() {
       onSettingsOpen={openSettings}
       onThemeToggle={() => {
         const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
-        void api.updateSettings({ ...application.settings, theme: nextTheme }).then((settings) => {
+        void api.patchSettings({ theme: nextTheme }).then((settings) => {
           setApplication((current) => (current === null ? current : { ...current, settings }));
         }).catch(() => undefined);
       }}

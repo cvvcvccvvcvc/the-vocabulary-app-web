@@ -26,6 +26,10 @@ cards. Google uses its unofficial translation response, including dictionary alt
 Yandex uses the dictionary response served to its web translator. Both are fetched on demand
 without server-side browser automation or local dictionary files. The client
 appends distinct suggestions to the existing meaning draft, within its eight-meaning limit.
+Settings reads the current profile when opened or brought back to the foreground so a
+second tab's saved changes do not remain visible as the selected values. Individual
+settings changes are merged with the current server profile so an older tab cannot
+overwrite unrelated preferences.
 
 ## Runtime
 

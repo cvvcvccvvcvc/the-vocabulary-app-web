@@ -626,6 +626,9 @@ describe("Vocabulary API", () => {
   });
 
   it("persists language, theme, and translation settings in the user profile", async () => {
+    const anonymous = await server.app.inject({ method: "GET", url: "/api/settings" });
+    expect(anonymous.statusCode).toBe(401);
+
     const response = await server.app.inject({
       method: "PUT",
       url: "/api/settings",
@@ -648,6 +651,14 @@ describe("Vocabulary API", () => {
       translationMaxMeanings: 8,
     });
 
+    const currentSettings = await server.app.inject({
+      method: "GET",
+      url: "/api/settings",
+      headers: { cookie },
+    });
+    expect(currentSettings.statusCode).toBe(200);
+    expect(currentSettings.json()).toEqual(response.json());
+
     const bootstrap = await server.app.inject({
       method: "GET",
       url: "/api/bootstrap",
@@ -660,9 +671,37 @@ describe("Vocabulary API", () => {
       translationMethod: "yandex",
       translationMaxMeanings: 8,
     });
+
+    const patched = await server.app.inject({
+      method: "PATCH",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: { theme: "light" },
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json()).toEqual({ ...response.json(), theme: "light" });
+    const afterPatch = await server.app.inject({
+      method: "GET",
+      url: "/api/settings",
+      headers: { cookie },
+    });
+    expect(afterPatch.json()).toEqual(patched.json());
+
+    const maximumPatch = await server.app.inject({
+      method: "PATCH",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: { translationMaxMeanings: 1 },
+    });
+    expect(maximumPatch.json()).toEqual({ ...patched.json(), translationMaxMeanings: 1 });
   });
 
   it("rejects a translation maximum outside one to eight", async () => {
+    const anonymous = await server.app.inject({
+      method: "PATCH", url: "/api/settings", payload: { translationMaxMeanings: 1 },
+    });
+    expect(anonymous.statusCode).toBe(401);
+
     const response = await server.app.inject({
       method: "PUT",
       url: "/api/settings",
@@ -676,6 +715,11 @@ describe("Vocabulary API", () => {
       },
     });
     expect(response.statusCode).toBe(400);
+    const badPatch = await server.app.inject({
+      method: "PATCH", url: "/api/settings", headers: { cookie },
+      payload: { translationMaxMeanings: 9 },
+    });
+    expect(badPatch.statusCode).toBe(400);
   });
 
   it("requires login for translation and returns one Google suggestion without saving a word", async () => {
