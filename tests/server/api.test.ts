@@ -625,7 +625,10 @@ describe("Vocabulary API", () => {
     expect(statistics.vocabulary.totalWords).toBe(1);
   });
 
-  it("persists language and theme settings in the user profile", async () => {
+  it("persists language, theme, and translation settings in the user profile", async () => {
+    const anonymous = await server.app.inject({ method: "GET", url: "/api/settings" });
+    expect(anonymous.statusCode).toBe(401);
+
     const response = await server.app.inject({
       method: "PUT",
       url: "/api/settings",
@@ -634,6 +637,8 @@ describe("Vocabulary API", () => {
         learningLanguage: "de",
         knownLanguage: "en",
         theme: "dark",
+        translationMethod: "yandex",
+        translationMaxMeanings: 8,
       },
     });
 
@@ -642,7 +647,17 @@ describe("Vocabulary API", () => {
       learningLanguage: "de",
       knownLanguage: "en",
       theme: "dark",
+      translationMethod: "yandex",
+      translationMaxMeanings: 8,
     });
+
+    const currentSettings = await server.app.inject({
+      method: "GET",
+      url: "/api/settings",
+      headers: { cookie },
+    });
+    expect(currentSettings.statusCode).toBe(200);
+    expect(currentSettings.json()).toEqual(response.json());
 
     const bootstrap = await server.app.inject({
       method: "GET",
@@ -653,7 +668,110 @@ describe("Vocabulary API", () => {
       learningLanguage: "de",
       knownLanguage: "en",
       theme: "dark",
+      translationMethod: "yandex",
+      translationMaxMeanings: 8,
     });
+
+    const patched = await server.app.inject({
+      method: "PATCH",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: { theme: "light" },
+    });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json()).toEqual({ ...response.json(), theme: "light" });
+    const afterPatch = await server.app.inject({
+      method: "GET",
+      url: "/api/settings",
+      headers: { cookie },
+    });
+    expect(afterPatch.json()).toEqual(patched.json());
+
+    const maximumPatch = await server.app.inject({
+      method: "PATCH",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: { translationMaxMeanings: 1 },
+    });
+    expect(maximumPatch.json()).toEqual({ ...patched.json(), translationMaxMeanings: 1 });
+  });
+
+  it("rejects a translation maximum outside one to eight", async () => {
+    const anonymous = await server.app.inject({
+      method: "PATCH", url: "/api/settings", payload: { translationMaxMeanings: 1 },
+    });
+    expect(anonymous.statusCode).toBe(401);
+
+    const response = await server.app.inject({
+      method: "PUT",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: {
+        learningLanguage: "en",
+        knownLanguage: "ru",
+        theme: "system",
+        translationMethod: "google",
+        translationMaxMeanings: 9,
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    const badPatch = await server.app.inject({
+      method: "PATCH", url: "/api/settings", headers: { cookie },
+      payload: { translationMaxMeanings: 9 },
+    });
+    expect(badPatch.statusCode).toBe(400);
+  });
+
+  it("requires login for translation and returns one Google suggestion without saving a word", async () => {
+    const anonymous = await server.app.inject({
+      method: "POST",
+      url: "/api/translation-suggestions",
+      payload: { text: "bank" },
+    });
+    expect(anonymous.statusCode).toBe(401);
+
+    const googleFetch = vi.fn(async () => new Response('[[["банк","bank"]],null,"en"]', { status: 200 }));
+    vi.stubGlobal("fetch", googleFetch);
+    const googleServer = await buildServer(config);
+    try {
+      const login = await googleServer.app.inject({ method: "POST", url: "/api/auth/development" });
+      const googleCookie = login.headers["set-cookie"]?.split(";")[0] ?? "";
+      await googleServer.app.inject({
+        method: "PUT",
+        url: "/api/settings",
+        headers: { cookie: googleCookie },
+        payload: {
+          learningLanguage: "en",
+          knownLanguage: "ru",
+          theme: "system",
+          translationMethod: "google",
+        },
+      });
+      const response = await googleServer.app.inject({
+        method: "POST",
+        url: "/api/translation-suggestions",
+        headers: { cookie: googleCookie },
+        payload: { text: "bank" },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ meanings: ["банк"] });
+      expect(googleFetch).toHaveBeenCalledOnce();
+      googleFetch.mockResolvedValueOnce(new Response("limited", { status: 429 }));
+      const failed = await googleServer.app.inject({
+        method: "POST",
+        url: "/api/translation-suggestions",
+        headers: { cookie: googleCookie },
+        payload: { text: "word" },
+      });
+      expect(failed.statusCode).toBe(502);
+      const bootstrap = await googleServer.app.inject({
+        method: "GET", url: "/api/bootstrap", headers: { cookie: googleCookie },
+      });
+      expect(bootstrap.json<{ words: unknown[] }>().words).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+      await googleServer.app.close();
+    }
   });
 
   it("isolates users at the repository and API boundary", async () => {

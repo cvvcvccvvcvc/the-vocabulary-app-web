@@ -15,6 +15,7 @@ export type MeaningAction =
   | { type: "settle"; activeId: number | null }
   | { type: "remove"; id: number; activeId: number | null }
   | { type: "move"; id: number; beforeId: number | null }
+  | { type: "append"; values: readonly string[] }
   | { type: "reset"; values: readonly string[] };
 
 export function hasMeaning(row: MeaningRow): boolean {
@@ -72,6 +73,24 @@ export function meaningDraftReducer(draft: MeaningDraft, action: MeaningAction):
       if (destination < 0) return draft;
       remaining.splice(destination, 0, moved);
       return normalize({ ...draft, rows: [...remaining, ...draft.rows.filter((row) => !hasMeaning(row))] });
+    }
+    case "append": {
+      const filled = draft.rows.filter(hasMeaning);
+      const seen = new Set(filled.map((row) => row.text.trim().normalize("NFKC").toLocaleLowerCase()));
+      const additions: MeaningRow[] = [];
+      let nextId = draft.nextId;
+      for (const value of action.values) {
+        const text = value.trim();
+        const key = text.normalize("NFKC").toLocaleLowerCase();
+        if (text === "" || seen.has(key) || filled.length + additions.length >= MAX_MEANINGS) continue;
+        seen.add(key);
+        additions.push({ id: nextId++, text });
+      }
+      if (additions.length === 0) return draft;
+      return normalize({
+        rows: [...filled, ...additions, ...draft.rows.filter((row) => !hasMeaning(row))],
+        nextId,
+      });
     }
     case "reset":
       return normalize({

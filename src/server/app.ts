@@ -43,15 +43,21 @@ import {
   answerWordSchema,
   reviewTransitionSchema,
   settingsSchema,
+  settingsPatchSchema,
   showWordSchema,
   statisticsQuerySchema,
   telegramReminderResultsSchema,
   telegramReminderSettingsSchema,
+  translationSuggestionsSchema,
   updateWordSchema,
   wordContentSchema,
 } from "./validation.js";
 import { AnalyticsRepository } from "./analytics.js";
 import { StatisticsRepository } from "./statistics.js";
+import {
+  TranslationProviderError,
+  TranslationService,
+} from "./translation.js";
 
 export interface BuiltServer {
   app: FastifyInstance;
@@ -68,6 +74,7 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
   const analyticsRepository = new AnalyticsRepository(database.sqlite);
   const statisticsRepository = new StatisticsRepository(database.sqlite);
   const reminderRepository = new TelegramReminderRepository(database.sqlite);
+  const translationService = new TranslationService();
 
   await app.register(cookie, { secret: config.sessionSecret });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
@@ -303,10 +310,42 @@ export async function buildServer(config: ServerConfig): Promise<BuiltServer> {
     );
   });
 
+  app.get("/api/settings", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    return repository.settings(user.id);
+  });
+
   app.put("/api/settings", async (request, reply) => {
     const user = requireUser(request, reply, repository);
     if (user === null) return;
     return repository.updateSettings(user.id, settingsSchema.parse(request.body));
+  });
+
+  app.patch("/api/settings", async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    const patch = settingsPatchSchema.parse(request.body);
+    return repository.updateSettings(user.id, settingsSchema.parse({
+      ...repository.settings(user.id),
+      ...patch,
+    }));
+  });
+
+  app.post("/api/translation-suggestions", {
+    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
+    const user = requireUser(request, reply, repository);
+    if (user === null) return;
+    const { text } = translationSuggestionsSchema.parse(request.body);
+    try {
+      return { meanings: await translationService.suggest(text, repository.settings(user.id)) };
+    } catch (error) {
+      if (error instanceof TranslationProviderError) {
+        return reply.status(502).send({ error: { code: "translation_unavailable", message: error.message } });
+      }
+      throw error;
+    }
   });
 
   app.put("/api/settings/telegram-reminders", async (request, reply) => {

@@ -22,6 +22,9 @@ interface MeaningFieldsProps {
   onAction: Dispatch<MeaningAction>;
   variant: "add" | "edit";
   disabled: boolean;
+  onTranslate?: () => void;
+  translateDisabled?: boolean;
+  translating?: boolean;
 }
 
 interface DragSession {
@@ -67,7 +70,7 @@ function scrollBounds(scroller: HTMLElement): { top: number; bottom: number } {
   return { top: Math.max(visibleTop, bounds.top), bottom: Math.min(visibleBottom, bounds.bottom) };
 }
 
-export function MeaningFields({ label, rows, onAction, variant, disabled }: MeaningFieldsProps) {
+export function MeaningFields({ label, rows, onAction, variant, disabled, onTranslate, translateDisabled, translating }: MeaningFieldsProps) {
   const fieldset = useRef<HTMLFieldSetElement>(null);
   const rowElements = useRef(new Map<number, HTMLDivElement>());
   const composing = useRef<number | null>(null);
@@ -313,6 +316,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
       <div className="meaning-rows">
         {rows.map((row, index) => {
           const populated = hasMeaning(row);
+          const translateRow = variant === "add" && !populated && onTranslate !== undefined;
           const dragging = preview?.id === row.id;
           const shift = preview?.shifts.find((item) => item.id === row.id)?.offset ?? 0;
           const dropOffset = drop?.offsets.find((item) => item.id === row.id)?.offset;
@@ -321,7 +325,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
             <div
               key={row.id}
               ref={(element) => { if (element === null) rowElements.current.delete(row.id); else rowElements.current.set(row.id, element); }}
-              className={`meaning-row${dragging ? " dragging" : ""}${dropping ? " drop-settling" : ""}${drop?.id === row.id ? " drop-lifted" : ""}${dropping && drop?.active === true ? " drop-settling-active" : ""}`}
+              className={`meaning-row${translateRow ? " translation-row" : ""}${dragging ? " dragging" : ""}${dropping ? " drop-settling" : ""}${drop?.id === row.id ? " drop-lifted" : ""}${dropping && drop?.active === true ? " drop-settling-active" : ""}`}
               style={preview !== null
                 ? { transform: `translateY(${dragging ? preview.offset : shift}px)` }
                 : dropping ? { transform: `translateY(${dropOffset}px)` } : undefined}
@@ -331,7 +335,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                 }
               }}
             >
-              <div className="meaning-control-slot">
+              {!translateRow && <div className="meaning-control-slot">
                 {populated && filled.length > 1 && (
                   <span
                     className="meaning-control meaning-reorder"
@@ -341,13 +345,13 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                     <Icon name="grip" />
                   </span>
                 )}
-              </div>
+              </div>}
               <input
                 data-meaning-id={row.id}
                 aria-label={`Meaning ${index + 1}`}
                 aria-description={!populated && filled.length > 0 ? "Optional additional meaning" : undefined}
                 maxLength={600}
-                placeholder={filled.length === 0 ? "Meaning" : "Another meaning"}
+                placeholder={filled.length === 0 ? "Meaning" : "Add meaning"}
                 value={row.text}
                 onFocus={() => {
                   onAction({ type: "settle", activeId: row.id });
@@ -360,7 +364,16 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                 }}
               />
               <div className="meaning-control-slot">
-                {populated && (
+                {translateRow ? (
+                  <button
+                    className="translation-button"
+                    type="button"
+                    disabled={translateDisabled}
+                    aria-busy={translating}
+                    aria-label={translating ? "Translating" : "Translate"}
+                    onClick={onTranslate}
+                  ><Icon name="sparkles" /><span className="translation-button-label">Translate</span></button>
+                ) : populated && (
                   <button
                     className="meaning-control meaning-remove"
                     type="button"

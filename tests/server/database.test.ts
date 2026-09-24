@@ -244,4 +244,37 @@ describe("database migrations", () => {
       database.close();
     }
   });
+
+  it("replaces legacy WikDict settings with Google and permits Yandex", () => {
+    const database = new Database(":memory:");
+    try {
+      database.exec(fs.readFileSync(`${migrationsDirectory}/001_initial.sql`, "utf8"));
+      database.exec(fs.readFileSync(`${migrationsDirectory}/002_theme_preference.sql`, "utf8"));
+      database.exec(`
+        INSERT INTO users (id, telegram_user_id, created_at, updated_at)
+        VALUES ('user-1', '1001', '2026-09-01', '2026-09-01');
+        INSERT INTO user_settings (user_id, learning_language, known_language, updated_at)
+        VALUES ('user-1', 'en', 'ru', '2026-09-01');
+      `);
+      database.exec(fs.readFileSync(`${migrationsDirectory}/009_translation_method.sql`, "utf8"));
+      expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_method: "wikdict" });
+      database.exec(fs.readFileSync(`${migrationsDirectory}/010_translation_providers.sql`, "utf8"));
+      expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_method: "google" });
+      database.prepare("UPDATE user_settings SET translation_method = 'yandex' WHERE user_id = 'user-1'").run();
+      expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_method: "yandex" });
+      database.exec(fs.readFileSync(`${migrationsDirectory}/011_translation_max_meanings.sql`, "utf8"));
+      expect(database.prepare("SELECT translation_max_meanings FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_max_meanings: 3 });
+      database.prepare("UPDATE user_settings SET translation_max_meanings = 8 WHERE user_id = 'user-1'").run();
+      expect(database.prepare("SELECT translation_max_meanings FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_max_meanings: 8 });
+      expect(() => database.prepare("UPDATE user_settings SET translation_max_meanings = 9 WHERE user_id = 'user-1'").run())
+        .toThrow();
+    } finally {
+      database.close();
+    }
+  });
 });

@@ -9,6 +9,7 @@ import type {
   ReviewTransitionResponse,
   SessionResponse,
   TelegramReminderSettings,
+  TranslationSuggestionsResponse,
   UserStatisticsResponse,
   UpdateWordRequest,
 } from "../../shared/contracts.js";
@@ -97,6 +98,7 @@ export const api = {
     }),
   logout: () => request<void>("/api/logout", { method: "POST" }),
   bootstrap: () => request<BootstrapResponse>("/api/bootstrap"),
+  settings: () => request<LanguageSettings>("/api/settings"),
   statistics: (timeZone: string) =>
     request<UserStatisticsResponse>(`/api/statistics?timeZone=${encodeURIComponent(timeZone)}`),
   createWord: async (input: CreateWordRequest): Promise<CreateWordResult> => {
@@ -109,6 +111,12 @@ export const api = {
       word: (await response.json()) as VocabularyWord,
     };
   },
+  translationSuggestions: (text: string, signal?: AbortSignal) =>
+    request<TranslationSuggestionsResponse>("/api/translation-suggestions", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+      ...(signal === undefined ? {} : { signal }),
+    }),
   updateWord: (wordId: string, input: UpdateWordRequest) =>
     request<VocabularyWord>(`/api/words/${wordId}`, {
       method: "PUT",
@@ -136,10 +144,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  updateSettings: (settings: LanguageSettings) =>
+  patchSettings: (patch: Partial<LanguageSettings>) =>
     request<LanguageSettings>("/api/settings", {
-      method: "PUT",
-      body: JSON.stringify(settings),
+      method: "PATCH",
+      body: JSON.stringify(patch),
     }),
   updateTelegramReminders: (enabled: boolean) =>
     request<TelegramReminderSettings>("/api/settings/telegram-reminders", {

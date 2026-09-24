@@ -1,40 +1,108 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { LanguageSettings, VocabularyWord } from "../../domain/index.js";
 import { api, ApiError } from "../lib/api.js";
 import { languageName } from "../lib/languages.js";
-import { createMeaningDraft, getMeaningValues, meaningDraftReducer } from "../lib/meaningDraft.js";
+import {
+  createMeaningDraft,
+  getMeaningValues,
+  MAX_MEANINGS,
+  meaningDraftReducer,
+  type MeaningAction,
+  type MeaningDraft,
+} from "../lib/meaningDraft.js";
 import { telegramImpact, telegramNotification } from "../lib/telegram.js";
 import { MeaningFields } from "./MeaningFields.js";
 
 interface AddWordScreenProps {
   settings: LanguageSettings;
+  draft: AddWordDraft;
+  onDraftChange: Dispatch<SetStateAction<AddWordDraft>>;
   onAvailable(word: VocabularyWord): void;
   onViewWord(wordId: string): void;
+  onOpenSettings(): void;
+}
+
+export interface AddWordDraft {
+  learningText: string;
+  meaningDraft: MeaningDraft;
+  comment: string;
+}
+
+export function emptyAddWordDraft(): AddWordDraft {
+  return { learningText: "", meaningDraft: createMeaningDraft([]), comment: "" };
 }
 
 type AddNotice =
   | { kind: "success" | "existing"; text: string; wordId: string }
-  | { kind: "error"; text: string };
+  | { kind: "missing" | "translation-error" | "error"; text: string };
 
-export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScreenProps) {
-  const [learningText, setLearningText] = useState("");
-  const [meaningDraft, dispatchMeaning] = useReducer(meaningDraftReducer, [], createMeaningDraft);
+export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onViewWord, onOpenSettings }: AddWordScreenProps) {
+  const { learningText, meaningDraft, comment } = draft;
   const meanings = getMeaningValues(meaningDraft);
-  const [comment, setComment] = useState("");
   const [notice, setNotice] = useState<AddNotice | null>(null);
   const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const translationRequest = useRef(0);
+  const translationAbort = useRef<AbortController | null>(null);
   const valid = learningText.trim() !== "" && meanings.length > 0;
 
   useEffect(() => {
     if (notice === null || notice.kind === "error") return;
-    const timer = window.setTimeout(() => setNotice(null), 4000);
+    const translationNotice = notice.kind === "missing" || notice.kind === "translation-error";
+    const timer = window.setTimeout(() => setNotice(null), translationNotice ? 8000 : 4000);
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  useEffect(() => () => {
+    translationRequest.current += 1;
+    translationAbort.current?.abort();
+  }, []);
+
+  function dispatchMeaning(action: MeaningAction): void {
+    onDraftChange((current) => ({
+      ...current,
+      meaningDraft: meaningDraftReducer(current.meaningDraft, action),
+    }));
+  }
+
   function clear(): void {
-    setLearningText("");
-    dispatchMeaning({ type: "reset", values: [] });
-    setComment("");
+    translationRequest.current += 1;
+    translationAbort.current?.abort();
+    setTranslating(false);
+    setNotice(null);
+    onDraftChange(emptyAddWordDraft());
+  }
+
+  async function translate(): Promise<void> {
+    const text = learningText.trim();
+    if (text === "" || translating || saving || meanings.length >= MAX_MEANINGS) return;
+    const requestId = ++translationRequest.current;
+    const controller = new AbortController();
+    translationAbort.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
+    setTranslating(true);
+    setNotice((current) => current?.kind === "missing" || current?.kind === "translation-error" ? null : current);
+
+    try {
+      const result = await api.translationSuggestions(text, controller.signal);
+      if (requestId !== translationRequest.current) return;
+      if (!Array.isArray(result.meanings) || !result.meanings.every((value) => typeof value === "string")) {
+        throw new Error("Invalid translation response");
+      }
+      if (result.meanings.length === 0) {
+        setNotice({ kind: "missing", text: "No translation found" });
+        return;
+      }
+      dispatchMeaning({ type: "append", values: result.meanings });
+    } catch {
+      if (requestId === translationRequest.current) {
+        setNotice({ kind: "translation-error", text: "Translation unavailable" });
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      if (translationAbort.current === controller) translationAbort.current = null;
+      if (requestId === translationRequest.current) setTranslating(false);
+    }
   }
 
   async function save(): Promise<void> {
@@ -92,7 +160,14 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
               maxLength={300}
               placeholder="Word or phrase"
               value={learningText}
-              onChange={(event) => setLearningText(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                translationRequest.current += 1;
+                translationAbort.current?.abort();
+                setTranslating(false);
+                setNotice((current) => current?.kind === "missing" || current?.kind === "translation-error" ? null : current);
+                onDraftChange((current) => ({ ...current, learningText: value }));
+              }}
             />
           </label>
 
@@ -104,8 +179,10 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
             onAction={dispatchMeaning}
             variant="add"
             disabled={saving}
+            onTranslate={() => void translate()}
+            translateDisabled={learningText.trim() === "" || translating || saving}
+            translating={translating}
           />
-
           <span className="add-divider" aria-hidden="true" />
 
           <label className="add-field comment-field">
@@ -115,7 +192,10 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
               placeholder="Add a note, example, or mnemonic"
               rows={2}
               value={comment}
-              onChange={(event) => setComment(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                onDraftChange((current) => ({ ...current, comment: value }));
+              }}
             />
           </label>
         </div>
@@ -123,10 +203,13 @@ export function AddWordScreen({ settings, onAvailable, onViewWord }: AddWordScre
         {notice !== null && (
           <div className={`add-toast ${notice.kind}`} role="status">
             <span className="toast-status">
-              {notice.kind === "success" ? "✓" : notice.kind === "existing" ? "i" : "!"}
+              {notice.kind === "success" ? "✓" : notice.kind === "existing" || notice.kind === "missing" ? "i" : "!"}
             </span>
             <span>{notice.text}</span>
-            {notice.kind !== "error" && (
+            {(notice.kind === "missing" || notice.kind === "translation-error") && (
+              <button className="toast-settings-link" type="button" onClick={onOpenSettings}>Settings</button>
+            )}
+            {(notice.kind === "success" || notice.kind === "existing") && (
               <button type="button" onClick={() => onViewWord(notice.wordId)}>View</button>
             )}
           </div>

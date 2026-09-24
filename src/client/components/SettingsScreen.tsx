@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { LanguageSettings, ThemePreference } from "../../domain/index.js";
+import { useEffect, useId, useRef, useState } from "react";
+import type { LanguageSettings, ThemePreference, TranslationMethod } from "../../domain/index.js";
 import type {
   TelegramReminderSettings,
   UserProfile,
@@ -7,8 +7,31 @@ import type {
 import { api, ApiError } from "../lib/api.js";
 import { languages } from "../lib/languages.js";
 import { requestTelegramWriteAccess } from "../lib/telegram.js";
+import { useDismissiblePopover } from "./HelpPopover.js";
 import { Icon } from "./Icons.js";
 import { SupportLink } from "./SupportLink.js";
+
+function SettingsInfo({ label, text }: { label: string; text: string }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const container = useDismissiblePopover<HTMLSpanElement>(open, setOpen);
+
+  return (
+    <span className="settings-info" ref={container}>
+      <button
+        className="settings-info-button"
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span aria-hidden="true">?</span>
+      </button>
+      {open && <span className="settings-info-popover" id={id} role="tooltip">{text}</span>}
+    </span>
+  );
+}
 
 interface SettingsScreenProps {
   settings: LanguageSettings;
@@ -36,21 +59,62 @@ export function SettingsScreen({
   const [draft, setDraft] = useState(settings);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(true);
   const [savingReminders, setSavingReminders] = useState(false);
+  const savingRef = useRef(false);
+  const onUpdatedRef = useRef(onUpdated);
 
   useEffect(() => setDraft(settings), [settings]);
+  useEffect(() => { onUpdatedRef.current = onUpdated; }, [onUpdated]);
 
-  async function save(next: LanguageSettings): Promise<void> {
+  useEffect(() => {
+    let active = true;
+    let requestId = 0;
+
+    async function refresh(): Promise<void> {
+      if (savingRef.current) return;
+      const currentRequest = ++requestId;
+      setRefreshing(true);
+      try {
+        const latest = await api.settings();
+        if (active && currentRequest === requestId && !savingRef.current) {
+          onUpdatedRef.current(latest);
+          setMessage(null);
+        }
+      } catch {
+        if (active && currentRequest === requestId) setMessage("Could not refresh settings");
+      } finally {
+        if (active && currentRequest === requestId) setRefreshing(false);
+      }
+    }
+
+    function refreshWhenVisible(): void {
+      if (document.visibilityState === "visible") void refresh();
+    }
+
+    void refresh();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
+
+  async function save(next: LanguageSettings, patch: Partial<LanguageSettings>): Promise<void> {
     setDraft(next);
+    savingRef.current = true;
     setSaving(true);
     setMessage(null);
     try {
-      const updated = await api.updateSettings(next);
+      const updated = await api.patchSettings(patch);
       onUpdated(updated);
     } catch (error) {
       setDraft(settings);
       setMessage(error instanceof ApiError ? error.message : "Could not save settings");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -61,12 +125,25 @@ export function SettingsScreen({
     if (next[field] === next[otherField]) {
       next[otherField] = draft[field];
     }
-    void save(next);
+    void save(next, {
+      learningLanguage: next.learningLanguage,
+      knownLanguage: next.knownLanguage,
+    });
   }
 
   function changeTheme(theme: ThemePreference): void {
     if (theme === draft.theme) return;
-    void save({ ...draft, theme });
+    void save({ ...draft, theme }, { theme });
+  }
+
+  function changeTranslationMethod(translationMethod: TranslationMethod): void {
+    if (translationMethod === draft.translationMethod) return;
+    void save({ ...draft, translationMethod }, { translationMethod });
+  }
+
+  function changeTranslationMaxMeanings(translationMaxMeanings: number): void {
+    if (translationMaxMeanings === draft.translationMaxMeanings) return;
+    void save({ ...draft, translationMaxMeanings }, { translationMaxMeanings });
   }
 
   async function changeTelegramReminders(): Promise<void> {
@@ -103,14 +180,16 @@ export function SettingsScreen({
       <div className="settings-stack">
         <section className="settings-card">
           <header>
-            <h2>Languages</h2>
-            <p>Controls card labels and speaker voice.</p>
+            <div className="settings-heading">
+              <h2>Languages</h2>
+              <SettingsInfo label="About languages" text="Controls card labels and speaker voice." />
+            </div>
           </header>
           <label className="settings-select">
             <span>I’m learning</span>
             <select
               value={draft.learningLanguage}
-              disabled={saving}
+              disabled={saving || refreshing}
               onChange={(event) => changeLanguage("learningLanguage", event.target.value)}
             >
               {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
@@ -120,7 +199,7 @@ export function SettingsScreen({
             <span>I know</span>
             <select
               value={draft.knownLanguage}
-              disabled={saving}
+              disabled={saving || refreshing}
               onChange={(event) => changeLanguage("knownLanguage", event.target.value)}
             >
               {languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
@@ -128,12 +207,43 @@ export function SettingsScreen({
           </label>
         </section>
 
+        <section className="settings-card">
+          <header>
+            <div className="settings-heading">
+              <h2>Translation</h2>
+              <SettingsInfo label="About maximum meanings" text="Maximum added per tap; the translator may return fewer." />
+            </div>
+          </header>
+          <label className="settings-select">
+            <span>Method</span>
+            <select
+              value={draft.translationMethod}
+              disabled={saving || refreshing}
+              onChange={(event) => changeTranslationMethod(event.target.value as TranslationMethod)}
+            >
+              <option value="google">Google</option>
+              <option value="yandex">Yandex</option>
+            </select>
+          </label>
+          <label className="settings-select">
+            <span>Max meanings</span>
+            <select
+              value={draft.translationMaxMeanings}
+              disabled={saving || refreshing}
+              onChange={(event) => changeTranslationMaxMeanings(Number(event.target.value))}
+            >
+              {Array.from({ length: 8 }, (_, index) => (
+                <option key={index + 1} value={index + 1}>{index + 1}</option>
+              ))}
+            </select>
+          </label>
+        </section>
+
         <section className="settings-card appearance-card">
           <header>
-            <h2>Appearance</h2>
-            <p>Choose how The Vocabulary App looks on every device.</p>
+            <h2>Themes</h2>
           </header>
-          <div className="theme-picker" aria-label="Appearance">
+          <div className="theme-picker" aria-label="Themes">
             {([
               ["system", "System", "settings"],
               ["light", "Light", "sun"],
@@ -143,7 +253,7 @@ export function SettingsScreen({
                 key={value}
                 className={draft.theme === value ? "theme-option active" : "theme-option"}
                 type="button"
-                disabled={saving}
+                disabled={saving || refreshing}
                 aria-pressed={draft.theme === value}
                 onClick={() => changeTheme(value)}
               >

@@ -21,6 +21,15 @@ Validation is proportional to the affected layer:
   the previous layout between those states.
   Check the software keyboard, text selection, composition, and Telegram's vertical
   close gesture on an actual phone; desktop emulation does not prove those behaviors.
+- Translation checks cover per-user method persistence, authentication, Google and Yandex
+  response parsing, deduplication and the selected one-to-eight-result cap, and appending
+  suggestions without creating a card. Manually check Translate at phone and desktop widths,
+  with existing meanings and after changing the source word during a pending request.
+  Check the centered empty field and full/icon-only button across phone widths, and verify
+  a missing or failed translation shows a toast that opens Settings without changing the draft.
+  With two tabs, change the maximum in one and return to Settings in the other; it must
+  show the server's current value before another edit. Changing the theme from a stale
+  tab must preserve the latest translation method and maximum.
 - Deployment changes require configuration validation before they reach the server.
 - Reminder changes require milestone-boundary, opt-in, deduplication, delivery-result, and
   Worker transport tests.

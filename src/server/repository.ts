@@ -237,17 +237,25 @@ export class VocabularyRepository {
   settings(userId: string): LanguageSettings {
     const row = this.database
       .prepare(`
-        SELECT learning_language, known_language, theme
+        SELECT learning_language, known_language, theme, translation_method, translation_max_meanings
         FROM user_settings WHERE user_id = ?
       `)
       .get(userId) as
-      | { learning_language: string; known_language: string; theme: LanguageSettings["theme"] }
+      | {
+          learning_language: string;
+          known_language: string;
+          theme: LanguageSettings["theme"];
+          translation_method: LanguageSettings["translationMethod"];
+          translation_max_meanings: number;
+        }
       | undefined;
 
     return {
       learningLanguage: row?.learning_language ?? "en",
       knownLanguage: row?.known_language ?? "ru",
       theme: row?.theme ?? "system",
+      translationMethod: row?.translation_method ?? "google",
+      translationMaxMeanings: row?.translation_max_meanings ?? 3,
     };
   }
 
@@ -258,12 +266,14 @@ export class VocabularyRepository {
   ): LanguageSettings {
     this.database
       .prepare(`
-        INSERT INTO user_settings (user_id, learning_language, known_language, theme, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO user_settings (user_id, learning_language, known_language, theme, translation_method, translation_max_meanings, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
           learning_language = excluded.learning_language,
           known_language = excluded.known_language,
           theme = excluded.theme,
+          translation_method = excluded.translation_method,
+          translation_max_meanings = excluded.translation_max_meanings,
           updated_at = excluded.updated_at
       `)
       .run(
@@ -271,6 +281,8 @@ export class VocabularyRepository {
         settings.learningLanguage,
         settings.knownLanguage,
         settings.theme,
+        settings.translationMethod,
+        settings.translationMaxMeanings,
         now.toISOString(),
       );
     return settings;

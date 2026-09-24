@@ -11,7 +11,7 @@ configuration. Runtime topology and secret-handling procedures are owned by
 | --- | --- | --- |
 | Telegram identity | Verified Telegram user ID, display name, optional username, and optional profile-photo URL identify the account and render its profile. | `users` |
 | Vocabulary | Learning-language text, one to eight ordered meanings, optional comment, timestamps, scheduling state, and answer counters provide the trainer. | `words` |
-| Profile settings | Learning language, known language, and theme keep the experience consistent across devices. | `user_settings` |
+| Profile settings | Learning language, known language, theme, translation method, and suggestion maximum keep the experience consistent across devices. | `user_settings` |
 | Review history | Answer, mode, direction, level transition, next-review date, and timestamp support idempotency, progress, analytics, and reminders. Complete card text is not copied into an event. | `review_events` |
 | Sessions and browser login | Hashed session tokens and short-lived OIDC flow state authenticate later requests. Raw session tokens are persisted only in the client cookie. | `sessions`, `auth_flows` |
 | Reminder state | Opt-in, milestone, claim, and delivery result prevent duplicate Telegram reminders. | `telegram_reminder_settings`, `telegram_reminder_events` |
@@ -47,6 +47,12 @@ The bot responds only to `/start` and `/help`; other messages are not stored or 
 the application. Contact Support opens Telegram's direct-message surface and does not submit
 application data automatically. The repository contains no third-party advertising or
 product-analytics SDK.
+
+Translation is requested only when the user presses Translate. The entered word or phrase
+and language pair are sent from the application server to the selected Google or Yandex
+endpoint. These web endpoints are unofficial and may change. The app does not send the
+user's identity or saved cards to the provider. The endpoint requires a session,
+limits request length and frequency, and never saves a card as a side effect.
 
 ## Retention and deletion
 
