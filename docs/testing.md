@@ -21,6 +21,10 @@ Validation is proportional to the affected layer:
   the previous layout between those states.
   Check the software keyboard, text selection, composition, and Telegram's vertical
   close gesture on an actual phone; desktop emulation does not prove those behaviors.
+- Translation checks cover per-user method persistence, authentication, WikDict deduplication
+  and three-result cap, unavailable language pairs, Google response parsing, and appending
+  suggestions without creating a card. Manually check Translate at phone and desktop widths,
+  with existing meanings and after changing the source word during a pending request.
 - Deployment changes require configuration validation before they reach the server.
 - Reminder changes require milestone-boundary, opt-in, deduplication, delivery-result, and
   Worker transport tests.

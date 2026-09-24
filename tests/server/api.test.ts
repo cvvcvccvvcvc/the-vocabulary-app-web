@@ -625,7 +625,7 @@ describe("Vocabulary API", () => {
     expect(statistics.vocabulary.totalWords).toBe(1);
   });
 
-  it("persists language and theme settings in the user profile", async () => {
+  it("persists language, theme, and translation settings in the user profile", async () => {
     const response = await server.app.inject({
       method: "PUT",
       url: "/api/settings",
@@ -634,6 +634,7 @@ describe("Vocabulary API", () => {
         learningLanguage: "de",
         knownLanguage: "en",
         theme: "dark",
+        translationMethod: "google",
       },
     });
 
@@ -642,6 +643,7 @@ describe("Vocabulary API", () => {
       learningLanguage: "de",
       knownLanguage: "en",
       theme: "dark",
+      translationMethod: "google",
     });
 
     const bootstrap = await server.app.inject({
@@ -653,7 +655,52 @@ describe("Vocabulary API", () => {
       learningLanguage: "de",
       knownLanguage: "en",
       theme: "dark",
+      translationMethod: "google",
     });
+  });
+
+  it("requires login for translation and returns one Google suggestion without saving a word", async () => {
+    const anonymous = await server.app.inject({
+      method: "POST",
+      url: "/api/translation-suggestions",
+      payload: { text: "bank" },
+    });
+    expect(anonymous.statusCode).toBe(401);
+
+    const googleFetch = vi.fn(async () => new Response('[[["банк","bank"]],null,"en"]', { status: 200 }));
+    vi.stubGlobal("fetch", googleFetch);
+    const googleServer = await buildServer(config);
+    try {
+      const login = await googleServer.app.inject({ method: "POST", url: "/api/auth/development" });
+      const googleCookie = login.headers["set-cookie"]?.split(";")[0] ?? "";
+      await googleServer.app.inject({
+        method: "PUT",
+        url: "/api/settings",
+        headers: { cookie: googleCookie },
+        payload: {
+          learningLanguage: "en",
+          knownLanguage: "ru",
+          theme: "system",
+          translationMethod: "google",
+        },
+      });
+      const response = await googleServer.app.inject({
+        method: "POST",
+        url: "/api/translation-suggestions",
+        headers: { cookie: googleCookie },
+        payload: { text: "bank" },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ meanings: ["банк"] });
+      expect(googleFetch).toHaveBeenCalledOnce();
+      const bootstrap = await googleServer.app.inject({
+        method: "GET", url: "/api/bootstrap", headers: { cookie: googleCookie },
+      });
+      expect(bootstrap.json<{ words: unknown[] }>().words).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+      await googleServer.app.close();
+    }
   });
 
   it("isolates users at the repository and API boundary", async () => {

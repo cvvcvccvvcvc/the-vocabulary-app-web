@@ -39,6 +39,10 @@ export interface CreateWordRequest {
   comment: string;
 }
 
+export interface TranslationSuggestionsResponse {
+  meanings: string[];
+}
+
 export interface UpdateWordRequest extends CreateWordRequest {
   version: number;
 }

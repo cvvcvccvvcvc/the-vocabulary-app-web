@@ -9,6 +9,7 @@ import type {
   ReviewTransitionResponse,
   SessionResponse,
   TelegramReminderSettings,
+  TranslationSuggestionsResponse,
   UserStatisticsResponse,
   UpdateWordRequest,
 } from "../../shared/contracts.js";
@@ -109,6 +110,11 @@ export const api = {
       word: (await response.json()) as VocabularyWord,
     };
   },
+  translationSuggestions: (text: string) =>
+    request<TranslationSuggestionsResponse>("/api/translation-suggestions", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
   updateWord: (wordId: string, input: UpdateWordRequest) =>
     request<VocabularyWord>(`/api/words/${wordId}`, {
       method: "PUT",

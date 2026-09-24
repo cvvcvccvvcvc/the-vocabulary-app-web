@@ -244,4 +244,26 @@ describe("database migrations", () => {
       database.close();
     }
   });
+
+  it("adds the translation method to existing user settings", () => {
+    const database = new Database(":memory:");
+    try {
+      database.exec(fs.readFileSync(`${migrationsDirectory}/001_initial.sql`, "utf8"));
+      database.exec(fs.readFileSync(`${migrationsDirectory}/002_theme_preference.sql`, "utf8"));
+      database.exec(`
+        INSERT INTO users (id, telegram_user_id, created_at, updated_at)
+        VALUES ('user-1', '1001', '2026-09-01', '2026-09-01');
+        INSERT INTO user_settings (user_id, learning_language, known_language, updated_at)
+        VALUES ('user-1', 'en', 'ru', '2026-09-01');
+      `);
+      database.exec(fs.readFileSync(`${migrationsDirectory}/009_translation_method.sql`, "utf8"));
+      expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_method: "wikdict" });
+      database.prepare("UPDATE user_settings SET translation_method = 'google' WHERE user_id = 'user-1'").run();
+      expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_method: "google" });
+    } finally {
+      database.close();
+    }
+  });
 });

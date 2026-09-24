@@ -347,7 +347,7 @@ export function MeaningFields({ label, rows, onAction, variant, disabled }: Mean
                 aria-label={`Meaning ${index + 1}`}
                 aria-description={!populated && filled.length > 0 ? "Optional additional meaning" : undefined}
                 maxLength={600}
-                placeholder={filled.length === 0 ? "Meaning" : "Another meaning"}
+                placeholder={filled.length === 0 ? "Meaning" : "Add meaning"}
                 value={row.text}
                 onFocus={() => {
                   onAction({ type: "settle", activeId: row.id });

@@ -237,17 +237,23 @@ export class VocabularyRepository {
   settings(userId: string): LanguageSettings {
     const row = this.database
       .prepare(`
-        SELECT learning_language, known_language, theme
+        SELECT learning_language, known_language, theme, translation_method
         FROM user_settings WHERE user_id = ?
       `)
       .get(userId) as
-      | { learning_language: string; known_language: string; theme: LanguageSettings["theme"] }
+      | {
+          learning_language: string;
+          known_language: string;
+          theme: LanguageSettings["theme"];
+          translation_method: LanguageSettings["translationMethod"];
+        }
       | undefined;
 
     return {
       learningLanguage: row?.learning_language ?? "en",
       knownLanguage: row?.known_language ?? "ru",
       theme: row?.theme ?? "system",
+      translationMethod: row?.translation_method ?? "wikdict",
     };
   }
 
@@ -258,12 +264,13 @@ export class VocabularyRepository {
   ): LanguageSettings {
     this.database
       .prepare(`
-        INSERT INTO user_settings (user_id, learning_language, known_language, theme, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO user_settings (user_id, learning_language, known_language, theme, translation_method, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_id) DO UPDATE SET
           learning_language = excluded.learning_language,
           known_language = excluded.known_language,
           theme = excluded.theme,
+          translation_method = excluded.translation_method,
           updated_at = excluded.updated_at
       `)
       .run(
@@ -271,6 +278,7 @@ export class VocabularyRepository {
         settings.learningLanguage,
         settings.knownLanguage,
         settings.theme,
+        settings.translationMethod,
         now.toISOString(),
       );
     return settings;

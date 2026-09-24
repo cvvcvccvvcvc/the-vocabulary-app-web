@@ -28,6 +28,9 @@ the same design questions again.
 
 ## Meaning fields
 
+- Place Translate next to the learning-language entry on Add Word. Keep its method visible,
+  add suggestions directly to the existing meaning fields, and leave Add Word as the only
+  action that saves a card. Show a short inline error when no translation is available.
 - Add and Edit use the same meaning-field behavior. Keep one optional empty field after
   the populated meanings; at eight meanings, replace it with a quiet limit label.
 - Never transfer focus to an automatically created field. If a user clears an existing

@@ -426,6 +426,57 @@ button.titlebar-icon.active {
   opacity: 1;
 }
 
+.translation-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.translation-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--accent);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.translation-button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.translation-button:disabled {
+  opacity: 0.5;
+}
+
+.translation-action > span,
+.translation-action > a,
+.translation-message,
+.translation-method-detail {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.translation-action > a,
+.translation-method-detail a {
+  color: var(--secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.translation-message {
+  margin: -12px 0 0;
+  text-align: center;
+}
+
+.translation-method-detail {
+  margin: -8px 0 0;
+}
+
 .add-divider {
   width: 38px;
   height: 1px;

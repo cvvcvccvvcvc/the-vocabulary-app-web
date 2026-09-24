@@ -14,6 +14,12 @@ The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegr
   language, ordered known-language meanings, then the optional comment. Multiple meanings
   are individually numbered there; a single meaning is not.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
+- Add Word offers Translate. The selected method fills free meaning fields immediately,
+  adding up to three distinct WikDict suggestions or one Google translation without
+  overwriting entered meanings. The user may edit, remove, and reorder suggestions.
+  Only Add Word saves the card. Settings keeps the selected method across devices;
+  Google is marked experimental and WikDict may not cover every language pair or phrase.
+  The unsaved Add Word draft stays in memory while moving between app sections.
 - Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered by dragging its handle. While dragging, neighboring meanings shift to show the exact resulting order before release; moving beyond the populated rows keeps the first or last position selected, and releasing settles into that order without an intermediate return to the old layout. The empty field is optional, does not participate in reordering, and is never saved.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only
   and is hidden while editing. Edit and Delete remain separate actions on the word screen.
@@ -40,8 +46,7 @@ The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegr
 - An owner-only website analytics page at `/analytics` for registration growth,
   learning-active DAU/WAU/MAU, daily answer and word counts, and sortable user totals.
 
-Automatic translation, external dictionary lookup, offline mutation replay, tags, and
-decks are deferred until the core online experience is proven.
+Offline mutation replay, tags, and decks are deferred until the core online experience is proven.
 
 ## Progress rules
 

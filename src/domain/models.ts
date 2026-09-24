@@ -1,6 +1,7 @@
 export type ReviewDirection = "learning-to-known" | "known-to-learning";
 export type ReviewMode = "scheduled" | "free";
 export type ThemePreference = "system" | "light" | "dark";
+export type TranslationMethod = "wikdict" | "google";
 
 export interface VocabularyWord {
   id: string;
@@ -30,4 +31,5 @@ export interface LanguageSettings {
   learningLanguage: string;
   knownLanguage: string;
   theme: ThemePreference;
+  translationMethod: TranslationMethod;
 }

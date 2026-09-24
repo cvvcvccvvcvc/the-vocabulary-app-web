@@ -103,4 +103,27 @@ describe("meaning editor draft", () => {
     expect(cleared.rows).toHaveLength(1);
     expect(getMeaningValues(cleared)).toEqual([]);
   });
+
+  it("appends distinct translations without replacing edits or exceeding eight meanings", () => {
+    const original = createMeaningDraft(["банк", "личное значение"]);
+    const firstId = original.rows[0]!.id;
+    const secondId = original.rows[1]!.id;
+    const translated = reduce(original, {
+      type: "append",
+      values: ["БАНК", "берег", "вал", "берег"],
+    });
+    expect(getMeaningValues(translated)).toEqual(["банк", "личное значение", "берег", "вал"]);
+    expect(translated.rows[0]!.id).toBe(firstId);
+    expect(translated.rows[1]!.id).toBe(secondId);
+
+    const filled = reduce(translated, {
+      type: "append",
+      values: ["один", "два", "три", "четыре", "пять"],
+    });
+    expect(getMeaningValues(filled)).toHaveLength(8);
+    expect(getMeaningValues(filled).at(-1)).toBe("четыре");
+
+    const duplicates = createMeaningDraft(["одно", "одно", "два", "три", "четыре", "пять", "шесть", "семь"]);
+    expect(reduce(duplicates, { type: "append", values: ["восемь"] })).toBe(duplicates);
+  });
 });

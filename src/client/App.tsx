@@ -11,7 +11,7 @@ import type {
   UserProfile,
   UserStatisticsResponse,
 } from "../shared/contracts.js";
-import { AddWordScreen } from "./components/AddWordScreen.js";
+import { AddWordScreen, emptyAddWordDraft } from "./components/AddWordScreen.js";
 import { AuthScreen } from "./components/AuthScreen.js";
 import { LearnScreen } from "./components/LearnScreen.js";
 import { ProgressScreen } from "./components/ProgressScreen.js";
@@ -85,6 +85,7 @@ export function App() {
     telegramRemindersAvailable: false,
   });
   const [application, setApplication] = useState<ApplicationData | null>(null);
+  const [addWordDraft, setAddWordDraft] = useState(emptyAddWordDraft);
   const [section, setSection] = useState<Section>(() => sectionFromSearch(window.location.search));
   const [returnSection, setReturnSection] = useState<PrimarySection>(() => sectionFromSearch(window.location.search));
   const [wordToOpen, setWordToOpen] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export function App() {
     const bootstrap = await api.bootstrap();
     reviewSession.reset();
     reviewTransitions.reset();
+    setAddWordDraft(emptyAddWordDraft());
     setApplication(bootstrap);
     setAuthError(null);
   }, [reviewSession, reviewTransitions]);
@@ -224,6 +226,8 @@ export function App() {
       content = (
         <AddWordScreen
           settings={application.settings}
+          draft={addWordDraft}
+          onDraftChange={setAddWordDraft}
           onAvailable={storeWord}
           onViewWord={viewWord}
         />
@@ -261,6 +265,7 @@ export function App() {
             await api.logout();
             reviewSession.reset();
             reviewTransitions.reset();
+            setAddWordDraft(emptyAddWordDraft());
             setApplication(null);
           }}
         />

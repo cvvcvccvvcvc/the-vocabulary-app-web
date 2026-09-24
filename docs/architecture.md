@@ -20,6 +20,12 @@ src/client  -> src/shared <- src/server
 - `server` owns authentication, authorization, SQLite, authoritative mutations, and static production hosting.
 - `shared` owns JSON transport contracts only.
 
+Translation suggestions use an authenticated server endpoint. The server reads the user's
+saved language pair and method, then returns up to three plain meanings without changing
+cards. WikDict pair files are downloaded once beside the main database and queried locally;
+Google uses its unofficial online translation endpoint and returns one string. The client
+appends distinct suggestions to the existing meaning draft, within its eight-meaning limit.
+
 ## Runtime
 
 The browser loads the user's active vocabulary and each word's bounded recent-answer history into memory. This keeps review selection immediate and preserves the Free Review invariant that scoring does not query persistence. The server updates that history atomically with each answer and can rebuild it from review events.
@@ -111,7 +117,7 @@ returns word text or meanings.
 
 SQLite is intentionally used for the first single-server deployment. The database is private to the API process and runs in WAL mode. SQL migrations are ordered files in `migrations/`.
 
-The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names. Language and appearance preferences live in `user_settings` so they follow the authenticated profile across devices. Telegram reminder opt-in and milestone events use separate tables because delivery state is operational rather than a language setting.
+The schema stores generic language-neutral names. It does not preserve native application's legacy English/Russian field names. Language, appearance, and translation preferences live in `user_settings` so they follow the authenticated profile across devices. Telegram reminder opt-in and milestone events use separate tables because delivery state is operational rather than a language setting.
 
 Accepted answers are split by retention purpose. `review_events` permanently stores the
 user, card, answer, mode, direction, level transition, resulting review date, and timestamp.
