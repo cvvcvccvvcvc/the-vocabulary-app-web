@@ -110,10 +110,11 @@ export const api = {
       word: (await response.json()) as VocabularyWord,
     };
   },
-  translationSuggestions: (text: string) =>
+  translationSuggestions: (text: string, signal?: AbortSignal) =>
     request<TranslationSuggestionsResponse>("/api/translation-suggestions", {
       method: "POST",
       body: JSON.stringify({ text }),
+      ...(signal === undefined ? {} : { signal }),
     }),
   updateWord: (wordId: string, input: UpdateWordRequest) =>
     request<VocabularyWord>(`/api/words/${wordId}`, {

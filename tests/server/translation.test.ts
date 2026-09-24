@@ -55,4 +55,9 @@ describe("translation suggestions", () => {
     const service = new TranslationService(async () => new Response("limited", { status: 429 }));
     await expect(service.suggest("bank", settings)).rejects.toBeInstanceOf(TranslationProviderError);
   });
+
+  it("contains a malformed provider response", async () => {
+    const service = new TranslationService(async () => new Response('{"unexpected":true}'));
+    await expect(service.suggest("bank", settings)).rejects.toBeInstanceOf(TranslationProviderError);
+  });
 });

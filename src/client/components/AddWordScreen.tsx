@@ -19,6 +19,7 @@ interface AddWordScreenProps {
   onDraftChange: Dispatch<SetStateAction<AddWordDraft>>;
   onAvailable(word: VocabularyWord): void;
   onViewWord(wordId: string): void;
+  onOpenSettings(): void;
 }
 
 export interface AddWordDraft {
@@ -33,25 +34,29 @@ export function emptyAddWordDraft(): AddWordDraft {
 
 type AddNotice =
   | { kind: "success" | "existing"; text: string; wordId: string }
-  | { kind: "error"; text: string };
+  | { kind: "missing" | "translation-error" | "error"; text: string };
 
-export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onViewWord }: AddWordScreenProps) {
+export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onViewWord, onOpenSettings }: AddWordScreenProps) {
   const { learningText, meaningDraft, comment } = draft;
   const meanings = getMeaningValues(meaningDraft);
   const [notice, setNotice] = useState<AddNotice | null>(null);
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
-  const [translationMessage, setTranslationMessage] = useState<string | null>(null);
   const translationRequest = useRef(0);
+  const translationAbort = useRef<AbortController | null>(null);
   const valid = learningText.trim() !== "" && meanings.length > 0;
 
   useEffect(() => {
     if (notice === null || notice.kind === "error") return;
-    const timer = window.setTimeout(() => setNotice(null), 4000);
+    const translationNotice = notice.kind === "missing" || notice.kind === "translation-error";
+    const timer = window.setTimeout(() => setNotice(null), translationNotice ? 8000 : 4000);
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  useEffect(() => () => { translationRequest.current += 1; }, []);
+  useEffect(() => () => {
+    translationRequest.current += 1;
+    translationAbort.current?.abort();
+  }, []);
 
   function dispatchMeaning(action: MeaningAction): void {
     onDraftChange((current) => ({
@@ -62,8 +67,9 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
 
   function clear(): void {
     translationRequest.current += 1;
+    translationAbort.current?.abort();
     setTranslating(false);
-    setTranslationMessage(null);
+    setNotice(null);
     onDraftChange(emptyAddWordDraft());
   }
 
@@ -71,22 +77,30 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
     const text = learningText.trim();
     if (text === "" || translating || saving || meanings.length >= MAX_MEANINGS) return;
     const requestId = ++translationRequest.current;
+    const controller = new AbortController();
+    translationAbort.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
     setTranslating(true);
-    setTranslationMessage(null);
+    setNotice((current) => current?.kind === "missing" || current?.kind === "translation-error" ? null : current);
 
     try {
-      const result = await api.translationSuggestions(text);
+      const result = await api.translationSuggestions(text, controller.signal);
       if (requestId !== translationRequest.current) return;
+      if (!Array.isArray(result.meanings) || !result.meanings.every((value) => typeof value === "string")) {
+        throw new Error("Invalid translation response");
+      }
       if (result.meanings.length === 0) {
-        setTranslationMessage("No translation found. Try the other method in Settings.");
+        setNotice({ kind: "missing", text: "No translation found" });
         return;
       }
       dispatchMeaning({ type: "append", values: result.meanings });
-    } catch (error) {
+    } catch {
       if (requestId === translationRequest.current) {
-        setTranslationMessage(error instanceof ApiError ? error.message : "Could not translate. Try again.");
+        setNotice({ kind: "translation-error", text: "Translation unavailable" });
       }
     } finally {
+      window.clearTimeout(timeout);
+      if (translationAbort.current === controller) translationAbort.current = null;
       if (requestId === translationRequest.current) setTranslating(false);
     }
   }
@@ -149,8 +163,9 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
               onChange={(event) => {
                 const value = event.target.value;
                 translationRequest.current += 1;
+                translationAbort.current?.abort();
                 setTranslating(false);
-                setTranslationMessage(null);
+                setNotice((current) => current?.kind === "missing" || current?.kind === "translation-error" ? null : current);
                 onDraftChange((current) => ({ ...current, learningText: value }));
               }}
             />
@@ -168,10 +183,6 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
             translateDisabled={learningText.trim() === "" || translating || saving}
             translating={translating}
           />
-          {translationMessage !== null && (
-            <p className="translation-message" role="status">{translationMessage}</p>
-          )}
-
           <span className="add-divider" aria-hidden="true" />
 
           <label className="add-field comment-field">
@@ -192,10 +203,13 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
         {notice !== null && (
           <div className={`add-toast ${notice.kind}`} role="status">
             <span className="toast-status">
-              {notice.kind === "success" ? "✓" : notice.kind === "existing" ? "i" : "!"}
+              {notice.kind === "success" ? "✓" : notice.kind === "existing" || notice.kind === "missing" ? "i" : "!"}
             </span>
             <span>{notice.text}</span>
-            {notice.kind !== "error" && (
+            {(notice.kind === "missing" || notice.kind === "translation-error") && (
+              <button className="toast-settings-link" type="button" onClick={onOpenSettings}>Settings</button>
+            )}
+            {(notice.kind === "success" || notice.kind === "existing") && (
               <button type="button" onClick={() => onViewWord(notice.wordId)}>View</button>
             )}
           </div>

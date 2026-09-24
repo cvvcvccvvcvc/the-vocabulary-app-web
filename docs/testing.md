@@ -25,6 +25,8 @@ Validation is proportional to the affected layer:
   response parsing, deduplication and the three-result cap, and appending
   suggestions without creating a card. Manually check Translate at phone and desktop widths,
   with existing meanings and after changing the source word during a pending request.
+  Check the centered empty field and full/icon-only button across phone widths, and verify
+  a missing or failed translation shows a toast that opens Settings without changing the draft.
 - Deployment changes require configuration validation before they reach the server.
 - Reminder changes require milestone-boundary, opt-in, deduplication, delivery-result, and
   Worker transport tests.

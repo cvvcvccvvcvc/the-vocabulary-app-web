@@ -428,18 +428,24 @@ button.titlebar-icon.active {
 
 .translation-button {
   display: inline-flex;
-  min-height: 40px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 0 9px;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   border: 0;
   border-radius: 20px;
   color: #fff;
   background: #0874d8;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.translation-button svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
 
 .translation-button:hover:not(:disabled) {
@@ -448,17 +454,6 @@ button.titlebar-icon.active {
 
 .translation-button:disabled {
   opacity: 0.55;
-}
-
-.translation-message {
-  color: var(--secondary);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.translation-message {
-  margin: -12px 0 0;
-  text-align: center;
 }
 
 .add-divider {
@@ -500,13 +495,44 @@ button.titlebar-icon.active {
 }
 
 .meaning-row.translation-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.meaning-row.translation-row input,
+.meaning-row.translation-row .meaning-control-slot {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.meaning-row.translation-row .meaning-control-slot {
+  z-index: 1;
+  justify-self: end;
+}
+
+@media (max-width: 440px) {
+  .translation-button {
+    padding-inline: 7px;
+    gap: 4px;
+  }
+
+  .translation-button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .meaning-fields-add .meaning-row.translation-row input::placeholder {
+    font-size: 19px;
+  }
 }
 
 @media (max-width: 380px) {
-  .meaning-fields-add .meaning-row.translation-row input {
-    font-size: 18px;
+  .translation-button {
+    width: 44px;
+    padding: 0;
+  }
+
+  .translation-button-label {
+    display: none;
   }
 }
 
@@ -641,11 +667,19 @@ button.titlebar-icon.active {
   font-size: 13px;
 }
 
-.add-toast.error {
+.add-toast.error,
+.add-toast.translation-error {
   color: var(--danger);
 }
 
-.add-toast.existing .toast-status {
+.add-toast.error .toast-status,
+.add-toast.translation-error .toast-status {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.add-toast.existing .toast-status,
+.add-toast.missing .toast-status {
   color: var(--secondary);
   background: var(--badge);
 }
@@ -666,6 +700,11 @@ button.titlebar-icon.active {
   border: 0;
   color: var(--accent);
   background: transparent;
+}
+
+.add-toast .toast-settings-link {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* Learn */

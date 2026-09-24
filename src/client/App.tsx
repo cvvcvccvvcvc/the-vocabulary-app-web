@@ -230,6 +230,7 @@ export function App() {
           onDraftChange={setAddWordDraft}
           onAvailable={storeWord}
           onViewWord={viewWord}
+          onOpenSettings={openSettings}
         />
       );
       break;

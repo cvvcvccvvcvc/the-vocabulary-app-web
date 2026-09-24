@@ -693,6 +693,14 @@ describe("Vocabulary API", () => {
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({ meanings: ["банк"] });
       expect(googleFetch).toHaveBeenCalledOnce();
+      googleFetch.mockResolvedValueOnce(new Response("limited", { status: 429 }));
+      const failed = await googleServer.app.inject({
+        method: "POST",
+        url: "/api/translation-suggestions",
+        headers: { cookie: googleCookie },
+        payload: { text: "word" },
+      });
+      expect(failed.statusCode).toBe(502);
       const bootstrap = await googleServer.app.inject({
         method: "GET", url: "/api/bootstrap", headers: { cookie: googleCookie },
       });

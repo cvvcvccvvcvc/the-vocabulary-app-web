@@ -28,10 +28,13 @@ the same design questions again.
 
 ## Meaning fields
 
-- Place the blue ✨ Translate button beside the optional empty meaning field on Add Word.
-  When a meaning is typed, the button moves with the next empty field. Keep provider choice
-  in Settings, add suggestions directly to the existing meaning fields, and leave Add Word
-  as the only action that saves a card. Show a short inline error when no translation is available.
+- Keep the optional empty meaning field centered across the full card width. Overlay the
+  blue Translate action at its right edge, using a white sparkles icon from the app's icon
+  set. On narrow screens, hide only the text label and keep a 44-pixel icon target. When
+  a meaning is typed, the action moves with the next empty field. Keep provider choice in
+  Settings, add suggestions directly to the draft, and leave Add Word as the only action
+  that saves a card. Show translation misses and failures in the existing toast with a
+  Settings action; never place error text inside the card.
 - Add and Edit use the same meaning-field behavior. Keep one optional empty field after
   the populated meanings; at eight meanings, replace it with a quiet limit label.
 - Never transfer focus to an automatically created field. If a user clears an existing

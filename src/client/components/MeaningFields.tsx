@@ -370,8 +370,9 @@ export function MeaningFields({ label, rows, onAction, variant, disabled, onTran
                     type="button"
                     disabled={translateDisabled}
                     aria-busy={translating}
+                    aria-label={translating ? "Translating" : "Translate"}
                     onClick={onTranslate}
-                  ><span aria-hidden="true">✨</span> Translate</button>
+                  ><Icon name="sparkles" /><span className="translation-button-label">Translate</span></button>
                 ) : populated && (
                   <button
                     className="meaning-control meaning-remove"

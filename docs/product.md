@@ -18,7 +18,8 @@ The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegr
   can each append up to three distinct suggestions immediately without overwriting
   entered meanings. The user may edit, remove, and reorder suggestions. Only Add Word
   saves the card. Settings keeps the selected method across devices. The unsaved Add Word
-  draft stays in memory while moving between app sections.
+  draft stays in memory while moving between app sections. Missing or failed translations
+  show a toast with a Settings shortcut and do not alter the draft or save a card.
 - Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered by dragging its handle. While dragging, neighboring meanings shift to show the exact resulting order before release; moving beyond the populated rows keeps the first or last position selected, and releasing settles into that order without an intermediate return to the old layout. The empty field is optional, does not participate in reordering, and is never saved.
 - Focused word editing with separate Save and Cancel actions; review level remains read-only
   and is hidden while editing. Edit and Delete remain separate actions on the word screen.
