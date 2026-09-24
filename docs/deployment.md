@@ -31,10 +31,8 @@ docker compose --env-file .env --env-file deploy/production.env -f deploy/compos
 ~~~
 
 Database migrations run automatically when the new application container starts.
-The first WikDict lookup for a supported language pair downloads its SQLite dictionary
-into a `wikdict` directory beside the application database. The files remain in the data
-volume across container rebuilds; each pair needs outbound HTTPS access to
-`download.wikdict.com` on first use. The English-to-Russian file is about 21 MB.
+Translation requires outbound HTTPS access to Google and Yandex on demand; it does not
+download dictionary files. The migration replaces saved WikDict selections with Google.
 
 ## Automatic deployment
 

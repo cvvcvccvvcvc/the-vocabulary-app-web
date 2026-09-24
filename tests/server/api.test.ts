@@ -634,7 +634,7 @@ describe("Vocabulary API", () => {
         learningLanguage: "de",
         knownLanguage: "en",
         theme: "dark",
-        translationMethod: "google",
+        translationMethod: "yandex",
       },
     });
 
@@ -643,7 +643,7 @@ describe("Vocabulary API", () => {
       learningLanguage: "de",
       knownLanguage: "en",
       theme: "dark",
-      translationMethod: "google",
+      translationMethod: "yandex",
     });
 
     const bootstrap = await server.app.inject({
@@ -655,7 +655,7 @@ describe("Vocabulary API", () => {
       learningLanguage: "de",
       knownLanguage: "en",
       theme: "dark",
-      translationMethod: "google",
+      translationMethod: "yandex",
     });
   });
 

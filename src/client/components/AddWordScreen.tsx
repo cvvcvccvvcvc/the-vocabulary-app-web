@@ -78,7 +78,7 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
       const result = await api.translationSuggestions(text);
       if (requestId !== translationRequest.current) return;
       if (result.meanings.length === 0) {
-        setTranslationMessage("No translation found. Try another method in Settings.");
+        setTranslationMessage("No translation found. Try the other method in Settings.");
         return;
       }
       dispatchMeaning({ type: "append", values: result.meanings });
@@ -156,24 +156,6 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
             />
           </label>
 
-          <div className="translation-action">
-            <button
-              className="translation-button"
-              type="button"
-              disabled={learningText.trim() === "" || translating || saving || meanings.length >= MAX_MEANINGS}
-              aria-busy={translating}
-              onClick={() => void translate()}
-            >
-              {translating ? "Translating…" : "Translate"}
-            </button>
-            {settings.translationMethod === "wikdict"
-              ? <a href="https://www.wikdict.com/page/download" target="_blank" rel="noopener noreferrer">WikDict</a>
-              : <span>Google · experimental</span>}
-          </div>
-          {translationMessage !== null && (
-            <p className="translation-message" role="status">{translationMessage}</p>
-          )}
-
           <span className="add-divider" aria-hidden="true" />
 
           <MeaningFields
@@ -182,7 +164,13 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
             onAction={dispatchMeaning}
             variant="add"
             disabled={saving}
+            onTranslate={() => void translate()}
+            translateDisabled={learningText.trim() === "" || translating || saving}
+            translating={translating}
           />
+          {translationMessage !== null && (
+            <p className="translation-message" role="status">{translationMessage}</p>
+          )}
 
           <span className="add-divider" aria-hidden="true" />
 

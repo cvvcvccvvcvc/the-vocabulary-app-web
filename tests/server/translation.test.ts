@@ -1,58 +1,58 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import Database from "better-sqlite3";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { LanguageSettings } from "../../src/domain/models.js";
-import { TranslationService, UnsupportedTranslationPairError } from "../../src/server/translation.js";
+import { TranslationProviderError, TranslationService } from "../../src/server/translation.js";
 
 const settings: LanguageSettings = {
   learningLanguage: "en",
   knownLanguage: "ru",
   theme: "system",
-  translationMethod: "wikdict",
+  translationMethod: "google",
 };
 
-const directories: string[] = [];
-
-afterEach(async () => {
-  await Promise.all(directories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
-});
-
 describe("translation suggestions", () => {
-  it("uses separate WikDict entries, removes stress marks and duplicates", async () => {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), "vocabulary-wikdict-"));
-    directories.push(directory);
-    const database = new Database(path.join(directory, "en-ru.sqlite3"));
-    database.exec("CREATE TABLE simple_translation (written_rep TEXT, trans_list TEXT)");
-    database.prepare("INSERT INTO simple_translation VALUES (?, ?)")
-      .run("bank", "ба́нк | банк | [[берег|бе́рег]] | вал | банка");
-    database.close();
+  it("keeps Google's main translation and adds distinct dictionary alternatives", async () => {
+    const request = vi.fn(async () => new Response(JSON.stringify([
+      [[["слово", "word"]]],
+      [["noun", ["слово", "речь", "текст", "обещание"], [
+        ["слово", [], null, 0.46], ["речь", [], null, 0.0004],
+        ["текст", [], null, 0.0002], ["обещание", [], null, 0.00001],
+      ]]],
+    ])));
+    const service = new TranslationService(request as typeof fetch);
 
-    const service = new TranslationService(directory);
-    expect(await service.suggest("Bank", settings)).toEqual(["банк", "берег", "вал"]);
+    expect(await service.suggest("word", settings)).toEqual(["слово", "речь", "текст"]);
+    const url = new URL(request.mock.calls[0]![0] as URL);
+    expect(url.searchParams.getAll("dt")).toEqual(["t", "bd"]);
   });
 
-  it("downloads a missing dictionary once for repeated lookups", async () => {
-    const source = await fs.mkdtemp(path.join(os.tmpdir(), "vocabulary-wikdict-source-"));
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), "vocabulary-wikdict-target-"));
-    directories.push(source, directory);
-    const databaseFile = path.join(source, "dictionary.sqlite3");
-    const database = new Database(databaseFile);
-    database.exec("CREATE TABLE simple_translation (written_rep TEXT, trans_list TEXT)");
-    database.prepare("INSERT INTO simple_translation VALUES (?, ?)").run("apple", "яблоко");
-    database.close();
-
-    const request = vi.fn(async () => new Response(await fs.readFile(databaseFile), { status: 200 }));
-    const service = new TranslationService(directory, request as typeof fetch);
-    expect(await service.suggest("apple", settings)).toEqual(["яблоко"]);
-    expect(await service.suggest("apple", settings)).toEqual(["яблоко"]);
-    expect(request).toHaveBeenCalledOnce();
+  it("returns one Google meaning when no dictionary alternatives exist", async () => {
+    const request = vi.fn(async () => new Response('[[["добрый день","good morning"]],null,"en"]'));
+    const service = new TranslationService(request as typeof fetch);
+    expect(await service.suggest("good morning", settings)).toEqual(["добрый день"]);
   });
 
-  it("rejects language pairs that WikDict does not publish", async () => {
-    const service = new TranslationService("/unused");
-    await expect(service.suggest("hello", { ...settings, knownLanguage: "uk" }))
-      .rejects.toBeInstanceOf(UnsupportedTranslationPairError);
+  it("uses Yandex's separate translations and skips duplicate meanings", async () => {
+    const request = vi.fn(async () => new Response(JSON.stringify({
+      head: {},
+      "en-ru": { regular: [
+        { tr: [{ text: "банк" }, { text: "берег" }, { text: "крен" }] },
+        { tr: [{ text: "БАНК" }, { text: "банковский" }] },
+      ] },
+    })));
+    const service = new TranslationService(request as typeof fetch);
+    expect(await service.suggest("bank", { ...settings, translationMethod: "yandex" }))
+      .toEqual(["банк", "берег", "крен"]);
+    expect(new URL(request.mock.calls[0]![0] as URL).searchParams.get("dict")).toBe("en-ru");
+  });
+
+  it("returns no Yandex suggestions for an absent dictionary entry", async () => {
+    const service = new TranslationService(async () => new Response('{"head":{}}'));
+    expect(await service.suggest("unknown phrase", { ...settings, translationMethod: "yandex" }))
+      .toEqual([]);
+  });
+
+  it("reports provider failures without exposing remote responses", async () => {
+    const service = new TranslationService(async () => new Response("limited", { status: 429 }));
+    await expect(service.suggest("bank", settings)).rejects.toBeInstanceOf(TranslationProviderError);
   });
 });

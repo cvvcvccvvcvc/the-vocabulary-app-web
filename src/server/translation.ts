@@ -1,31 +1,12 @@
-import { randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
-import Database from "better-sqlite3";
 import type { LanguageSettings } from "../domain/models.js";
 
-const wikdictVersion = "2_2026-06";
-const wikdictLanguages = new Set(["en", "ru", "de", "es", "fr", "it", "pt", "tr", "zh", "ja"]);
-const maximumDictionaryBytes = 100 * 1024 * 1024;
-
-export class UnsupportedTranslationPairError extends Error {}
 export class TranslationProviderError extends Error {}
-
-function normalizeMeaning(value: string): string {
-  const plain = value
-    .replace(/\[\[([^\[\]]+)\]\]/g, (_match, link: string) => link.split("|").at(-1) ?? "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\u0301/g, "")
-    .trim()
-    .normalize("NFKC");
-  return plain.includes("[[") || plain.includes("]]") ? "" : plain;
-}
 
 function uniqueMeanings(values: readonly string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const value of values) {
-    const meaning = normalizeMeaning(value);
+    const meaning = value.trim().normalize("NFKC");
     const key = meaning.toLocaleLowerCase();
     if (meaning.length === 0 || meaning.length > 600 || seen.has(key)) continue;
     seen.add(key);
@@ -35,122 +16,75 @@ function uniqueMeanings(values: readonly string[]): string[] {
   return result;
 }
 
-export class TranslationService {
-  private readonly downloads = new Map<string, Promise<string>>();
+function googleMeanings(body: unknown): string[] {
+  if (!Array.isArray(body) || !Array.isArray(body[0])) throw new Error("Invalid Google response");
+  const translated = body[0]
+    .map((part: unknown) => Array.isArray(part) && typeof part[0] === "string" ? part[0] : "")
+    .join("");
+  const alternatives: string[] = [];
+  if (Array.isArray(body[1])) {
+    for (const group of body[1]) {
+      if (!Array.isArray(group) || !Array.isArray(group[2])) continue;
+      for (const entry of group[2]) {
+        if (!Array.isArray(entry) || typeof entry[0] !== "string") continue;
+        // The tiny-score tail commonly contains unrelated back-translations.
+        if (typeof entry[3] === "number" && entry[3] < 0.0001) continue;
+        alternatives.push(entry[0]);
+      }
+    }
+  }
+  return uniqueMeanings([translated, ...alternatives]);
+}
 
-  constructor(
-    private readonly dictionaryDirectory: string,
-    private readonly request: typeof fetch = fetch,
-  ) {}
+function yandexMeanings(body: unknown, pair: string): string[] {
+  if (body === null || typeof body !== "object") throw new Error("Invalid Yandex response");
+  const section = (body as Record<string, unknown>)[pair];
+  if (section === null || typeof section !== "object") return [];
+  const regular = (section as Record<string, unknown>).regular;
+  if (!Array.isArray(regular)) return [];
+  const translations: string[] = [];
+  for (const group of regular) {
+    if (group === null || typeof group !== "object") continue;
+    const entries = (group as Record<string, unknown>).tr;
+    if (!Array.isArray(entries)) continue;
+    for (const entry of entries) {
+      if (entry !== null && typeof entry === "object") {
+        const value = (entry as Record<string, unknown>).text;
+        if (typeof value === "string") translations.push(value);
+      }
+    }
+  }
+  return uniqueMeanings(translations);
+}
+
+export class TranslationService {
+  constructor(private readonly request: typeof fetch = fetch) {}
 
   async suggest(text: string, settings: LanguageSettings): Promise<string[]> {
-    if (settings.translationMethod === "wikdict") {
-      return this.wikdict(text, settings.learningLanguage, settings.knownLanguage);
-    }
-    return this.google(text, settings.learningLanguage, settings.knownLanguage);
-  }
-
-  private async wikdict(text: string, source: string, target: string): Promise<string[]> {
-    if (!wikdictLanguages.has(source) || !wikdictLanguages.has(target)) {
-      throw new UnsupportedTranslationPairError("WikDict does not cover this language pair. Choose Google in Settings.");
+    const source = settings.learningLanguage;
+    const target = settings.knownLanguage;
+    if (settings.translationMethod === "yandex") {
+      const pair = `${source}-${target}`;
+      const url = new URL("https://dictionary.yandex.net/dicservice.json/lookupMultiple");
+      url.search = new URLSearchParams({ text, dict: pair }).toString();
+      return this.suggestFrom(url, (body) => yandexMeanings(body, pair), "Yandex");
     }
 
-    const file = await this.dictionaryFile(`${source}-${target}`);
-    let database: Database.Database | null = null;
-    try {
-      database = new Database(file, { readonly: true, fileMustExist: true });
-      const row = database.prepare(`
-        SELECT trans_list FROM simple_translation
-        WHERE written_rep = ? COLLATE NOCASE LIMIT 1
-      `).get(text.trim().normalize("NFKC")) as { trans_list: string | null } | undefined;
-      return uniqueMeanings((row?.trans_list ?? "").split(/\s+\|\s+/));
-    } catch {
-      throw new TranslationProviderError("WikDict is temporarily unavailable.");
-    } finally {
-      database?.close();
-    }
-  }
-
-  private async dictionaryFile(pair: string): Promise<string> {
-    const file = path.join(this.dictionaryDirectory, `${pair}.sqlite3`);
-    try {
-      if ((await fs.stat(file)).size > 0) return file;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-
-    const pending = this.downloads.get(pair);
-    if (pending !== undefined) return pending;
-    const download = this.downloadDictionary(pair, file).finally(() => this.downloads.delete(pair));
-    this.downloads.set(pair, download);
-    return download;
-  }
-
-  private async downloadDictionary(pair: string, file: string): Promise<string> {
-    await fs.mkdir(this.dictionaryDirectory, { recursive: true });
-    const temporary = `${file}.${randomUUID()}.tmp`;
-    try {
-      const url = `https://download.wikdict.com/dictionaries/sqlite/${wikdictVersion}/${pair}.sqlite3`;
-      const response = await this.request(url, { signal: AbortSignal.timeout(60_000) });
-      if (!response.ok || response.body === null) {
-        throw new TranslationProviderError("WikDict could not be downloaded.");
-      }
-
-      const handle = await fs.open(temporary, "wx");
-      let total = 0;
-      try {
-        for await (const chunk of response.body) {
-          total += chunk.byteLength;
-          if (total > maximumDictionaryBytes) {
-            throw new TranslationProviderError("WikDict download is too large.");
-          }
-          let written = 0;
-          while (written < chunk.byteLength) {
-            const result = await handle.write(chunk, written, chunk.byteLength - written);
-            written += result.bytesWritten;
-          }
-        }
-      } finally {
-        await handle.close();
-      }
-
-      if (total === 0) throw new TranslationProviderError("WikDict download is empty.");
-      const database = new Database(temporary, { readonly: true, fileMustExist: true });
-      try {
-        database.prepare("SELECT written_rep FROM simple_translation LIMIT 1").get();
-      } finally {
-        database.close();
-      }
-      await fs.rename(temporary, file);
-      return file;
-    } catch {
-      throw new TranslationProviderError("WikDict could not be downloaded.");
-    } finally {
-      await fs.rm(temporary, { force: true });
-    }
-  }
-
-  private async google(text: string, source: string, target: string): Promise<string[]> {
     const url = new URL("https://translate.googleapis.com/translate_a/single");
-    url.search = new URLSearchParams({
-      client: "dict-chrome-ex",
-      sl: source,
-      tl: target,
-      dt: "t",
-      q: text,
-    }).toString();
+    url.search = new URLSearchParams([
+      ["client", "dict-chrome-ex"], ["sl", source], ["tl", target],
+      ["dt", "t"], ["dt", "bd"], ["q", text],
+    ]).toString();
+    return this.suggestFrom(url, googleMeanings, "Google");
+  }
 
+  private async suggestFrom(url: URL, parse: (body: unknown) => string[], provider: string): Promise<string[]> {
     try {
       const response = await this.request(url, { signal: AbortSignal.timeout(8_000) });
-      if (!response.ok) throw new Error("Google returned an error");
-      const body: unknown = await response.json();
-      if (!Array.isArray(body) || !Array.isArray(body[0])) throw new Error("Invalid Google response");
-      const translated = body[0]
-        .map((part: unknown) => Array.isArray(part) && typeof part[0] === "string" ? part[0] : "")
-        .join("");
-      return uniqueMeanings([translated]);
+      if (!response.ok) throw new Error(`${provider} returned an error`);
+      return parse(await response.json());
     } catch {
-      throw new TranslationProviderError("Google translation is temporarily unavailable. Try WikDict in Settings.");
+      throw new TranslationProviderError(`${provider} translation is temporarily unavailable.`);
     }
   }
 }

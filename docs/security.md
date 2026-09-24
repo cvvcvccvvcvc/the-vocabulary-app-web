@@ -48,10 +48,10 @@ the application. Contact Support opens Telegram's direct-message surface and doe
 application data automatically. The repository contains no third-party advertising or
 product-analytics SDK.
 
-Translation is requested only when the user presses Translate. WikDict lookups use a
-downloaded dictionary on the application server and do not send the entered word to
-WikDict. Selecting the experimental Google method sends the entered word or phrase and
-language pair from the application server to Google. The endpoint requires a session,
+Translation is requested only when the user presses Translate. The entered word or phrase
+and language pair are sent from the application server to the selected Google or Yandex
+endpoint. These web endpoints are unofficial and may change. The app does not send the
+user's identity or saved cards to the provider. The endpoint requires a session,
 limits request length and frequency, and never saves a card as a side effect.
 
 ## Retention and deletion

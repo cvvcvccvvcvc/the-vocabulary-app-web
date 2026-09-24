@@ -22,8 +22,9 @@ src/client  -> src/shared <- src/server
 
 Translation suggestions use an authenticated server endpoint. The server reads the user's
 saved language pair and method, then returns up to three plain meanings without changing
-cards. WikDict pair files are downloaded once beside the main database and queried locally;
-Google uses its unofficial online translation endpoint and returns one string. The client
+cards. Google uses its unofficial translation response, including dictionary alternatives.
+Yandex uses the dictionary response served to its web translator. Both are fetched on demand
+without server-side browser automation or local dictionary files. The client
 appends distinct suggestions to the existing meaning draft, within its eight-meaning limit.
 
 ## Runtime

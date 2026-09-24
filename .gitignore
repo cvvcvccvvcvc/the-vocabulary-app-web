@@ -5,7 +5,6 @@ coverage/
 .wrangler/
 data/*.sqlite
 data/*.sqlite-*
-data/wikdict/
 .DS_Store
 *.log
 .env

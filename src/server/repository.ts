@@ -253,7 +253,7 @@ export class VocabularyRepository {
       learningLanguage: row?.learning_language ?? "en",
       knownLanguage: row?.known_language ?? "ru",
       theme: row?.theme ?? "system",
-      translationMethod: row?.translation_method ?? "wikdict",
+      translationMethod: row?.translation_method ?? "google",
     };
   }
 

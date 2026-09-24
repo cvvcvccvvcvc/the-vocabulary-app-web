@@ -136,7 +136,6 @@ export function SettingsScreen({
         <section className="settings-card">
           <header>
             <h2>Translation</h2>
-            <p>Choose how Translate fills meanings when adding a word.</p>
           </header>
           <label className="settings-select">
             <span>Method</span>
@@ -145,15 +144,10 @@ export function SettingsScreen({
               disabled={saving}
               onChange={(event) => changeTranslationMethod(event.target.value as TranslationMethod)}
             >
-              <option value="wikdict">WikDict · dictionary</option>
-              <option value="google">Google · experimental</option>
+              <option value="google">Google</option>
+              <option value="yandex">Yandex</option>
             </select>
           </label>
-          <p className="translation-method-detail">
-            {draft.translationMethod === "wikdict"
-              ? <>Up to 3 meanings. Some language pairs and phrases may be unavailable. Adapted from <a href="https://www.wikdict.com/page/download" target="_blank" rel="noopener noreferrer">WikDict</a> by Karl Bartel, <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.</>
-              : "One translation. Entered text is sent to Google. This unofficial method may stop working."}
-          </p>
         </section>
 
         <section className="settings-card appearance-card">

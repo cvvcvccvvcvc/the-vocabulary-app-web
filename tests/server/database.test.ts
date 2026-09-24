@@ -245,7 +245,7 @@ describe("database migrations", () => {
     }
   });
 
-  it("adds the translation method to existing user settings", () => {
+  it("replaces legacy WikDict settings with Google and permits Yandex", () => {
     const database = new Database(":memory:");
     try {
       database.exec(fs.readFileSync(`${migrationsDirectory}/001_initial.sql`, "utf8"));
@@ -259,9 +259,12 @@ describe("database migrations", () => {
       database.exec(fs.readFileSync(`${migrationsDirectory}/009_translation_method.sql`, "utf8"));
       expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
         .toEqual({ translation_method: "wikdict" });
-      database.prepare("UPDATE user_settings SET translation_method = 'google' WHERE user_id = 'user-1'").run();
+      database.exec(fs.readFileSync(`${migrationsDirectory}/010_translation_providers.sql`, "utf8"));
       expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
         .toEqual({ translation_method: "google" });
+      database.prepare("UPDATE user_settings SET translation_method = 'yandex' WHERE user_id = 'user-1'").run();
+      expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_method: "yandex" });
     } finally {
       database.close();
     }

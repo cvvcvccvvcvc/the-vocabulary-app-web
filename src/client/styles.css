@@ -426,55 +426,39 @@ button.titlebar-icon.active {
   opacity: 1;
 }
 
-.translation-action {
-  display: flex;
+.translation-button {
+  display: inline-flex;
+  min-height: 40px;
+  padding: 0 12px;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-}
-
-.translation-button {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  color: var(--accent);
-  background: var(--card);
+  gap: 6px;
+  border: 0;
+  border-radius: 20px;
+  color: #fff;
+  background: #0874d8;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .translation-button:hover:not(:disabled) {
-  background: var(--hover);
+  filter: brightness(0.95);
 }
 
 .translation-button:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
-.translation-action > span,
-.translation-action > a,
-.translation-message,
-.translation-method-detail {
+.translation-message {
   color: var(--secondary);
   font-size: 12px;
   line-height: 1.4;
 }
 
-.translation-action > a,
-.translation-method-detail a {
-  color: var(--secondary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
 .translation-message {
   margin: -12px 0 0;
   text-align: center;
-}
-
-.translation-method-detail {
-  margin: -8px 0 0;
 }
 
 .add-divider {
@@ -513,6 +497,17 @@ button.titlebar-icon.active {
   min-height: 44px;
   align-items: center;
   gap: 4px;
+}
+
+.meaning-row.translation-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+@media (max-width: 380px) {
+  .meaning-fields-add .meaning-row.translation-row input {
+    font-size: 18px;
+  }
 }
 
 .meaning-row input {
