@@ -32,4 +32,5 @@ export interface LanguageSettings {
   knownLanguage: string;
   theme: ThemePreference;
   translationMethod: TranslationMethod;
+  translationMaxMeanings: number;
 }

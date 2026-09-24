@@ -21,7 +21,7 @@ src/client  -> src/shared <- src/server
 - `shared` owns JSON transport contracts only.
 
 Translation suggestions use an authenticated server endpoint. The server reads the user's
-saved language pair and method, then returns up to three plain meanings without changing
+saved language pair, method, and maximum, then returns up to eight plain meanings without changing
 cards. Google uses its unofficial translation response, including dictionary alternatives.
 Yandex uses the dictionary response served to its web translator. Both are fetched on demand
 without server-side browser automation or local dictionary files. The client

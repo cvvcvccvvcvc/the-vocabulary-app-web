@@ -265,6 +265,14 @@ describe("database migrations", () => {
       database.prepare("UPDATE user_settings SET translation_method = 'yandex' WHERE user_id = 'user-1'").run();
       expect(database.prepare("SELECT translation_method FROM user_settings WHERE user_id = 'user-1'").get())
         .toEqual({ translation_method: "yandex" });
+      database.exec(fs.readFileSync(`${migrationsDirectory}/011_translation_max_meanings.sql`, "utf8"));
+      expect(database.prepare("SELECT translation_max_meanings FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_max_meanings: 3 });
+      database.prepare("UPDATE user_settings SET translation_max_meanings = 8 WHERE user_id = 'user-1'").run();
+      expect(database.prepare("SELECT translation_max_meanings FROM user_settings WHERE user_id = 'user-1'").get())
+        .toEqual({ translation_max_meanings: 8 });
+      expect(() => database.prepare("UPDATE user_settings SET translation_max_meanings = 9 WHERE user_id = 'user-1'").run())
+        .toThrow();
     } finally {
       database.close();
     }

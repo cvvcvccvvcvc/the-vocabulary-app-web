@@ -7,6 +7,7 @@ const settings: LanguageSettings = {
   knownLanguage: "ru",
   theme: "system",
   translationMethod: "google",
+  translationMaxMeanings: 3,
 };
 
 describe("translation suggestions", () => {
@@ -31,6 +32,21 @@ describe("translation suggestions", () => {
     expect(await service.suggest("good morning", settings)).toEqual(["добрый день"]);
   });
 
+  it("limits Google suggestions to the chosen maximum, including eight", async () => {
+    const alternatives = Array.from({ length: 9 }, (_, index) => [
+      `значение ${index + 1}`, [], null, 0.5,
+    ]);
+    const service = new TranslationService(async () => new Response(JSON.stringify([
+      [["основное", "source"]],
+      [["noun", [], alternatives]],
+    ])));
+
+    expect(await service.suggest("source", { ...settings, translationMaxMeanings: 1 }))
+      .toEqual(["основное"]);
+    expect(await service.suggest("source", { ...settings, translationMaxMeanings: 8 }))
+      .toEqual(["основное", ...Array.from({ length: 7 }, (_, index) => `значение ${index + 1}`)]);
+  });
+
   it("uses Yandex's separate translations and skips duplicate meanings", async () => {
     const request = vi.fn(async () => new Response(JSON.stringify({
       head: {},
@@ -42,6 +58,9 @@ describe("translation suggestions", () => {
     const service = new TranslationService(request as typeof fetch);
     expect(await service.suggest("bank", { ...settings, translationMethod: "yandex" }))
       .toEqual(["банк", "берег", "крен"]);
+    expect(await service.suggest("bank", {
+      ...settings, translationMethod: "yandex", translationMaxMeanings: 8,
+    })).toEqual(["банк", "берег", "крен", "банковский"]);
     expect(new URL(request.mock.calls[0]![0] as URL).searchParams.get("dict")).toBe("en-ru");
   });
 

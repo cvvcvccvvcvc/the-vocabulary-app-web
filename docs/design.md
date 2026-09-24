@@ -35,6 +35,9 @@ the same design questions again.
   Settings, add suggestions directly to the draft, and leave Add Word as the only action
   that saves a card. Show translation misses and failures in the existing toast with a
   Settings action; never place error text inside the card.
+- In Settings, place brief explanations behind question-mark controls when the choice needs
+  context. Keep language and translation hints short; show the Themes choices without a
+  description. The translation maximum is a per-tap limit, not a promised count.
 - Add and Edit use the same meaning-field behavior. Keep one optional empty field after
   the populated meanings; at eight meanings, replace it with a quiet limit label.
 - Never transfer focus to an automatically created field. If a user clears an existing

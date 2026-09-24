@@ -635,6 +635,7 @@ describe("Vocabulary API", () => {
         knownLanguage: "en",
         theme: "dark",
         translationMethod: "yandex",
+        translationMaxMeanings: 8,
       },
     });
 
@@ -644,6 +645,7 @@ describe("Vocabulary API", () => {
       knownLanguage: "en",
       theme: "dark",
       translationMethod: "yandex",
+      translationMaxMeanings: 8,
     });
 
     const bootstrap = await server.app.inject({
@@ -656,7 +658,24 @@ describe("Vocabulary API", () => {
       knownLanguage: "en",
       theme: "dark",
       translationMethod: "yandex",
+      translationMaxMeanings: 8,
     });
+  });
+
+  it("rejects a translation maximum outside one to eight", async () => {
+    const response = await server.app.inject({
+      method: "PUT",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: {
+        learningLanguage: "en",
+        knownLanguage: "ru",
+        theme: "system",
+        translationMethod: "google",
+        translationMaxMeanings: 9,
+      },
+    });
+    expect(response.statusCode).toBe(400);
   });
 
   it("requires login for translation and returns one Google suggestion without saving a word", async () => {

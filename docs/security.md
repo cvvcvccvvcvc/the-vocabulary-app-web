@@ -11,7 +11,7 @@ configuration. Runtime topology and secret-handling procedures are owned by
 | --- | --- | --- |
 | Telegram identity | Verified Telegram user ID, display name, optional username, and optional profile-photo URL identify the account and render its profile. | `users` |
 | Vocabulary | Learning-language text, one to eight ordered meanings, optional comment, timestamps, scheduling state, and answer counters provide the trainer. | `words` |
-| Profile settings | Learning language, known language, theme, and translation method keep the experience consistent across devices. | `user_settings` |
+| Profile settings | Learning language, known language, theme, translation method, and suggestion maximum keep the experience consistent across devices. | `user_settings` |
 | Review history | Answer, mode, direction, level transition, next-review date, and timestamp support idempotency, progress, analytics, and reminders. Complete card text is not copied into an event. | `review_events` |
 | Sessions and browser login | Hashed session tokens and short-lived OIDC flow state authenticate later requests. Raw session tokens are persisted only in the client cookie. | `sessions`, `auth_flows` |
 | Reminder state | Opt-in, milestone, claim, and delivery result prevent duplicate Telegram reminders. | `telegram_reminder_settings`, `telegram_reminder_events` |

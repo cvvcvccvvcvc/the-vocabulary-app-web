@@ -15,9 +15,10 @@ The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegr
   are individually numbered there; a single meaning is not.
 - One word is one card with one learning-language value and one to eight ordered known-language meanings.
 - Add Word offers Translate beside the optional empty meaning field. Google and Yandex
-  can each append up to three distinct suggestions immediately without overwriting
+  can each append up to the selected maximum of one to eight distinct suggestions immediately without overwriting
   entered meanings. The user may edit, remove, and reorder suggestions. Only Add Word
-  saves the card. Settings keeps the selected method across devices. The unsaved Add Word
+  saves the card. Providers may return fewer suggestions than the chosen maximum. Settings
+  keeps the selected method and maximum across devices. The unsaved Add Word
   draft stays in memory while moving between app sections. Missing or failed translations
   show a toast with a Settings shortcut and do not alter the draft or save a card.
 - Add Word and Edit share a meaning editor without a plus button. Typing offers one more empty field until eight meanings are filled. Any populated meaning can be deleted or reordered by dragging its handle. While dragging, neighboring meanings shift to show the exact resulting order before release; moving beyond the populated rows keeps the first or last position selected, and releasing settles into that order without an intermediate return to the old layout. The empty field is optional, does not participate in reordering, and is never saved.

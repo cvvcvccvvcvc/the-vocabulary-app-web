@@ -82,6 +82,7 @@ export const settingsSchema = z
     knownLanguage: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/),
     theme: z.enum(["system", "light", "dark"]),
     translationMethod: z.enum(["google", "yandex"]).default("google"),
+    translationMaxMeanings: z.number().int().min(1).max(8).default(3),
   })
   .refine((value) => value.learningLanguage !== value.knownLanguage, {
     message: "Learning and known languages must be different",
