@@ -19,9 +19,28 @@ Caddy terminates HTTPS, the application runs in Docker Compose, and SQLite lives
 <code>deploy/production.env</code>. The real <code>.env</code> contains only secrets and exists
 only in the server checkout; it is never committed.
 
+## SSH access
+
+From the development Mac, connect with the existing operator key:
+
+~~~bash
+ssh -i ~/.ssh/vocabulary_selectel \
+  -o IdentitiesOnly=yes \
+  -o BatchMode=yes \
+  -o StrictHostKeyChecking=yes \
+  root@135.106.167.202
+~~~
+
+The server's verified host key must be present in <code>~/.ssh/known_hosts</code>.
+Plain <code>ssh root@135.106.167.202</code> tries the default identities and does not
+work with this setup. On another computer, install an authorized operator key and verify
+the server host key through a trusted channel before adding it to <code>known_hosts</code>.
+If host key verification fails, check the server's key before changing the trusted entry;
+do not disable <code>StrictHostKeyChecking</code>.
+
 ## Manual update
 
-Use this when automatic deployment has not been configured or needs to be retried manually:
+After connecting over SSH, use this if a deployment needs to be retried manually:
 
 ~~~bash
 cd /root/TheVocabularyApp/the-vocabulary-app-web
@@ -48,43 +67,24 @@ only for the resulting commit on <code>main</code>:
 
 Deployments are serialized so two pushes cannot update production at the same time. When deployment secrets are absent, verification still runs and the deployment steps are skipped.
 
-### One-time SSH setup
+### GitHub Actions SSH credentials
 
-Create a dedicated key on a trusted local computer:
-
-~~~bash
-ssh-keygen -t ed25519 -f ./vocabulary_deploy_key -N '' -C github-actions-vocabulary
-sed 's/^/restrict /' ./vocabulary_deploy_key.pub | ssh root@135.106.167.202 \
-  'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'
-ssh-keyscan -H 135.106.167.202 2>/dev/null > ./vocabulary_known_hosts
-~~~
-
-Before trusting the scanned host key, compare its fingerprint with the server:
-
-~~~bash
-ssh-keygen -lf ./vocabulary_known_hosts
-ssh root@135.106.167.202 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
-~~~
-
-The fingerprints must match.
-
-Create the following secrets in the GitHub <code>production</code> environment:
+Automatic deployment uses a separate key from the operator key above. The existing local
+copies are <code>~/.ssh/vocabulary_selectel_github_deploy</code> and
+<code>~/.ssh/vocabulary_selectel_github_known_hosts</code>. They were checked against the
+server with strict host key verification. The workflow reads these credentials from the
+GitHub <code>production</code> environment:
 
 | Secret | Value |
 | --- | --- |
-| <code>DEPLOY_SSH_KEY</code> | Complete contents of <code>vocabulary_deploy_key</code>, including its header and footer. |
-| <code>DEPLOY_KNOWN_HOSTS</code> | Complete contents of <code>vocabulary_known_hosts</code>. |
+| <code>DEPLOY_SSH_KEY</code> | Complete private deployment key, including its header and footer. |
+| <code>DEPLOY_KNOWN_HOSTS</code> | Verified SSH host key entry for <code>135.106.167.202</code>, in <code>known_hosts</code> format. |
 
 GitHub path: **Repository Settings → Environments → production → Environment secrets**.
 
-After creating the secrets, open **Actions → Verify and deploy → Run workflow** once. Later pushes to <code>main</code> deploy automatically.
-
-If deployment reports <code>Host key verification failed</code>, regenerate <code>vocabulary_known_hosts</code> with the command above and replace the complete <code>DEPLOY_KNOWN_HOSTS</code> secret. Do not paste the fingerprint printed by <code>ssh-keygen -lf</code>; GitHub needs the original <code>ssh-keyscan</code> lines.
-
-Keep <code>vocabulary_deploy_key</code> private. It grants command execution as
-<code>root</code>; the <code>restrict</code> option disables forwarding and interactive terminal
-allocation but is not a privilege boundary. Replace the key and remove its public half from
-<code>authorized_keys</code> if the private key or GitHub repository is compromised.
+Keep both private keys out of the repository. They grant command execution as
+<code>root</code>. If either key is compromised, replace it and remove its public half from
+the server's <code>authorized_keys</code>.
 
 ## Application configuration
 
