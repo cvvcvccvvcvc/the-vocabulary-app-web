@@ -65,6 +65,9 @@ export function ProgressScreen({
             ) : (
               <>
                 <StreakCard report={report} onAddWord={onAddWord} onLearn={onLearn} />
+                <p className="progress-vocabulary">
+                  Your vocabulary {formatUnit(report.vocabulary.totalWords, "word")}
+                </p>
                 <ActivityCard activity={report.activity} />
               </>
             )}

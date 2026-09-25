@@ -207,13 +207,19 @@ the same design questions again.
 
 ## Progress screen
 
-The screen answers three related questions and intentionally adds no general collection
-dashboard:
+The screen presents three groups and intentionally adds no general collection dashboard:
 
 1. Am I maintaining the habit? — the exact current streak.
-2. How often am I practicing words? — a 12-week calendar of answer volume.
-3. How consistently am I growing the material I study? — the same calendar switched to
+2. How many words are in my vocabulary now? — the current saved-word count in one muted
+   text line, separate from the streak.
+3. How active have I been? — a 12-week calendar of answer volume that can switch to
    addition volume.
+
+On mobile, the three groups use the same modest vertical gap. The vocabulary line has no
+icon, emphasized number, card, or divider. The activity section starts after that same gap,
+with no additional top padding. Short screens scroll without shrinking text or chart cells.
+The current vocabulary count excludes deleted words; unlike `Words added`, it is not a
+historical total.
 
 One calendar with two explicit modes makes the two behaviors comparable without asking a
 phone-width screen to support two simultaneous charts. The current local calendar week and

@@ -2071,6 +2071,14 @@ button.titlebar-icon.active {
   gap: 20px;
 }
 
+.progress-vocabulary {
+  padding-inline: 26px;
+  color: var(--secondary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+}
+
 .mobile-screen-header {
   display: none;
 }
@@ -3372,7 +3380,11 @@ button.titlebar-icon.active {
   }
 
   .progress-stack {
-    gap: 30px;
+    gap: 18px;
+  }
+
+  .progress-vocabulary {
+    padding-inline: 0;
   }
 
   .progress-card {
@@ -3422,8 +3434,7 @@ button.titlebar-icon.active {
   }
 
   .progress-card.heatmap-card {
-    padding-top: 28px;
-    border-top: 1px solid var(--separator);
+    padding-top: 0;
   }
 
   .activity-heading h2 {

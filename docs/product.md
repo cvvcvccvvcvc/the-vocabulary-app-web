@@ -39,8 +39,8 @@ The Vocabulary App is a server-backed vocabulary trainer for browsers and Telegr
 - Browser speech synthesis for the learning-language side.
 - Best-effort fullscreen presentation inside supported mobile Telegram clients.
 - A light, dark, or device-matched appearance stored in the user's profile.
-- A personal Progress screen with the exact current streak and one interactive 12-week
-  calendar for Answers and Words added. Selecting a calendar day reveals its exact answer
+- A personal Progress screen with the exact current streak, current vocabulary size, and
+  one interactive 12-week calendar for Answers and Words added. Selecting a calendar day reveals its exact answer
   or addition count. The calendar owns touch drags in both axes, and mobile Telegram's
   vertical close gesture is disabled while the interactive calendar is present. A
   brand-new account sees one Add Word action instead of empty analytics.
@@ -68,6 +68,8 @@ remain idempotent and cannot inflate activity.
 Words added are grouped by their original creation time. Deleting a word later removes it
 from the current collection but does not rewrite the historical addition count. An active
 addition day contains at least one created word and is independent of the review streak.
+The vocabulary size counts current, non-deleted word cards, including those not yet
+reviewed.
 
 The client sends its current IANA time-zone identifier when it requests progress. The
 server keeps canonical timestamps in UTC and groups them into calendar days in that time
