@@ -61,7 +61,10 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
     const touchQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
 
     let frame = 0;
-    let unobscuredBottom = visibleViewport.offsetTop + visibleViewport.height;
+    let coverage = {
+      unobscuredBottom: visibleViewport.offsetTop + visibleViewport.height,
+      coveredHeight: 0,
+    };
 
     function update() {
       frame = 0;
@@ -70,13 +73,12 @@ export function AddWordScreen({ settings, draft, onDraftChange, onAvailable, onV
       const editing = (focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement)
         && addCard.contains(focused);
       const touchEditing = mobileQuery.matches && touchQuery.matches && editing;
-      const coverage = addViewportCoverage(unobscuredBottom, visibleBottom, touchEditing);
-      unobscuredBottom = coverage.unobscuredBottom;
+      coverage = addViewportCoverage(coverage, visibleBottom, touchEditing);
       const { coveredHeight } = coverage;
       addScreen.style.setProperty("--add-visible-top", `${visibleViewport.offsetTop}px`);
       addScreen.style.setProperty("--add-visible-height", `${visibleViewport.height}px`);
       addScreen.style.setProperty("--add-covered-height", `${coveredHeight}px`);
-      addScreen.toggleAttribute("data-keyboard-visible", coveredHeight > 80);
+      addScreen.toggleAttribute("data-keyboard-visible", coveredHeight > 0);
 
       if (!mobileQuery.matches || !editing) return;
 

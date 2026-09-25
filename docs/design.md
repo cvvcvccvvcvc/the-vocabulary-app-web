@@ -33,8 +33,9 @@ the same design questions again.
   scroll only its contents to reveal the focused field. Let the action follow the visible
   bottom edge; remove the navigation's reserved space as the keyboard covers it. Measure
   that coverage against the last unobscured viewport, so it also works if the layout
-  viewport resizes. Keep the navigation visible in a narrow desktop window. Do not add a timed
-  transition that can lag behind the keyboard.
+  viewport resizes. After focus leaves, retain keyboard coverage until the visible viewport
+  recovers; focus can change before the keyboard closes. Keep the navigation visible in a
+  narrow desktop window. Do not add a timed transition that can lag behind the keyboard.
 - Keep the optional empty meaning field centered across the full card width. Overlay the
   blue Translate action at its right edge, using a white sparkles icon from the app's icon
   set. On narrow screens, hide only the text label and keep a 44-pixel icon target. When
